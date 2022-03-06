@@ -12,8 +12,42 @@ uniform mat4 projection;
 
 varying highp vec2 textureCoordinateOut;
 
+float x = 0.;
+float y = 0.;
+float z = 0.;
+
+const float radius = 6371000.;
+
+const float pi = 3.14159;
+
+//vec3 camera = vec3(-121. / 180. * 2. * pi, 37. / 180. * 2. * pi, 1000.);
+vec3 camera = vec3(0., 0., 1.);
+
+
+vec3 ecef(vec3 position) {
+  return vec3(
+    (radius + position.z) * cos(position.x) * cos(position.y),
+    (radius + position.z) * sin(position.x) * cos(position.y),
+    (radius + position.z) * sin(position.y));
+}
+
 void main(void) {
-  gl_Position = projection * modelView * position;
+  vec2 geodetic = vec2(
+    (x + textureCoordinate.x) * 360. / pow(2., z) - 180.,
+    (y + textureCoordinate.y) * 85.0511 * 2. / pow(2., z) - 85.0511) / 180. * 2. * pi;
+
+  vec3 ground = vec3(geodetic, 0.);
+
+  vec3 g = ecef(camera);
+  vec3 p = ecef(ground);
+
+  vec3 enu = vec3(
+    -(p.x - g.x) * sin(camera.x) + (p.y - g.y) * cos(camera.x),
+    -(p.x - g.x) * cos(camera.x) * sin(camera.y) - (p.y - g.y) * sin(camera.x) * sin(camera.y) + p.z - g.z,
+    (p.x - g.x) * cos(camera.x) * cos(camera.y) + (p.y - g.y) * sin(camera.x) * cos(camera.y) + p.z - g.z
+  );
+
+  gl_Position = projection * modelView * vec4(enu, 1.) + position * 0.;
   textureCoordinateOut = textureCoordinate;
 }
 `;
@@ -28,7 +62,7 @@ void main(void) {
 }
 `;
 
-const n = 10;
+const n = 100;
 const positions = range(0, n + 1).flatMap((y) =>
   range(0, n + 1).flatMap((x) => [(2 * x) / n - 1, 1 - (2 * y) / n, 1])
 );
@@ -159,7 +193,8 @@ function start() {
     );
 
     const modelView = mat4.create();
-    mat4.translate(modelView, modelView, [0, 0, -5.0]);
+    mat4.translate(modelView, modelView, [0, 0, 0]);
+    mat4.rotateY(modelView, modelView, performance.now() / 1000.0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
     gl.vertexAttribPointer(positionAttribute, 3, gl.FLOAT, false, 0, 0);
@@ -180,13 +215,11 @@ function start() {
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.uniform1i(samplerUniform, 0);
 
     gl.useProgram(program);
-
+    gl.uniform1i(samplerUniform, 0);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-
     gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
 
     requestAnimationFrame(render);
