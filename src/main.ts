@@ -87,16 +87,7 @@ function start() {
     gl.STATIC_DRAW
   );
 
-  let last = performance.now();
-  let rotation = 0;
-
   function render() {
-    const now = performance.now();
-    const deltaTime = (now - last) / 1000;
-    last = now;
-
-    rotation += deltaTime;
-
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(100);
     gl.enable(gl.DEPTH_TEST);
@@ -121,8 +112,6 @@ function start() {
 
     const modelView = mat4.create();
     mat4.translate(modelView, modelView, [0, 0, -5.0]);
-    //mat4.rotate(modelView, modelView, rotation, [0, 0, 1]);
-    //mat4.rotate(modelView, modelView, rotation * 0.7, [0, 1, 0]);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
     gl.vertexAttribPointer(positionAttribute, 3, gl.FLOAT, false, 0, 0);
