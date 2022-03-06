@@ -20,9 +20,9 @@ void main(void) {
 }
 `;
 
-const n = 10;
+const n = 1;
 const positions = range(0, n + 1).flatMap((y) =>
-  range(0, n + 1).flatMap((x) => [x / n, y / n, 1])
+  range(0, n + 1).flatMap((x) => [x / n - 0.5, y / n - 0.5, 1])
 );
 
 const indices = range(0, n).flatMap((y) =>
@@ -97,13 +97,19 @@ function start() {
 
     rotation += deltaTime;
 
-    gl.clearColor(0.0, 0.0, 0.0, 1.0);
-    gl.clearDepth(1.0);
+    gl.clearColor(0, 0, 0, 1);
+    gl.clearDepth(100);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    const { clientWidth: width, clientHeight: height } = gl.canvas;
+    const { innerWidth: width, innerHeight: height } = window;
+
+    gl.viewport(0, 0, width, height);
+
+    canvas.width = width;
+    canvas.height = height;
+
     const projection = mat4.create();
     mat4.perspective(
       projection,
@@ -114,9 +120,9 @@ function start() {
     );
 
     const modelView = mat4.create();
-    mat4.translate(modelView, modelView, [-0.0, 0.0, -6.0]);
-    mat4.rotate(modelView, modelView, rotation, [0, 0, 1]);
-    mat4.rotate(modelView, modelView, rotation * 0.7, [0, 1, 0]);
+    mat4.translate(modelView, modelView, [0, 0, -5.0]);
+    //mat4.rotate(modelView, modelView, rotation, [0, 0, 1]);
+    //mat4.rotate(modelView, modelView, rotation * 0.7, [0, 1, 0]);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
     gl.vertexAttribPointer(positionAttribute, 3, gl.FLOAT, false, 0, 0);
