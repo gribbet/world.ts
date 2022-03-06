@@ -19,7 +19,7 @@ const float radius = 1.;
 const float pi = 3.14159;
 
 //vec3 camera = vec3(-121. / 180. * pi, 37. / 180. * pi, 1000.);
-vec3 camera = vec3(0., 0., 2.);
+vec3 camera = vec3(0., 0., -1.);
 
 
 vec3 ecef(vec3 position) {
@@ -66,7 +66,7 @@ void main(void) {
 }
 `;
 
-const n = 10;
+const n = 4;
 
 const indices = range(0, n).flatMap((y) =>
   range(0, n).flatMap((x) => [
@@ -145,7 +145,7 @@ function start() {
     gl.STATIC_DRAW
   );
 
-  const z = 4;
+  const z = 3;
 
   const textures = range(0, Math.pow(2, z)).map((x) =>
     range(0, Math.pow(2, z)).map((y) => {
@@ -160,7 +160,7 @@ function start() {
         0,
         gl.RGBA,
         gl.UNSIGNED_BYTE,
-        new Uint8Array([0, 0, 0, 255])
+        new Uint8Array([0, 0, 0, 0])
       );
 
       const image = new Image();
@@ -182,8 +182,6 @@ function start() {
       return texture;
     })
   );
-
-  console.log(textures);
 
   function render() {
     gl.clearColor(0, 0, 0, 1);
@@ -209,8 +207,8 @@ function start() {
     );
 
     const modelView = mat4.create();
-    mat4.translate(modelView, modelView, [0, 0, -10]);
-    mat4.rotateX(modelView, modelView, performance.now() / 1000.0);
+    mat4.translate(modelView, modelView, [0, 0, -3]);
+    mat4.rotateX(modelView, modelView, -performance.now() / 10000.0);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
