@@ -5,7 +5,6 @@ export function range(start: number, end: number) {
 }
 
 const vertexShaderSource = `
-attribute vec4 position;
 attribute vec2 textureCoordinate;
 uniform mat4 modelView;
 uniform mat4 projection;
@@ -21,20 +20,20 @@ const float radius = 1.;
 const float pi = 3.14159;
 
 //vec3 camera = vec3(-121. / 180. * pi, 37. / 180. * pi, 1000.);
-vec3 camera = vec3(0., 0., -1.);
+vec3 camera = vec3(0., 0., 2.);
 
 
 vec3 ecef(vec3 position) {
   return vec3(
-    (radius + position.z) * cos(position.x) * cos(position.y),
-    (radius + position.z) * sin(position.x) * cos(position.y),
-    (radius + position.z) * sin(position.y));
+    cos(position.x) * cos(position.y),
+    sin(position.x) * cos(position.y),
+    sin(position.y)) * (radius + position.z);
 }
 
 void main(void) {
   vec2 geodetic = vec2(
     (x + textureCoordinate.x) * 360. / pow(2., z) - 180.,
-    (y + textureCoordinate.y) * 85.0511 * 2. / pow(2., z) - 85.0511) / 180. * pi;
+    -(y + textureCoordinate.y) * 85.0511 * 2. / pow(2., z) + 85.0511) / 180. * pi;
 
   vec3 ground = vec3(geodetic, 0.);
 
@@ -53,7 +52,7 @@ void main(void) {
     cos(camera.x) * cos(camera.y), sin(camera.y) * cos(camera.y), sin(camera.y)
   ) * (groundEcef - cameraEcef);*/
 
-  gl_Position = projection * modelView * vec4(groundEcef - cameraEcef, 1.) + position * 0.;
+  gl_Position = projection * modelView * vec4(groundEcef - cameraEcef, 1.);
   textureCoordinateOut = textureCoordinate;
 }
 `;
@@ -69,9 +68,6 @@ void main(void) {
 `;
 
 const n = 100;
-const positions = range(0, n + 1).flatMap((y) =>
-  range(0, n + 1).flatMap((x) => [(2 * x) / n - 1, 1 - (2 * y) / n, 1])
-);
 
 const indices = range(0, n).flatMap((y) =>
   range(0, n).flatMap((x) => [
@@ -123,7 +119,6 @@ function start() {
     return;
   }
 
-  const positionAttribute = gl.getAttribLocation(program, "position");
   const textureCoordinateAttribute = gl.getAttribLocation(
     program,
     "textureCoordinate"
@@ -131,10 +126,6 @@ function start() {
   const projectionUniform = gl.getUniformLocation(program, "projection");
   const modelViewUniform = gl.getUniformLocation(program, "modelView");
   const samplerUniform = gl.getUniformLocation(program, "sampler");
-
-  const positionBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
 
   const indexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -182,12 +173,12 @@ function start() {
     gl.depthFunc(gl.LEQUAL);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    const { innerWidth: width, innerHeight: height } = window;
+    const { innerWidth: width, innerHeight: height, devicePixelRatio } = window;
 
-    gl.viewport(0, 0, width, height);
+    gl.viewport(0, 0, width * devicePixelRatio, height * devicePixelRatio);
 
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = width * devicePixelRatio;
+    canvas.height = height * devicePixelRatio;
 
     const projection = mat4.create();
     mat4.perspective(
@@ -200,11 +191,7 @@ function start() {
 
     const modelView = mat4.create();
     mat4.translate(modelView, modelView, [0, 0, -10]);
-    mat4.rotateY(modelView, modelView, performance.now() / 1000.0);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.vertexAttribPointer(positionAttribute, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(positionAttribute);
+    mat4.rotateX(modelView, modelView, performance.now() / 1000.0);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
