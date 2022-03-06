@@ -1,27 +1,18 @@
 import { mat4 } from "gl-matrix";
 
-let rotation = 0;
-
 const vertexShaderSource = `
 attribute vec4 position;
-attribute vec4 vertexColor;
-
 uniform mat4 modelView;
 uniform mat4 projection;
 
-varying lowp vec4 color;
-
 void main(void) {
   gl_Position = projection * modelView * position;
-  color = vertexColor;
 }
 `;
 
 const fragmentShaderSource = `
-varying lowp vec4 color;
-
 void main(void) {
-  gl_FragColor = color;
+  gl_FragColor = vec4(1., 1., 1., 1.);
 }
 `;
 
@@ -38,17 +29,6 @@ const indices = [
   0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12, 14,
   15, 16, 17, 18, 16, 18, 19, 20, 21, 22, 20, 22, 23,
 ];
-
-const faceColors = [
-  [1.0, 1.0, 1.0, 1.0],
-  [1.0, 0.0, 0.0, 1.0],
-  [0.0, 1.0, 0.0, 1.0],
-  [0.0, 0.0, 1.0, 1.0],
-  [1.0, 1.0, 0.0, 1.0],
-  [1.0, 0.0, 1.0, 1.0],
-];
-
-const vertexColors = faceColors.flatMap((_) => [..._, ..._, ..._, ..._]);
 
 start();
 
@@ -86,21 +66,12 @@ function start() {
   }
 
   const positionAttribute = gl.getAttribLocation(program, "position");
-  const vertexColorAttribute = gl.getAttribLocation(program, "vertexColor");
   const projectionUniform = gl.getUniformLocation(program, "projection");
   const modelViewUniform = gl.getUniformLocation(program, "modelView");
 
   const positionBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
-
-  const vertexColorBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer);
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array(vertexColors),
-    gl.STATIC_DRAW
-  );
 
   const indexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -111,6 +82,7 @@ function start() {
   );
 
   let last = performance.now();
+  let rotation = 0;
 
   function render() {
     const now = performance.now();
@@ -143,10 +115,6 @@ function start() {
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
     gl.vertexAttribPointer(positionAttribute, 3, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(positionAttribute);
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, vertexColorBuffer);
-    gl.vertexAttribPointer(vertexColorAttribute, 4, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(vertexColorAttribute);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
     gl.useProgram(program);
