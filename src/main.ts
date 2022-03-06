@@ -1,5 +1,9 @@
 import { mat4 } from "gl-matrix";
 
+export function range(start: number, end: number) {
+  return Array.from({ length: end - start }, (_, k) => k + start);
+}
+
 const vertexShaderSource = `
 attribute vec4 position;
 uniform mat4 modelView;
@@ -16,19 +20,21 @@ void main(void) {
 }
 `;
 
-const positions = [
-  -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0, 1.0, 1.0, -1.0, 1.0, 1.0, -1.0, -1.0,
-  -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0, 1.0, -1.0, -1.0, -1.0, 1.0, -1.0, -1.0,
-  1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, -1.0,
-  1.0, -1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, -1.0, 1.0, 1.0, -1.0, 1.0, 1.0,
-  1.0, 1.0, -1.0, 1.0, -1.0, -1.0, -1.0, -1.0, -1.0, 1.0, -1.0, 1.0, 1.0, -1.0,
-  1.0, -1.0,
-];
+const n = 10;
+const positions = range(0, n + 1).flatMap((y) =>
+  range(0, n + 1).flatMap((x) => [x / n, y / n, 1])
+);
 
-const indices = [
-  0, 1, 2, 0, 2, 3, 4, 5, 6, 4, 6, 7, 8, 9, 10, 8, 10, 11, 12, 13, 14, 12, 14,
-  15, 16, 17, 18, 16, 18, 19, 20, 21, 22, 20, 22, 23,
-];
+const indices = range(0, n).flatMap((y) =>
+  range(0, n).flatMap((x) => [
+    y * (n + 1) + x,
+    (y + 1) * (n + 1) + x + 1,
+    y * (n + 1) + x + 1,
+    y * (n + 1) + x,
+    (y + 1) * (n + 1) + x,
+    (y + 1) * (n + 1) + x + 1,
+  ])
+);
 
 start();
 
@@ -118,10 +124,11 @@ function start() {
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
     gl.useProgram(program);
+
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
 
-    gl.drawElements(gl.TRIANGLES, 36, gl.UNSIGNED_SHORT, 0);
+    gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
 
     requestAnimationFrame(render);
   }
