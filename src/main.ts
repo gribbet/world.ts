@@ -16,12 +16,12 @@ float x = 0.;
 float y = 0.;
 float z = 0.;
 
-const float radius = 6371000.;
+const float radius = 1.;
 
 const float pi = 3.14159;
 
-//vec3 camera = vec3(-121. / 180. * 2. * pi, 37. / 180. * 2. * pi, 1000.);
-vec3 camera = vec3(0., 0., 1.);
+//vec3 camera = vec3(-121. / 180. * pi, 37. / 180. * pi, 1000.);
+vec3 camera = vec3(0., 0., -1.);
 
 
 vec3 ecef(vec3 position) {
@@ -34,20 +34,26 @@ vec3 ecef(vec3 position) {
 void main(void) {
   vec2 geodetic = vec2(
     (x + textureCoordinate.x) * 360. / pow(2., z) - 180.,
-    (y + textureCoordinate.y) * 85.0511 * 2. / pow(2., z) - 85.0511) / 180. * 2. * pi;
+    (y + textureCoordinate.y) * 85.0511 * 2. / pow(2., z) - 85.0511) / 180. * pi;
 
   vec3 ground = vec3(geodetic, 0.);
 
-  vec3 g = ecef(camera);
-  vec3 p = ecef(ground);
+  vec3 cameraEcef = ecef(camera);
+  vec3 groundEcef = ecef(ground);
 
-  vec3 enu = vec3(
-    -(p.x - g.x) * sin(camera.x) + (p.y - g.y) * cos(camera.x),
-    -(p.x - g.x) * cos(camera.x) * sin(camera.y) - (p.y - g.y) * sin(camera.x) * sin(camera.y) + p.z - g.z,
-    (p.x - g.x) * cos(camera.x) * cos(camera.y) + (p.y - g.y) * sin(camera.x) * cos(camera.y) + p.z - g.z
-  );
+  /*vec3 enu = vec3(
+    -(p.x - g.x) * sin(ground.x) + (p.y - g.y) * cos(ground.x),
+    -(p.x - g.x) * cos(ground.x) * sin(ground.y) - (p.y - g.y) * sin(ground.x) * sin(ground.y) + (p.z - g.z) * cos(ground.y),
+    (p.x -  g.x) * cos(ground.x) * cos(ground.y) + (p.y - g.y) * sin(ground.x) * cos(ground.y) + (p.z - g.z) * sin(ground.y)
+  );;*/
 
-  gl_Position = projection * modelView * vec4(enu, 1.) + position * 0.;
+  /*vec3 enu = mat3(
+    -sin(camera.x), cos(camera.x), 0.,
+    -cos(camera.x) * sin(camera.y), -sin(camera.x) * sin(camera.y), cos(camera.y),
+    cos(camera.x) * cos(camera.y), sin(camera.y) * cos(camera.y), sin(camera.y)
+  ) * (groundEcef - cameraEcef);*/
+
+  gl_Position = projection * modelView * vec4(groundEcef - cameraEcef, 1.) + position * 0.;
   textureCoordinateOut = textureCoordinate;
 }
 `;
@@ -189,11 +195,11 @@ function start() {
       (45 * Math.PI) / 180,
       width / height,
       0.1,
-      100.0
+      100
     );
 
     const modelView = mat4.create();
-    mat4.translate(modelView, modelView, [0, 0, 0]);
+    mat4.translate(modelView, modelView, [0, 0, -10]);
     mat4.rotateY(modelView, modelView, performance.now() / 1000.0);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
