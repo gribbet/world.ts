@@ -8,12 +8,11 @@ const vertexShaderSource = `
 attribute vec2 textureCoordinate;
 uniform mat4 modelView;
 uniform mat4 projection;
+uniform float x;
+uniform float y;
+uniform float z;
 
 varying highp vec2 textureCoordinateOut;
-
-float x = 0.;
-float y = 0.;
-float z = 0.;
 
 const float radius = 1.;
 
@@ -67,7 +66,7 @@ void main(void) {
 }
 `;
 
-const n = 100;
+const n = 10;
 
 const indices = range(0, n).flatMap((y) =>
   range(0, n).flatMap((x) => [
@@ -126,6 +125,9 @@ function start() {
   const projectionUniform = gl.getUniformLocation(program, "projection");
   const modelViewUniform = gl.getUniformLocation(program, "modelView");
   const samplerUniform = gl.getUniformLocation(program, "sampler");
+  const xUniform = gl.getUniformLocation(program, "x");
+  const yUniform = gl.getUniformLocation(program, "y");
+  const zUniform = gl.getUniformLocation(program, "z");
 
   const indexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -143,28 +145,45 @@ function start() {
     gl.STATIC_DRAW
   );
 
-  const texture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, texture);
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.RGBA,
-    1,
-    1,
-    0,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
-    new Uint8Array([0, 0, 0, 255])
+  const z = 4;
+
+  const textures = range(0, Math.pow(2, z)).map((x) =>
+    range(0, Math.pow(2, z)).map((y) => {
+      const texture = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, texture);
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        1,
+        1,
+        0,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        new Uint8Array([0, 0, 0, 255])
+      );
+
+      const image = new Image();
+      image.crossOrigin = "anonymous";
+      image.onload = function () {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          image
+        );
+        gl.generateMipmap(gl.TEXTURE_2D);
+      };
+      image.src = `http://mt0.google.com/vt/lyrs=y&hl=en&x=${x}&y=${y}&z=${z}`;
+
+      return texture;
+    })
   );
 
-  const image = new Image();
-  image.crossOrigin = "anonymous";
-  image.onload = function () {
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
-    gl.generateMipmap(gl.TEXTURE_2D);
-  };
-  image.src = "http://mt0.google.com/vt/lyrs=y&hl=en&x=0&y=0&z=0";
+  console.log(textures);
 
   function render() {
     gl.clearColor(0, 0, 0, 1);
@@ -206,14 +225,21 @@ function start() {
     );
     gl.enableVertexAttribArray(textureCoordinateAttribute);
 
-    gl.activeTexture(gl.TEXTURE0);
-    gl.bindTexture(gl.TEXTURE_2D, texture);
-
     gl.useProgram(program);
     gl.uniform1i(samplerUniform, 0);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+    gl.uniform1f(zUniform, z);
+    gl.activeTexture(gl.TEXTURE0);
+
+    for (let x = 0; x < Math.pow(2, z); x++) {
+      gl.uniform1f(xUniform, x);
+      for (let y = 0; y < Math.pow(2, z); y++) {
+        gl.uniform1f(yUniform, y);
+        gl.bindTexture(gl.TEXTURE_2D, textures[x][y]);
+        gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+      }
+    }
 
     requestAnimationFrame(render);
   }
