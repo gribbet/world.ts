@@ -23,18 +23,18 @@ vec3 ecef(vec3 position) {
     float cx = cos(position.x);
     float sy = sin(position.y);
     float cy = cos(position.y);
+    float z = position.z;
     float n = 1. / sqrt(a * a * cy * cy + b * b * sy * sy);
     return vec3(
-        (n * a * a + position.z) * cx * cy,
-        (n * a * a + position.z) * sx * cy,
-        (n * b * b + position.z) * sy);
+        (n * a * a + z) * cx * cy,
+        (n * a * a + z) * sx * cy,
+        (n * b * b + z) * sy);
 }
 
 void main(void) {
-    vec3 ground = vec3(
-        radians((x + textureCoordinate.x) * 180. * 2. / pow(2., z) - 180.),
-        radians(-(y + textureCoordinate.y) * 85.0511 * 2. / pow(2., z) + 85.0511),
-        0.);
+    float longitude = (x + textureCoordinate.x) * 180. * 2. / pow(2., z) - 180.;
+    float latitude = -(y + textureCoordinate.y) * 85.0511 * 2. / pow(2., z) + 85.0511;
+    vec3 ground = vec3(radians(longitude), radians(latitude), 0.);
 
     float sx = sin(camera.x);
     float cx = cos(camera.x);
