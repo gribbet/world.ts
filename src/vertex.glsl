@@ -1,9 +1,7 @@
 attribute vec2 uv;
 uniform mat4 modelView;
 uniform mat4 projection;
-uniform float x;
-uniform float y;
-uniform float z;
+uniform vec3 xyz;
 uniform vec3 camera;
 
 varying highp vec2 uvOut;
@@ -25,7 +23,7 @@ vec3 ecef(vec3 position) {
 }
 
 void main(void) {
-    vec2 geodetic = ((vec2(x, y) + uv) / pow(2., z - 1.)
+    vec2 geodetic = ((xyz.xy + uv) / pow(2., xyz.z - 1.)
         - vec2(1., 1.)) * vec2(180., -85.0511);
     vec3 ground = vec3(radians(geodetic), 0.);
 

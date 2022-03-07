@@ -2,12 +2,11 @@ import { mat4 } from "gl-matrix";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
-export function range(start: number, end: number) {
-  return Array.from({ length: end - start }, (_, k) => k + start);
-}
-
 const n = 1;
 const z = 4;
+
+const range = (start: number, end: number) =>
+  Array.from({ length: end - start }, (_, k) => k + start);
 
 const indices = range(0, n).flatMap((y) =>
   range(0, n).flatMap((x) => [
@@ -24,9 +23,7 @@ const uv = range(0, n + 1).flatMap((y) =>
   range(0, n + 1).flatMap((x) => [x / n, y / n])
 );
 
-start();
-
-function start() {
+const start = () => {
   const canvas = document.querySelector<HTMLCanvasElement>("canvas");
   if (!canvas) return;
   const gl = canvas.getContext("webgl") as WebGLRenderingContext;
@@ -65,9 +62,7 @@ function start() {
   const projectionUniform = gl.getUniformLocation(program, "projection");
   const modelViewUniform = gl.getUniformLocation(program, "modelView");
   const samplerUniform = gl.getUniformLocation(program, "sampler");
-  const xUniform = gl.getUniformLocation(program, "x");
-  const yUniform = gl.getUniformLocation(program, "y");
-  const zUniform = gl.getUniformLocation(program, "z");
+  const xyzUniform = gl.getUniformLocation(program, "xyz");
   const cameraUniform = gl.getUniformLocation(program, "camera");
 
   const indexBuffer = gl.createBuffer();
@@ -155,7 +150,6 @@ function start() {
     gl.uniform1i(samplerUniform, 0);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.uniform1f(zUniform, z);
     gl.uniform3fv(cameraUniform, [
       (-121 / 180) * Math.PI,
       (37 / 180) * Math.PI,
@@ -165,9 +159,8 @@ function start() {
     gl.activeTexture(gl.TEXTURE0);
 
     for (let x = 0; x < Math.pow(2, z); x++) {
-      gl.uniform1f(xUniform, x);
       for (let y = 0; y < Math.pow(2, z); y++) {
-        gl.uniform1f(yUniform, y);
+        gl.uniform3fv(xyzUniform, [x, y, z]);
         gl.bindTexture(gl.TEXTURE_2D, textures[x][y]);
         gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
       }
@@ -177,4 +170,6 @@ function start() {
   };
 
   render();
-}
+};
+
+start();
