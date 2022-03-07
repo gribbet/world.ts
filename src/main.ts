@@ -1,69 +1,15 @@
 import { mat4 } from "gl-matrix";
+import fragmentSource from "./fragment.glsl";
+import vertexSource from "./vertex.glsl";
+
+console.log(vertexSource, fragmentSource);
 
 export function range(start: number, end: number) {
   return Array.from({ length: end - start }, (_, k) => k + start);
 }
 
-const vertexShaderSource = `
-attribute vec2 textureCoordinate;
-uniform mat4 modelView;
-uniform mat4 projection;
-uniform float x;
-uniform float y;
-uniform float z;
-uniform vec3 camera;
-
-varying highp vec2 textureCoordinateOut;
-
-const float a = 6371.;
-const float b = 6357.;
-
-vec3 ecef(vec3 position) {
-    float sx = sin(position.x);
-    float cx = cos(position.x);
-    float sy = sin(position.y);
-    float cy = cos(position.y);
-    float z = position.z;
-    float n = 1. / sqrt(a * a * cy * cy + b * b * sy * sy);
-    return vec3(
-        (n * a * a + z) * cx * cy,
-        (n * a * a + z) * sx * cy,
-        (n * b * b + z) * sy);
-}
-
-void main(void) {
-    float longitude = (x + textureCoordinate.x) * 180. * 2. / pow(2., z) - 180.;
-    float latitude = -(y + textureCoordinate.y) * 85.0511 * 2. / pow(2., z) + 85.0511;
-    vec3 ground = vec3(radians(longitude), radians(latitude), 0.);
-
-    float sx = sin(camera.x);
-    float cx = cos(camera.x);
-    float sy = sin(camera.y);
-    float cy = cos(camera.y);
-
-    vec3 enu = (ecef(ground) - ecef(camera)) * mat3(
-        -sx, cx, 0.,
-        -cx * sy, -sx * sy, cy,
-        cx * cy, sx * cy, sy
-    );
-
-    gl_Position = projection * modelView * vec4(enu, 1.);
-    textureCoordinateOut = textureCoordinate;
-}
-`;
-
-const fragmentShaderSource = `
-varying highp vec2 textureCoordinateOut;
-
-uniform sampler2D sampler;
-
-void main(void) {
-  gl_FragColor = texture2D(sampler, textureCoordinateOut);
-}
-`;
-
-const n = 10;
-const z = 3;
+const n = 1;
+const z = 4;
 
 const indices = range(0, n).flatMap((y) =>
   range(0, n).flatMap((x) => [
@@ -84,12 +30,13 @@ start();
 
 function start() {
   const canvas = document.querySelector<HTMLCanvasElement>("canvas");
-  const gl: WebGLRenderingContext = canvas.getContext("webgl");
-
+  if (!canvas) return;
+  const gl = canvas.getContext("webgl") as WebGLRenderingContext;
   if (!gl) return;
 
   function loadShader(type: number, source: string) {
     const shader = gl.createShader(type);
+    if (!shader) return;
     gl.shaderSource(shader, source);
     gl.compileShader(shader);
     if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
@@ -101,11 +48,12 @@ function start() {
     return shader;
   }
 
-  const vertexShader = loadShader(gl.VERTEX_SHADER, vertexShaderSource);
-  const fragmentShader = loadShader(gl.FRAGMENT_SHADER, fragmentShaderSource);
+  const vertexShader = loadShader(gl.VERTEX_SHADER, vertexSource);
+  const fragmentShader = loadShader(gl.FRAGMENT_SHADER, fragmentSource);
   if (!vertexShader || !fragmentShader) return;
 
   const program = gl.createProgram();
+  if (!program) return;
   gl.attachShader(program, vertexShader);
   gl.attachShader(program, fragmentShader);
   gl.linkProgram(program);
@@ -181,9 +129,7 @@ function start() {
     })
   );
 
-  const start = performance.now();
-
-  function render() {
+  const render = () => {
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(10);
     gl.enable(gl.DEPTH_TEST);
@@ -228,8 +174,8 @@ function start() {
     gl.uniform1f(zUniform, z);
     gl.uniform3fv(cameraUniform, [
       (-121 / 180) * Math.PI,
-      (37 / 180) * Math.PI,
-      2 * 6370,
+      (37 / 180 / 2) * Math.PI,
+      4000,
     ]);
 
     gl.activeTexture(gl.TEXTURE0);
@@ -244,7 +190,7 @@ function start() {
     }
 
     requestAnimationFrame(render);
-  }
+  };
 
   render();
 }

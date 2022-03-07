@@ -1,0 +1,7 @@
+{
+  "compilerOptions": {
+    "strict": true,
+    "moduleResolution": "node",
+    "lib": ["ES2020", "DOM"]
+  }
+}
