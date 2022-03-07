@@ -17,34 +17,32 @@ varying highp vec2 textureCoordinateOut;
 
 const float radius = 1.;
 
-const float pi = 3.14159;
-
-
 vec3 ecef(vec3 position) {
-  return vec3(
-    cos(position.x) * cos(position.y),
-    sin(position.x) * cos(position.y),
-    sin(position.y)) * (radius + position.z);
+    return (radius + position.z) * vec3(
+        cos(position.x) * cos(position.y),
+        sin(position.x) * cos(position.y),
+        sin(position.y));
 }
 
 void main(void) {
-  vec2 geodetic = vec2(
-    (x + textureCoordinate.x) * 360. / pow(2., z) - 180.,
-    -(y + textureCoordinate.y) * 85.0511 * 2. / pow(2., z) + 85.0511) / 180. * pi;
+    vec3 ground = vec3(
+        radians((x + textureCoordinate.x) * 180. * 2. / pow(2., z) - 180.),
+        radians(-(y + textureCoordinate.y) * 85.0511 * 2. / pow(2., z) + 85.0511),
+        0.);
 
-  vec3 coordinate = vec3(geodetic, 0.);
+    float sx = sin(camera.x);
+    float cx = cos(camera.x);
+    float sy = sin(camera.y);
+    float cy = cos(camera.y);
 
-  vec3 cameraEcef = ecef(camera);
-  vec3 coordinateEcef = ecef(coordinate);
+    vec3 enu = (ecef(ground) - ecef(camera)) * mat3(
+        -sx, cx, 0.,
+        -cx * sy, -sx * sy, cy,
+        cx * cy, sx * cy, sy
+    );
 
-  vec3 enu = (coordinateEcef - cameraEcef) * mat3(
-    -sin(camera.x), cos(camera.x), 0.,
-    -cos(camera.x) * sin(camera.y), -sin(camera.x) * sin(camera.y), cos(camera.y),
-    cos(camera.x) * cos(camera.y), sin(camera.x) * cos(camera.y), sin(camera.y)
-  );
-
-  gl_Position = projection * modelView * vec4(enu, 1.);
-  textureCoordinateOut = textureCoordinate;
+    gl_Position = projection * modelView * vec4(enu, 1.);
+    textureCoordinateOut = textureCoordinate;
 }
 `;
 
