@@ -11,15 +11,13 @@ uniform mat4 projection;
 uniform float x;
 uniform float y;
 uniform float z;
+uniform vec3 camera;
 
 varying highp vec2 textureCoordinateOut;
 
 const float radius = 1.;
 
 const float pi = 3.14159;
-
-//vec3 camera = vec3(-121. / 180. * pi, 37. / 180. * pi, 1000.);
-vec3 camera = vec3(0., 0., -1.);
 
 
 vec3 ecef(vec3 position) {
@@ -34,24 +32,18 @@ void main(void) {
     (x + textureCoordinate.x) * 360. / pow(2., z) - 180.,
     -(y + textureCoordinate.y) * 85.0511 * 2. / pow(2., z) + 85.0511) / 180. * pi;
 
-  vec3 ground = vec3(geodetic, 0.);
+  vec3 coordinate = vec3(geodetic, 0.);
 
   vec3 cameraEcef = ecef(camera);
-  vec3 groundEcef = ecef(ground);
+  vec3 coordinateEcef = ecef(coordinate);
 
-  /*vec3 enu = vec3(
-    -(p.x - g.x) * sin(ground.x) + (p.y - g.y) * cos(ground.x),
-    -(p.x - g.x) * cos(ground.x) * sin(ground.y) - (p.y - g.y) * sin(ground.x) * sin(ground.y) + (p.z - g.z) * cos(ground.y),
-    (p.x -  g.x) * cos(ground.x) * cos(ground.y) + (p.y - g.y) * sin(ground.x) * cos(ground.y) + (p.z - g.z) * sin(ground.y)
-  );;*/
-
-  /*vec3 enu = mat3(
+  vec3 enu = (coordinateEcef - cameraEcef) * mat3(
     -sin(camera.x), cos(camera.x), 0.,
     -cos(camera.x) * sin(camera.y), -sin(camera.x) * sin(camera.y), cos(camera.y),
-    cos(camera.x) * cos(camera.y), sin(camera.y) * cos(camera.y), sin(camera.y)
-  ) * (groundEcef - cameraEcef);*/
+    cos(camera.x) * cos(camera.y), sin(camera.x) * cos(camera.y), sin(camera.y)
+  );
 
-  gl_Position = projection * modelView * vec4(groundEcef - cameraEcef, 1.);
+  gl_Position = projection * modelView * vec4(enu, 1.);
   textureCoordinateOut = textureCoordinate;
 }
 `;
@@ -67,6 +59,7 @@ void main(void) {
 `;
 
 const n = 4;
+const z = 3;
 
 const indices = range(0, n).flatMap((y) =>
   range(0, n).flatMap((x) => [
@@ -128,6 +121,7 @@ function start() {
   const xUniform = gl.getUniformLocation(program, "x");
   const yUniform = gl.getUniformLocation(program, "y");
   const zUniform = gl.getUniformLocation(program, "z");
+  const cameraUniform = gl.getUniformLocation(program, "camera");
 
   const indexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -144,8 +138,6 @@ function start() {
     new Float32Array(textureCoordinates),
     gl.STATIC_DRAW
   );
-
-  const z = 3;
 
   const textures = range(0, Math.pow(2, z)).map((x) =>
     range(0, Math.pow(2, z)).map((y) => {
@@ -175,6 +167,13 @@ function start() {
           gl.UNSIGNED_BYTE,
           image
         );
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        /* gl.texParameteri(
+          gl.TEXTURE_2D,
+          gl.TEXTURE_MIN_FILTER,
+          gl.LINEAR_MIPMAP_LINEAR
+        );*/
         gl.generateMipmap(gl.TEXTURE_2D);
       };
       image.src = `http://mt0.google.com/vt/lyrs=y&hl=en&x=${x}&y=${y}&z=${z}`;
@@ -200,15 +199,13 @@ function start() {
     const projection = mat4.create();
     mat4.perspective(
       projection,
-      (45 * Math.PI) / 180,
+      (60 * Math.PI) / 180,
       width / height,
       0.1,
       100
     );
 
     const modelView = mat4.create();
-    mat4.translate(modelView, modelView, [0, 0, -3]);
-    mat4.rotateX(modelView, modelView, -performance.now() / 10000.0);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
@@ -228,6 +225,12 @@ function start() {
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
     gl.uniform1f(zUniform, z);
+    gl.uniform3fv(cameraUniform, [
+      performance.now() / 10000,
+      (37 / 180) * Math.PI,
+      2,
+    ]);
+
     gl.activeTexture(gl.TEXTURE0);
 
     for (let x = 0; x < Math.pow(2, z); x++) {
