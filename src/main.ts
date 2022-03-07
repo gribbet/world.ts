@@ -2,7 +2,7 @@ import { mat4 } from "gl-matrix";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
-const n = 20;
+const n = 10;
 const z = 3;
 
 const range = (start: number, end: number) =>
@@ -118,9 +118,9 @@ const start = () => {
   const render = () => {
     const camera = [
       (-121 / 180) * Math.PI + performance.now() / 5000,
-      (37 / 180) * Math.PI,
+      (37 / 180) * Math.PI + performance.now() / 3007,
       10000,
-    ] as const;
+    ];
 
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(10);
@@ -138,7 +138,7 @@ const start = () => {
     const projection = mat4.create();
     mat4.perspective(
       projection,
-      (60 * Math.PI) / 180,
+      (45 * Math.PI) / 180,
       width / height,
       0.1,
       100000
