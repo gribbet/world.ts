@@ -1,4 +1,4 @@
-attribute vec2 textureCoordinate;
+attribute vec2 uv;
 uniform mat4 modelView;
 uniform mat4 projection;
 uniform float x;
@@ -6,7 +6,7 @@ uniform float y;
 uniform float z;
 uniform vec3 camera;
 
-varying highp vec2 textureCoordinateOut;
+varying highp vec2 uvOut;
 
 const float a = 6371.;
 const float b = 6357.;
@@ -25,9 +25,9 @@ vec3 ecef(vec3 position) {
 }
 
 void main(void) {
-    float longitude = (x + textureCoordinate.x) * 180. * 2. / pow(2., z) - 180.;
-    float latitude = -(y + textureCoordinate.y) * 85.0511 * 2. / pow(2., z) + 85.0511;
-    vec3 ground = vec3(radians(longitude), radians(latitude), 0.);
+    vec2 geodetic = ((vec2(x, y) + uv) / pow(2., z - 1.)
+        - vec2(1., 1.)) * vec2(180., -85.0511);
+    vec3 ground = vec3(radians(geodetic), 0.);
 
     float sx = sin(camera.x);
     float cx = cos(camera.x);
@@ -41,5 +41,5 @@ void main(void) {
     );
 
     gl_Position = projection * modelView * vec4(enu, 1.);
-    textureCoordinateOut = textureCoordinate;
+    uvOut = uv;
 }

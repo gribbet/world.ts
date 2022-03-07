@@ -2,8 +2,6 @@ import { mat4 } from "gl-matrix";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
-console.log(vertexSource, fragmentSource);
-
 export function range(start: number, end: number) {
   return Array.from({ length: end - start }, (_, k) => k + start);
 }
@@ -22,7 +20,7 @@ const indices = range(0, n).flatMap((y) =>
   ])
 );
 
-const textureCoordinates = range(0, n + 1).flatMap((y) =>
+const uv = range(0, n + 1).flatMap((y) =>
   range(0, n + 1).flatMap((x) => [x / n, y / n])
 );
 
@@ -63,10 +61,7 @@ function start() {
     return;
   }
 
-  const textureCoordinateAttribute = gl.getAttribLocation(
-    program,
-    "textureCoordinate"
-  );
+  const uvAttribute = gl.getAttribLocation(program, "uv");
   const projectionUniform = gl.getUniformLocation(program, "projection");
   const modelViewUniform = gl.getUniformLocation(program, "modelView");
   const samplerUniform = gl.getUniformLocation(program, "sampler");
@@ -85,11 +80,7 @@ function start() {
 
   const textureCoordinateBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array(textureCoordinates),
-    gl.STATIC_DRAW
-  );
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STATIC_DRAW);
 
   const textures = range(0, Math.pow(2, z)).map((x) =>
     range(0, Math.pow(2, z)).map((y) => {
@@ -157,15 +148,8 @@ function start() {
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
     gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
-    gl.vertexAttribPointer(
-      textureCoordinateAttribute,
-      2,
-      gl.FLOAT,
-      false,
-      0,
-      0
-    );
-    gl.enableVertexAttribArray(textureCoordinateAttribute);
+    gl.vertexAttribPointer(uvAttribute, 2, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(uvAttribute);
 
     gl.useProgram(program);
     gl.uniform1i(samplerUniform, 0);
@@ -174,7 +158,7 @@ function start() {
     gl.uniform1f(zUniform, z);
     gl.uniform3fv(cameraUniform, [
       (-121 / 180) * Math.PI,
-      (37 / 180 / 2) * Math.PI,
+      (37 / 180) * Math.PI,
       4000,
     ]);
 
