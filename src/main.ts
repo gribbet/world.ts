@@ -15,13 +15,19 @@ uniform vec3 camera;
 
 varying highp vec2 textureCoordinateOut;
 
-const float radius = 1.;
+const float a = 6371.;
+const float b = 6357.;
 
 vec3 ecef(vec3 position) {
-    return (radius + position.z) * vec3(
-        cos(position.x) * cos(position.y),
-        sin(position.x) * cos(position.y),
-        sin(position.y));
+    float sx = sin(position.x);
+    float cx = cos(position.x);
+    float sy = sin(position.y);
+    float cy = cos(position.y);
+    float n = 1. / sqrt(a * a * cy * cy + b * b * sy * sy);
+    return vec3(
+        (n * a * a + position.z) * cx * cy,
+        (n * a * a + position.z) * sx * cy,
+        (n * b * b + position.z) * sy);
 }
 
 void main(void) {
@@ -196,8 +202,8 @@ function start() {
       projection,
       (60 * Math.PI) / 180,
       width / height,
-      0.00001,
-      10
+      0.1,
+      100000
     );
 
     const modelView = mat4.create();
@@ -223,7 +229,7 @@ function start() {
     gl.uniform3fv(cameraUniform, [
       (-121 / 180) * Math.PI,
       (37 / 180) * Math.PI,
-      1 + 1 * Math.exp(-(performance.now() - start) / 1000),
+      2 * 6370,
     ]);
 
     gl.activeTexture(gl.TEXTURE0);
