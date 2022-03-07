@@ -22,10 +22,16 @@ vec3 ecef(vec3 position) {
         (n * b * b + z) * sy);
 }
 
+float sinh(float x) {
+    return 0.5 * (exp(x) - exp(-x));
+}
+
 void main(void) {
-    vec2 geodetic = ((xyz.xy + uv) / pow(2., xyz.z - 1.)
-        - vec2(1., 1.)) * vec2(180., -85.0511);
-    vec3 ground = vec3(radians(geodetic), 0.);
+    vec2 q = (xyz.xy + uv) /  pow(2., xyz.z - 1.) - 1.;
+    vec3 ground = vec3(
+        radians(q.x * 180.),
+        atan(sinh(-radians(180.) * q.y)), 
+        0.);
 
     float sx = sin(camera.x);
     float cx = cos(camera.x);

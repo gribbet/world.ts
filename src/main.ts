@@ -2,8 +2,8 @@ import { mat4 } from "gl-matrix";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
-const n = 1;
-const z = 4;
+const n = 20;
+const z = 3;
 
 const range = (start: number, end: number) =>
   Array.from({ length: end - start }, (_, k) => k + start);
@@ -116,6 +116,12 @@ const start = () => {
   );
 
   const render = () => {
+    const camera = [
+      (-121 / 180) * Math.PI + performance.now() / 5000,
+      (37 / 180) * Math.PI,
+      10000,
+    ] as const;
+
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(10);
     gl.enable(gl.DEPTH_TEST);
@@ -150,11 +156,7 @@ const start = () => {
     gl.uniform1i(samplerUniform, 0);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.uniform3fv(cameraUniform, [
-      (-121 / 180) * Math.PI,
-      (37 / 180) * Math.PI,
-      4000,
-    ]);
+    gl.uniform3fv(cameraUniform, camera);
 
     gl.activeTexture(gl.TEXTURE0);
 
