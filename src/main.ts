@@ -56,7 +56,7 @@ void main(void) {
 }
 `;
 
-const n = 4;
+const n = 10;
 const z = 3;
 
 const indices = range(0, n).flatMap((y) =>
@@ -167,12 +167,7 @@ function start() {
         );
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        /* gl.texParameteri(
-          gl.TEXTURE_2D,
-          gl.TEXTURE_MIN_FILTER,
-          gl.LINEAR_MIPMAP_LINEAR
-        );*/
-        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       };
       image.src = `http://mt0.google.com/vt/lyrs=y&hl=en&x=${x}&y=${y}&z=${z}`;
 
@@ -180,9 +175,11 @@ function start() {
     })
   );
 
+  const start = performance.now();
+
   function render() {
     gl.clearColor(0, 0, 0, 1);
-    gl.clearDepth(100);
+    gl.clearDepth(10);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -199,8 +196,8 @@ function start() {
       projection,
       (60 * Math.PI) / 180,
       width / height,
-      0.1,
-      100
+      0.00001,
+      10
     );
 
     const modelView = mat4.create();
@@ -224,9 +221,9 @@ function start() {
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
     gl.uniform1f(zUniform, z);
     gl.uniform3fv(cameraUniform, [
-      performance.now() / 10000,
+      (-121 / 180) * Math.PI,
       (37 / 180) * Math.PI,
-      2,
+      1 + 1 * Math.exp(-(performance.now() - start) / 1000),
     ]);
 
     gl.activeTexture(gl.TEXTURE0);
