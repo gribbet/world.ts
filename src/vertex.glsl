@@ -6,8 +6,7 @@ uniform vec3 camera;
 
 varying highp vec2 uvOut;
 
-const float a = 6371.;
-const float b = 6357.;
+const float r = 6371.;
 
 vec3 ecef(vec3 position) {
     float sx = sin(position.x);
@@ -15,11 +14,11 @@ vec3 ecef(vec3 position) {
     float sy = sin(position.y);
     float cy = cos(position.y);
     float z = position.z;
-    float n = 1. / sqrt(a * a * cy * cy + b * b * sy * sy);
+    float n = r / sqrt(cy * cy + sy * sy);
     return vec3(
-        (n * a * a + z) * cx * cy,
-        (n * a * a + z) * sx * cy,
-        (n * b * b + z) * sy);
+        (n + z) * cx * cy,
+        (n + z) * sx * cy,
+        (n + z) * sy);
 }
 
 float sinh(float x) {
