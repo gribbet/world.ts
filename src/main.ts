@@ -3,7 +3,7 @@ import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
 const n = 10;
-const z0 = 3;
+const z0 = 1;
 
 const ecef = ([x, y, z]: vec3) => {
   const r = 6371;
@@ -148,7 +148,7 @@ const start = () => {
     const camera: vec3 = [
       (-121 / 180) * Math.PI,
       (37 / 180) * Math.PI,
-      10000 * Math.exp(-performance.now() / 1000.0) + 10,
+      10000 * Math.exp(-performance.now() / 1000.0) + 0.1,
     ];
 
     gl.clearColor(0, 0, 0, 1);
@@ -168,8 +168,8 @@ const start = () => {
       mat4.create(),
       (45 * Math.PI) / 180,
       width / height,
-      1,
-      100000
+      0.01,
+      10000
     );
 
     const modelView = mat4.create();
@@ -189,7 +189,7 @@ const start = () => {
     gl.activeTexture(gl.TEXTURE0);
 
     const divide: (xyz: vec3) => vec3[] = ([x, y, z]: vec3) => {
-      if (z > 20) return [[x, y, z]];
+      if (z > 22) return [[x, y, z]];
       const clip = (uv: vec2) => {
         const [tx, ty, tz] = project(uv, [x, y, z], camera);
         const [rx, ry, rz, rw] = vec4.transformMat4(
@@ -222,7 +222,7 @@ const start = () => {
         vec2.length(vec2.sub(vec2.create(), pixels(v0), pixels(v2))),
         vec2.length(vec2.sub(vec2.create(), pixels(v1), pixels(v3)))
       );
-      if (size > 512) {
+      if (size > 1024) {
         const divided: vec3[] = [
           [2 * x, 2 * y, z + 1],
           [2 * x + 1, 2 * y, z + 1],
