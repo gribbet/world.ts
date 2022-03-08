@@ -28,7 +28,7 @@ float sinh(float x) {
 void main(void) {
     vec2 q = (xyz.xy + uv) /  pow(2., xyz.z - 1.) - 1.;
     vec3 ground = vec3(
-        radians(q.x * 180.),
+        radians(180.) * q.x,
         atan(sinh(-radians(180.) * q.y)), 
         0.);
 
