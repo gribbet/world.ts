@@ -1,10 +1,12 @@
-import { mat3, mat4, vec2, vec3, vec4 } from "gl-matrix";
+import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
-const n = 10;
-const z0 = 1;
+const n = 20;
+const z0 = 0;
 const radius = 6371;
+
+const { innerWidth: width, innerHeight: height, devicePixelRatio } = window;
 
 const ecef = ([x, y, z]: vec3) => {
   const sx = Math.sin(x);
@@ -17,24 +19,15 @@ const ecef = ([x, y, z]: vec3) => {
 };
 
 const project = ([u, v]: vec2, [x, y, z]: vec3, [ox, oy, oz]: vec3) => {
-  const k = 1 / Math.pow(2, z - 1);
-  const [qx, qy] = [k * (x + u) - 1, k * (y + v) - 1];
-
-  const ground: vec3 = [qx * Math.PI, Math.atan(Math.sinh(-Math.PI * qy)), 0];
-
-  const sx = Math.sin(ox);
-  const cx = Math.cos(ox);
-  const sy = Math.sin(oy);
-  const cy = Math.cos(oy);
-
-  return vec3.transformMat3(
-    vec3.create(),
-    vec3.sub(vec3.create(), ecef(ground), ecef([ox, oy, oz])),
-    mat3.transpose(
-      mat3.create(),
-      mat3.fromValues(-sx, cx, 0, -cx * sy, -sx * sy, cy, cx * cy, sx * cy, sy)
-    )
-  );
+  const o = 1073741824;
+  const f = Math.pow(2, -31);
+  const k = Math.pow(2, 31 - z);
+  const q: vec3 = [
+    ((x + u) * k - o - ox) * f,
+    ((y + v) * k - o - oy) * -f,
+    -oz / 1e6,
+  ];
+  return q;
 };
 
 const range = (start: number, end: number) =>
@@ -143,26 +136,24 @@ const start = () => {
     return texture!;
   };
 
-  const to = ([x, y, z]: vec3) => [
-    Math.floor((x / Math.PI) * Math.pow(2, 30)),
-    Math.floor((-Math.asinh(Math.tan(y)) / Math.PI) * Math.pow(2, 30)),
-    Math.floor(z * 1000),
-  ];
+  const to = ([x, y, z]: vec3) =>
+    [
+      Math.floor((x / Math.PI) * Math.pow(2, 30)),
+      Math.floor((-Math.asinh(Math.tan(y)) / Math.PI) * Math.pow(2, 30)),
+      Math.floor(z * 1e6),
+    ] as vec3;
 
   const render = () => {
     const camera: vec3 = [
-      (-121 / 180) * Math.PI + performance.now() / 1e8,
-      (47 / 180) * Math.PI,
-      radius * 2 * Math.exp(-performance.now() / 1000) + 0.2,
+      (-122.6784 / 180) * Math.PI + performance.now() / 1e9,
+      (45.5152 / 180) * Math.PI + performance.now() / 1e10,
+      0.00003,
     ];
-
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(2 * radius);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    const { innerWidth: width, innerHeight: height, devicePixelRatio } = window;
 
     gl.viewport(0, 0, width * devicePixelRatio, height * devicePixelRatio);
 
@@ -173,8 +164,8 @@ const start = () => {
       mat4.create(),
       (60 * Math.PI) / 180,
       width / height,
-      0.1,
-      10 * radius
+      0.0000000001,
+      Infinity
     );
 
     const modelView = mat4.create();
@@ -196,7 +187,7 @@ const start = () => {
     const divide: (xyz: vec3) => vec3[] = ([x, y, z]: vec3) => {
       if (z > 24) return [[x, y, z]];
       const clip = (uv: vec2) => {
-        const [tx, ty, tz] = project(uv, [x, y, z], camera);
+        const [tx, ty, tz] = project(uv, [x, y, z], to(camera));
         const [rx, ry, rz, rw] = vec4.transformMat4(
           vec4.create(),
           [tx, ty, tz, 1],
@@ -227,7 +218,7 @@ const start = () => {
         vec2.length(vec2.sub(vec2.create(), pixels(v0), pixels(v2))),
         vec2.length(vec2.sub(vec2.create(), pixels(v1), pixels(v3)))
       );
-      if (size > 512) {
+      if (size > 1024) {
         const divided: vec3[] = [
           [2 * x, 2 * y, z + 1],
           [2 * x + 1, 2 * y, z + 1],
