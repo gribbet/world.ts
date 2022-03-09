@@ -4,14 +4,14 @@ import vertexSource from "./vertex.glsl";
 
 const n = 10;
 const z0 = 1;
+const radius = 6371;
 
 const ecef = ([x, y, z]: vec3) => {
-  const r = 6371;
   const sx = Math.sin(x);
   const cx = Math.cos(x);
   const sy = Math.sin(y);
   const cy = Math.cos(y);
-  const n = r / Math.sqrt(cy * cy + sy * sy);
+  const n = radius / Math.sqrt(cy * cy + sy * sy);
   const result: vec3 = [(n + z) * cx * cy, (n + z) * sx * cy, (n + z) * sy];
   return result;
 };
@@ -143,16 +143,21 @@ const start = () => {
     return texture!;
   };
 
-  const start = performance.now();
+  const to = ([x, y, z]: vec3) => [
+    Math.floor((x / Math.PI) * Math.pow(2, 30)),
+    Math.floor((-Math.asinh(Math.tan(y)) / Math.PI) * Math.pow(2, 30)),
+    Math.floor(z * 1000),
+  ];
+
   const render = () => {
     const camera: vec3 = [
-      (-121 / 180) * Math.PI,
-      (37 / 180) * Math.PI,
-      10000 * Math.exp(-performance.now() / 1000.0) + 0.1,
+      (-121 / 180) * Math.PI + performance.now() / 1e8,
+      (47 / 180) * Math.PI,
+      radius * 2 * Math.exp(-performance.now() / 1000) + 0.2,
     ];
 
     gl.clearColor(0, 0, 0, 1);
-    gl.clearDepth(10);
+    gl.clearDepth(2 * radius);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -166,10 +171,10 @@ const start = () => {
 
     const projection = mat4.perspective(
       mat4.create(),
-      (45 * Math.PI) / 180,
+      (60 * Math.PI) / 180,
       width / height,
-      0.01,
-      10000
+      0.1,
+      10 * radius
     );
 
     const modelView = mat4.create();
@@ -184,12 +189,12 @@ const start = () => {
     gl.uniform1i(samplerUniform, 0);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.uniform3fv(cameraUniform, camera);
+    gl.uniform3iv(cameraUniform, to(camera));
 
     gl.activeTexture(gl.TEXTURE0);
 
     const divide: (xyz: vec3) => vec3[] = ([x, y, z]: vec3) => {
-      if (z > 22) return [[x, y, z]];
+      if (z > 24) return [[x, y, z]];
       const clip = (uv: vec2) => {
         const [tx, ty, tz] = project(uv, [x, y, z], camera);
         const [rx, ry, rz, rw] = vec4.transformMat4(
@@ -222,7 +227,7 @@ const start = () => {
         vec2.length(vec2.sub(vec2.create(), pixels(v0), pixels(v2))),
         vec2.length(vec2.sub(vec2.create(), pixels(v1), pixels(v3)))
       );
-      if (size > 1024) {
+      if (size > 512) {
         const divided: vec3[] = [
           [2 * x, 2 * y, z + 1],
           [2 * x + 1, 2 * y, z + 1],
@@ -237,9 +242,8 @@ const start = () => {
       .flatMap((x) => range(0, Math.pow(2, z0)).map<vec3>((y) => [x, y, z0]))
       .flatMap(divide);
 
-    console.log(tiles.length);
     for (const [x, y, z] of tiles) {
-      gl.uniform3fv(xyzUniform, [x, y, z]);
+      gl.uniform3iv(xyzUniform, [x, y, z]);
       gl.bindTexture(gl.TEXTURE_2D, getTexture([x, y, z]));
       gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
     }

@@ -1,48 +1,47 @@
 attribute vec2 uv;
-uniform mat4 modelView;
 uniform mat4 projection;
-uniform vec3 xyz;
-uniform vec3 camera;
+uniform ivec3 xyz;
+uniform ivec3 camera;
 
-varying highp vec2 uvOut;
+varying vec2 uvOut;
 
 const float r = 6371.;
 
-vec3 ecef(vec3 position) {
-    float sx = sin(position.x);
-    float cx = cos(position.x);
-    float sy = sin(position.y);
-    float cy = cos(position.y);
-    float z = position.z;
-    float n = r / sqrt(cy * cy + sy * sy);
-    return vec3(
-        (n + z) * cx * cy,
-        (n + z) * sx * cy,
-        (n + z) * sy);
-}
+int o = int(pow(2., 30.));
+float f = pow(2., -31.);
 
 float sinh(float x) {
     return 0.5 * (exp(x) - exp(-x));
 }
 
+vec3 ecef(ivec3 q) {
+    vec3 b = vec3(q) * vec3(f, f, 1e-4);
+    vec3 a = vec3(
+        radians(180.) * 2. * b.x, 
+        atan(sinh(-radians(180.) * 2. * b.y)),
+        b.z);
+    float sx = sin(a.x);
+    float cx = cos(a.x);
+    float sy = sin(a.y);
+    float cy = cos(a.y);
+    float n = r / sqrt(cy * cy + sy * sy);
+    return vec3(
+        (n + a.z) * cx * cy,
+        (n + a.z) * sx * cy,
+        (n + a.z) * sy);
+}
+
+
 void main(void) {
-    vec2 q = (xyz.xy + uv) /  pow(2., xyz.z - 1.) - 1.;
-    vec3 ground = vec3(
-        radians(180.) * q.x,
-        atan(sinh(-radians(180.) * q.y)), 
-        0.);
+    float k = pow(2., float(31 - xyz.z));
+    ivec3 q = ivec3(xyz.xy * int(k) + ivec2(uv * k) - ivec2(o, o), 0);
 
-    float sx = sin(camera.x);
-    float cx = cos(camera.x);
-    float sy = sin(camera.y);
-    float cy = cos(camera.y);
-
-    vec3 enu = (ecef(ground) - ecef(camera)) * mat3(
-        -sx, cx, 0.,
-        -cx * sy, -sx * sy, cy,
-        cx * cy, sx * cy, sy
+    vec3 enu = (ecef(q - ivec3(camera.xy, 0)) - vec3(r + float(camera.z) * 1e-3, 0., 0.)) * mat3(
+        0., 1., 0.,
+        0., 0., 1.,
+        1., 0., 0.
     );
 
-    gl_Position = projection * modelView * vec4(enu, 1.);
+    gl_Position = projection * vec4(enu, 1.);
     uvOut = uv;
 }
