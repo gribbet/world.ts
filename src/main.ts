@@ -10,19 +10,18 @@ const n = 10;
 const z0 = 0;
 const ONE = Math.pow(2, 30);
 const CIRCUMFERENCE = 40075017;
-const ZSCALE = 100;
 
 const range = (start: number, end: number) =>
   Array.from({ length: end - start }, (_, k) => k + start);
 
 const to = ([x, y, z]: vec3) =>
-  [Math.floor(x * ONE), Math.floor(y * ONE), Math.floor(z)] as vec3;
+  [Math.floor(x * ONE), Math.floor(y * ONE), Math.floor(z * ONE)] as vec3;
 
 const mercator = ([lng, lat, alt]: vec3) =>
   [
     lng / 360,
     -Math.asinh(Math.tan((lat / 180) * Math.PI)) / (2 * Math.PI),
-    alt * ZSCALE,
+    alt / CIRCUMFERENCE,
   ] as vec3;
 
 const indices = range(0, n).flatMap((y) =>
@@ -169,9 +168,9 @@ const start = () => {
 
   const render = (now: number) => {
     const camera: vec3 = mercator([
-      -122.6784 + now / 1000000,
-      45.5152 + now / 12512500,
-      10000,
+      -122.6784 - now / 100000,
+      45.5152 + now / 1251250,
+      10000000 * Math.exp(-performance.now() / 1000) + 2000,
     ]);
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
@@ -214,7 +213,7 @@ const start = () => {
       const [tx, ty, tz] = [
         (x + u) * k - 0.5 - cx,
         (y + v) * k - 0.5 - cy,
-        -cz / ZSCALE / CIRCUMFERENCE,
+        -cz,
       ] as vec3;
       const [rx, ry, rz, rw] = vec4.transformMat4(
         vec4.create(),
@@ -243,6 +242,7 @@ const start = () => {
 
       const pixels = ([x, y]: vec3) => [width * x, height * y] as vec2;
 
+      // TODO: Improve
       const size = Math.max(
         vec2.length(vec2.sub(vec2.create(), pixels(vs[0]), pixels(vs[2]))),
         vec2.length(vec2.sub(vec2.create(), pixels(vs[1]), pixels(vs[3])))
