@@ -2,7 +2,11 @@ import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
-const n = 20;
+const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
+const terrainUrl =
+  "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
+
+const n = 5;
 const z0 = 0;
 const ONE = Math.pow(2, 30);
 const ZSCALE = 1e9;
@@ -55,6 +59,11 @@ const uv = range(0, n + 1).flatMap((y) =>
   range(0, n + 1).flatMap((x) => [x / n, y / n])
 );
 
+interface Tile {
+  imagery: WebGLTexture;
+  terrain: WebGLTexture;
+}
+
 const start = () => {
   const canvas = document.querySelector<HTMLCanvasElement>("canvas");
   if (!canvas) return;
@@ -93,7 +102,8 @@ const start = () => {
   const uvAttribute = gl.getAttribLocation(program, "uv");
   const projectionUniform = gl.getUniformLocation(program, "projection");
   const modelViewUniform = gl.getUniformLocation(program, "modelView");
-  const samplerUniform = gl.getUniformLocation(program, "sampler");
+  const imageryUniform = gl.getUniformLocation(program, "imagery");
+  const terrainUniform = gl.getUniformLocation(program, "terrain");
   const xyzUniform = gl.getUniformLocation(program, "xyz");
   const cameraUniform = gl.getUniformLocation(program, "camera");
 
@@ -109,22 +119,13 @@ const start = () => {
   gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STATIC_DRAW);
 
-  let textures: WebGLTexture[][][] = [];
-  const getTexture = ([x, y, z]: vec3) => {
-    const cached = textures[z]?.[y]?.[x];
-    if (cached) return cached;
-    textures[z] = textures[z] || [];
-    textures[z][y] = textures[z][y] || [];
-    textures[z][y][x] = createTexture([x, y, z]);
-    return textures[z][y][x];
-  };
-
-  const createTexture = ([x, y, z]: vec3) => {
+  const loadTexture = (index: number, url: string) => {
     const texture = gl.createTexture();
 
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.onload = () => {
+      gl.activeTexture(gl.TEXTURE0 + index);
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texImage2D(
         gl.TEXTURE_2D,
@@ -138,16 +139,46 @@ const start = () => {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
     };
-    image.src = `http://mt0.google.com/vt/lyrs=s&hl=en&x=${x}&y=${y}&z=${z}`;
-
+    image.src = url;
     return texture!;
+  };
+
+  let tiles: Tile[][][] = [];
+  const getTile = ([x, y, z]: vec3) => {
+    const cached = tiles[z]?.[y]?.[x];
+    if (cached) return cached;
+
+    const imagery = loadTexture(
+      1,
+      imageryUrl
+        .replace("{x}", `${x}`)
+        .replace("{y}", `${y}`)
+        .replace("{z}", `${z}`)
+    );
+    const terrain = loadTexture(
+      0,
+      terrainUrl
+        .replace("{x}", `${x}`)
+        .replace("{y}", `${y}`)
+        .replace("{z}", `${z}`)
+    );
+    const tile: Tile = {
+      imagery,
+      terrain,
+    };
+
+    tiles[z] = tiles[z] || [];
+    tiles[z][y] = tiles[z][y] || [];
+    tiles[z][y][x] = tile;
+
+    return tile;
   };
 
   const render = () => {
     const camera: vec3 = mercator([
-      -122.6784 + performance.now() / 10000000,
-      45.5152 + performance.now() / 125125152,
-      Math.exp(-performance.now() / 10000),
+      -122.6784 + -performance.now() / 100000,
+      45.5152 + performance.now() / 1251250,
+      Math.exp(-performance.now() / 1000) + 0.0001,
     ]);
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
@@ -179,12 +210,11 @@ const start = () => {
     gl.enableVertexAttribArray(uvAttribute);
 
     gl.useProgram(program);
-    gl.uniform1i(samplerUniform, 0);
+    gl.uniform1i(imageryUniform, 1);
+    gl.uniform1i(terrainUniform, 0);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
     gl.uniform3iv(cameraUniform, [...to(camera)]);
-
-    gl.activeTexture(gl.TEXTURE0);
 
     const divide: (xyz: vec3) => vec3[] = (xyz: vec3) => {
       const [x, y, z] = xyz;
@@ -209,7 +239,7 @@ const start = () => {
         vec2.length(vec2.sub(vec2.create(), pixels(vs[0]), pixels(vs[2]))),
         vec2.length(vec2.sub(vec2.create(), pixels(vs[1]), pixels(vs[3])))
       );
-      if (size > 512) {
+      if (size > 1024) {
         const divided: vec3[] = [
           [2 * x, 2 * y, z + 1],
           [2 * x + 1, 2 * y, z + 1],
@@ -224,9 +254,14 @@ const start = () => {
       .flatMap((x) => range(0, Math.pow(2, z0)).map<vec3>((y) => [x, y, z0]))
       .flatMap(divide);
 
-    for (const [x, y, z] of tiles) {
-      gl.uniform3iv(xyzUniform, [x, y, z]);
-      gl.bindTexture(gl.TEXTURE_2D, getTexture([x, y, z]));
+    for (const xyz of tiles) {
+      const { imagery, terrain } = getTile(xyz);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, imagery);
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, terrain);
+      gl.uniform3iv(xyzUniform, [...xyz]);
+
       gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
     }
 
