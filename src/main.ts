@@ -9,7 +9,8 @@ const terrainUrl =
 const n = 10;
 const z0 = 0;
 const ONE = Math.pow(2, 30);
-const ZSCALE = 1e9;
+const CIRCUMFERENCE = 40075017;
+const ZSCALE = 100;
 
 const range = (start: number, end: number) =>
   Array.from({ length: end - start }, (_, k) => k + start);
@@ -168,11 +169,10 @@ const start = () => {
 
   const render = (now: number) => {
     const camera: vec3 = mercator([
-      -122.6784 + now / 100000,
-      45.5152 + now / 1251250,
-      0.9995 * Math.exp(-now / 1000) + 0.0005,
+      -122.6784 + now / 1000000,
+      45.5152 + now / 12512500,
+      10000,
     ]);
-    //const camera: vec3 = [-0.3395083256111111, -0.14245236786808962, 1000];
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
     gl.enable(gl.DEPTH_TEST);
@@ -190,7 +190,7 @@ const start = () => {
       projection,
       (60 * Math.PI) / 180,
       width / height,
-      0.0001,
+      0.000001,
       1
     );
     mat4.rotateX(modelView, mat4.identity(modelView), 0);
@@ -214,7 +214,7 @@ const start = () => {
       const [tx, ty, tz] = [
         (x + u) * k - 0.5 - cx,
         (y + v) * k - 0.5 - cy,
-        -cz / ZSCALE,
+        -cz / ZSCALE / CIRCUMFERENCE,
       ] as vec3;
       const [rx, ry, rz, rw] = vec4.transformMat4(
         vec4.create(),
