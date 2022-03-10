@@ -62,6 +62,7 @@ const uv = range(0, n + 1).flatMap((y) =>
 interface Tile {
   imagery: WebGLTexture;
   terrain: WebGLTexture;
+  loaded: boolean;
 }
 
 const start = () => {
@@ -119,7 +120,7 @@ const start = () => {
   gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STATIC_DRAW);
 
-  const loadTexture = (index: number, url: string) => {
+  const loadTexture = (index: number, url: string, onLoad: () => void) => {
     const texture = gl.createTexture();
 
     const image = new Image();
@@ -138,6 +139,7 @@ const start = () => {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      onLoad();
     };
     image.src = url;
     return texture!;
@@ -148,23 +150,30 @@ const start = () => {
     const cached = tiles[z]?.[y]?.[x];
     if (cached) return cached;
 
+    let imageryLoaded = false;
+    let terrainLoaded = false;
     const imagery = loadTexture(
       1,
       imageryUrl
         .replace("{x}", `${x}`)
         .replace("{y}", `${y}`)
-        .replace("{z}", `${z}`)
+        .replace("{z}", `${z}`),
+      () => (imageryLoaded = true)
     );
     const terrain = loadTexture(
       0,
       terrainUrl
         .replace("{x}", `${x}`)
         .replace("{y}", `${y}`)
-        .replace("{z}", `${z}`)
+        .replace("{z}", `${z}`),
+      () => (terrainLoaded = true)
     );
     const tile: Tile = {
       imagery,
       terrain,
+      get loaded() {
+        return imageryLoaded && terrainLoaded;
+      },
     };
 
     tiles[z] = tiles[z] || [];
@@ -178,7 +187,7 @@ const start = () => {
     const camera: vec3 = mercator([
       -122.6784 + -performance.now() / 100000,
       45.5152 + performance.now() / 1251250,
-      Math.exp(-performance.now() / 1000) + 0.0001,
+      Math.exp(-performance.now() / 100) + 0.0001,
     ]);
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
@@ -246,6 +255,7 @@ const start = () => {
           [2 * x, 2 * y + 1, z + 1],
           [2 * x + 1, 2 * y + 1, z + 1],
         ];
+        if (divided.some((_) => !getTile(_).loaded)) return [xyz];
         return divided.flatMap((_) => divide(_));
       } else return [[x, y, z]];
     };
