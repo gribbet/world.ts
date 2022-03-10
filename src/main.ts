@@ -121,6 +121,10 @@ const start = () => {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       onLoad();
     };
+    image.onerror = (error) => {
+      console.log("Tile load error", error);
+      onLoad();
+    };
     image.src = url;
     return texture!;
   };
@@ -168,9 +172,9 @@ const start = () => {
 
   const render = (now: number) => {
     const camera: vec3 = mercator([
-      -122.6784 - now / 100000,
-      45.5152 + now / 1251250,
-      10000000 * Math.exp(-performance.now() / 1000) + 2000,
+      -122.6784 - now / 1000000,
+      45.5152 + now / 12512500,
+      1000000,
     ]);
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
@@ -212,13 +216,13 @@ const start = () => {
       const [cx, cy, cz] = camera;
       const [tx, ty, tz] = [
         (x + u) * k - 0.5 - cx,
-        (y + v) * k - 0.5 - cy,
+        -((y + v) * k - 0.5 - cy),
         -cz,
       ] as vec3;
       const [rx, ry, rz, rw] = vec4.transformMat4(
         vec4.create(),
         [tx, ty, tz, 1],
-        mat4.multiply(mat4.create(), projection, modelView)
+        mat4.multiply(mat4.create(), modelView, projection)
       );
       return [rx / rw, ry / rw, rz / rw] as vec3;
     };
@@ -254,9 +258,8 @@ const start = () => {
           [2 * x, 2 * y + 1, z + 1],
           [2 * x + 1, 2 * y + 1, z + 1],
         ];
-        const next = divided.flatMap((_) => divide(_));
         if (divided.some((_) => !getTile(_).loaded)) return [xyz];
-        return next;
+        return divided.flatMap((_) => divide(_));
       } else return [[x, y, z]];
     };
 
