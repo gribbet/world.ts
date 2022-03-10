@@ -4,34 +4,41 @@ import vertexSource from "./vertex.glsl";
 
 const n = 20;
 const z0 = 0;
-const radius = 6371;
-
-const { innerWidth: width, innerHeight: height, devicePixelRatio } = window;
-
-const ecef = ([x, y, z]: vec3) => {
-  const sx = Math.sin(x);
-  const cx = Math.cos(x);
-  const sy = Math.sin(y);
-  const cy = Math.cos(y);
-  const n = radius / Math.sqrt(cy * cy + sy * sy);
-  const result: vec3 = [(n + z) * cx * cy, (n + z) * sx * cy, (n + z) * sy];
-  return result;
-};
-
-const project = ([u, v]: vec2, [x, y, z]: vec3, [ox, oy, oz]: vec3) => {
-  const o = 1073741824;
-  const f = Math.pow(2, -31);
-  const k = Math.pow(2, 31 - z);
-  const q: vec3 = [
-    ((x + u) * k - o - ox) * f,
-    ((y + v) * k - o - oy) * -f,
-    -oz / 1e6,
-  ];
-  return q;
-};
+const ONE = Math.pow(2, 30);
+const ZSCALE = 1e9;
 
 const range = (start: number, end: number) =>
   Array.from({ length: end - start }, (_, k) => k + start);
+
+const to = ([x, y, z]: vec3) =>
+  [Math.floor(x * ONE), Math.floor(y * ONE), Math.floor(z)] as vec3;
+
+const mercator = ([lng, lat, alt]: vec3) =>
+  [
+    lng / 360,
+    -Math.asinh(Math.tan((lat / 180) * Math.PI)) / (2 * Math.PI),
+    alt * ZSCALE,
+  ] as vec3;
+
+const project = (
+  [u, v]: vec2,
+  [x, y, z]: vec3,
+  [cx, cy, cz]: vec3,
+  projection: mat4
+) => {
+  const k = Math.pow(2, -z);
+  const [tx, ty, tz] = [
+    (x + u) * k - 0.5 - cx,
+    (y + v) * k - 0.5 - cy,
+    -cz / ZSCALE,
+  ] as vec3;
+  const [rx, ry, rz, rw] = vec4.transformMat4(
+    vec4.create(),
+    [tx, ty, tz, 1],
+    projection
+  );
+  return [rx / rw, ry / rw, rz / rw] as vec3;
+};
 
 const indices = range(0, n).flatMap((y) =>
   range(0, n).flatMap((x) => [
@@ -136,24 +143,19 @@ const start = () => {
     return texture!;
   };
 
-  const to = ([x, y, z]: vec3) =>
-    [
-      Math.floor((x / Math.PI) * Math.pow(2, 30)),
-      Math.floor((-Math.asinh(Math.tan(y)) / Math.PI) * Math.pow(2, 30)),
-      Math.floor(z * 1e6),
-    ] as vec3;
-
   const render = () => {
-    const camera: vec3 = [
-      (-122.6784 / 180) * Math.PI + performance.now() / 1e9,
-      (45.5152 / 180) * Math.PI + performance.now() / 1e10,
-      0.00003,
-    ];
+    const camera: vec3 = mercator([
+      -122.6784 + performance.now() / 10000000,
+      45.5152 + performance.now() / 125125152,
+      Math.exp(-performance.now() / 10000),
+    ]);
     gl.clearColor(0, 0, 0, 1);
-    gl.clearDepth(2 * radius);
+    gl.clearDepth(1);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    const { innerWidth: width, innerHeight: height, devicePixelRatio } = window;
 
     gl.viewport(0, 0, width * devicePixelRatio, height * devicePixelRatio);
 
@@ -164,8 +166,8 @@ const start = () => {
       mat4.create(),
       (60 * Math.PI) / 180,
       width / height,
-      0.0000000001,
-      Infinity
+      0.00000001,
+      1
     );
 
     const modelView = mat4.create();
@@ -180,28 +182,17 @@ const start = () => {
     gl.uniform1i(samplerUniform, 0);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.uniform3iv(cameraUniform, to(camera));
+    gl.uniform3iv(cameraUniform, [...to(camera)]);
 
     gl.activeTexture(gl.TEXTURE0);
 
-    const divide: (xyz: vec3) => vec3[] = ([x, y, z]: vec3) => {
-      if (z > 24) return [[x, y, z]];
-      const clip = (uv: vec2) => {
-        const [tx, ty, tz] = project(uv, [x, y, z], to(camera));
-        const [rx, ry, rz, rw] = vec4.transformMat4(
-          vec4.create(),
-          [tx, ty, tz, 1],
-          projection
-        );
-        const result: vec3 = [rx / rw, ry / rw, rz / rw];
-        return result;
-      };
-      const v0 = clip([0, 0]);
-      const v1 = clip([1, 0]);
-      const v2 = clip([1, 1]);
-      const v3 = clip([0, 1]);
-      const vs = [v0, v1, v2, v3];
+    const divide: (xyz: vec3) => vec3[] = (xyz: vec3) => {
+      const [x, y, z] = xyz;
+      if (z > 24) return [xyz];
 
+      const clip = (uv: vec2) => project(uv, xyz, camera, projection);
+
+      const vs = [clip([0, 0]), clip([1, 0]), clip([1, 1]), clip([0, 1])];
       if (
         vs.every(([x]) => x > 1) ||
         vs.every(([x]) => x < -1) ||
@@ -215,10 +206,10 @@ const start = () => {
       const pixels = ([x, y]: vec3) => [width * x, height * y] as vec2;
 
       const size = Math.max(
-        vec2.length(vec2.sub(vec2.create(), pixels(v0), pixels(v2))),
-        vec2.length(vec2.sub(vec2.create(), pixels(v1), pixels(v3)))
+        vec2.length(vec2.sub(vec2.create(), pixels(vs[0]), pixels(vs[2]))),
+        vec2.length(vec2.sub(vec2.create(), pixels(vs[1]), pixels(vs[3])))
       );
-      if (size > 1024) {
+      if (size > 512) {
         const divided: vec3[] = [
           [2 * x, 2 * y, z + 1],
           [2 * x + 1, 2 * y, z + 1],
