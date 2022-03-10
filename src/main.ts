@@ -6,7 +6,7 @@ const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
   "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
 
-const n = 5;
+const n = 10;
 const z0 = 0;
 const ONE = Math.pow(2, 30);
 const ZSCALE = 1e9;
@@ -23,26 +23,6 @@ const mercator = ([lng, lat, alt]: vec3) =>
     -Math.asinh(Math.tan((lat / 180) * Math.PI)) / (2 * Math.PI),
     alt * ZSCALE,
   ] as vec3;
-
-const project = (
-  [u, v]: vec2,
-  [x, y, z]: vec3,
-  [cx, cy, cz]: vec3,
-  projection: mat4
-) => {
-  const k = Math.pow(2, -z);
-  const [tx, ty, tz] = [
-    (x + u) * k - 0.5 - cx,
-    (y + v) * k - 0.5 - cy,
-    -cz / ZSCALE,
-  ] as vec3;
-  const [rx, ry, rz, rw] = vec4.transformMat4(
-    vec4.create(),
-    [tx, ty, tz, 1],
-    projection
-  );
-  return [rx / rw, ry / rw, rz / rw] as vec3;
-};
 
 const indices = range(0, n).flatMap((y) =>
   range(0, n).flatMap((x) => [
@@ -183,12 +163,16 @@ const start = () => {
     return tile;
   };
 
-  const render = () => {
+  const projection = mat4.create();
+  const modelView = mat4.create();
+
+  const render = (now: number) => {
     const camera: vec3 = mercator([
-      -122.6784 + -performance.now() / 100000,
-      45.5152 + performance.now() / 1251250,
-      Math.exp(-performance.now() / 100) + 0.0001,
+      -122.6784 + now / 100000,
+      45.5152 + now / 1251250,
+      0.9995 * Math.exp(-now / 1000) + 0.0005,
     ]);
+    //const camera: vec3 = [-0.3395083256111111, -0.14245236786808962, 1000];
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
     gl.enable(gl.DEPTH_TEST);
@@ -202,15 +186,14 @@ const start = () => {
     canvas.width = width * devicePixelRatio;
     canvas.height = height * devicePixelRatio;
 
-    const projection = mat4.perspective(
-      mat4.create(),
+    mat4.perspective(
+      projection,
       (60 * Math.PI) / 180,
       width / height,
-      0.00000001,
+      0.0001,
       1
     );
-
-    const modelView = mat4.create();
+    mat4.rotateX(modelView, mat4.identity(modelView), 0);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
@@ -225,11 +208,27 @@ const start = () => {
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
     gl.uniform3iv(cameraUniform, [...to(camera)]);
 
+    const project = ([u, v]: vec2, [x, y, z]: vec3) => {
+      const k = Math.pow(2, -z);
+      const [cx, cy, cz] = camera;
+      const [tx, ty, tz] = [
+        (x + u) * k - 0.5 - cx,
+        (y + v) * k - 0.5 - cy,
+        -cz / ZSCALE,
+      ] as vec3;
+      const [rx, ry, rz, rw] = vec4.transformMat4(
+        vec4.create(),
+        [tx, ty, tz, 1],
+        mat4.multiply(mat4.create(), projection, modelView)
+      );
+      return [rx / rw, ry / rw, rz / rw] as vec3;
+    };
+
     const divide: (xyz: vec3) => vec3[] = (xyz: vec3) => {
       const [x, y, z] = xyz;
       if (z > 24) return [xyz];
 
-      const clip = (uv: vec2) => project(uv, xyz, camera, projection);
+      const clip = (uv: vec2) => project(uv, xyz);
 
       const vs = [clip([0, 0]), clip([1, 0]), clip([1, 1]), clip([0, 1])];
       if (
@@ -255,8 +254,9 @@ const start = () => {
           [2 * x, 2 * y + 1, z + 1],
           [2 * x + 1, 2 * y + 1, z + 1],
         ];
+        const next = divided.flatMap((_) => divide(_));
         if (divided.some((_) => !getTile(_).loaded)) return [xyz];
-        return divided.flatMap((_) => divide(_));
+        return next;
       } else return [[x, y, z]];
     };
 
@@ -278,7 +278,7 @@ const start = () => {
     requestAnimationFrame(render);
   };
 
-  render();
+  requestAnimationFrame(render);
 };
 
 start();
