@@ -1,4 +1,4 @@
-import { mat4, vec2, vec3, vec4 } from "gl-matrix";
+import { glMatrix, mat4, vec2, vec3, vec4 } from "gl-matrix";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
@@ -6,10 +6,12 @@ const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
   "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
 
-const n = 10;
+const n = 30;
 const z0 = 0;
-const ONE = Math.pow(2, 30);
+const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
+
+glMatrix.setMatrixArrayType(Array);
 
 const range = (start: number, end: number) =>
   Array.from({ length: end - start }, (_, k) => k + start);
@@ -46,10 +48,13 @@ interface Tile {
 }
 
 const start = () => {
-  const canvas = document.querySelector<HTMLCanvasElement>("canvas");
-  if (!canvas) return;
+  const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
+  const canvas2 = document.querySelector<HTMLCanvasElement>("#canvas2");
+  if (!canvas || !canvas2) return;
   const gl = canvas.getContext("webgl") as WebGLRenderingContext;
   if (!gl) return;
+  const context = canvas2.getContext("2d") as CanvasRenderingContext2D;
+  if (!context) return;
 
   function loadShader(type: number, source: string) {
     const shader = gl.createShader(type);
@@ -170,11 +175,13 @@ const start = () => {
   const projection = mat4.create();
   const modelView = mat4.create();
 
+  // 2010456
+
   const render = (now: number) => {
     const camera: vec3 = mercator([
       -122.6784 - now / 1000000,
       45.5152 + now / 12512500,
-      1000000,
+      CIRCUMFERENCE * Math.exp(-now / 1000) + 1000,
     ]);
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
@@ -188,15 +195,18 @@ const start = () => {
 
     canvas.width = width * devicePixelRatio;
     canvas.height = height * devicePixelRatio;
+    canvas2.width = width * devicePixelRatio;
+    canvas2.height = height * devicePixelRatio;
 
+    mat4.identity(projection);
     mat4.perspective(
       projection,
       (60 * Math.PI) / 180,
       width / height,
-      0.000001,
-      1
+      0.000000001,
+      0.5
     );
-    mat4.rotateX(modelView, mat4.identity(modelView), 0);
+    mat4.rotateX(modelView, mat4.create(), -1);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
@@ -219,14 +229,17 @@ const start = () => {
         -((y + v) * k - 0.5 - cy),
         -cz,
       ] as vec3;
-      const [rx, ry, rz, rw] = vec4.transformMat4(
+      const a = mat4.multiply(mat4.create(), projection, modelView);
+      const [rx, ry, rz, rw] = vec4.multiply(
         vec4.create(),
-        [tx, ty, tz, 1],
-        mat4.multiply(mat4.create(), modelView, projection)
+        vec4.transformMat4(vec4.create(), [tx, ty, tz, 1], a),
+        [1, -1, 1, 1]
       );
-      return [rx / rw, ry / rw, rz / rw] as vec3;
+      if (z === 0) console.log(rw, ry);
+      return [rx / Math.abs(rw), ry / Math.abs(rw), rz / Math.abs(rw)] as vec3;
     };
 
+    const all: vec2[] = [];
     const divide: (xyz: vec3) => vec3[] = (xyz: vec3) => {
       const [x, y, z] = xyz;
       if (z > 24) return [xyz];
@@ -234,6 +247,11 @@ const start = () => {
       const clip = (uv: vec2) => project(uv, xyz);
 
       const vs = [clip([0, 0]), clip([1, 0]), clip([1, 1]), clip([0, 1])];
+      const pixels = vs.map(
+        ([x, y]) => [(x + 1) * width, (y + 1) * height] as vec2
+      );
+      all.push(...pixels);
+      if (x === 0 && y === 0 && z === 0) console.log(clip([1, 1])[1]);
       if (
         vs.every(([x]) => x > 1) ||
         vs.every(([x]) => x < -1) ||
@@ -244,12 +262,10 @@ const start = () => {
       )
         return [];
 
-      const pixels = ([x, y]: vec3) => [width * x, height * y] as vec2;
-
       // TODO: Improve
       const size = Math.max(
-        vec2.length(vec2.sub(vec2.create(), pixels(vs[0]), pixels(vs[2]))),
-        vec2.length(vec2.sub(vec2.create(), pixels(vs[1]), pixels(vs[3])))
+        vec2.length(vec2.sub(vec2.create(), pixels[0], pixels[2])),
+        vec2.length(vec2.sub(vec2.create(), pixels[1], pixels[3]))
       );
       if (size > 1024) {
         const divided: vec3[] = [
@@ -279,6 +295,9 @@ const start = () => {
     }
 
     requestAnimationFrame(render);
+
+    context.fillStyle = "white";
+    all.forEach(([x, y]) => context.fillRect(x - 5, y - 5, 10, 10));
   };
 
   requestAnimationFrame(render);
