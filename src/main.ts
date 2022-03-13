@@ -206,7 +206,10 @@ const start = () => {
       0.000000001,
       0.5
     );
-    mat4.rotateX(modelView, mat4.create(), -1);
+    mat4.identity(modelView);
+    mat4.translate(modelView, modelView, [0, 0, -camera[2]]);
+    mat4.rotateX(modelView, modelView, -1);
+    mat4.translate(modelView, modelView, [0, 0, camera[2]]);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
