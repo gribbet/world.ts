@@ -175,13 +175,13 @@ const start = () => {
   const projection = mat4.create();
   const modelView = mat4.create();
 
-  // 2010456
-
   const render = (now: number) => {
+    const pitch = 45;
+    const bearing = now / 100;
     const camera: vec3 = mercator([
-      -122.6784 - now / 1000000,
-      45.5152 + now / 12512500,
-      CIRCUMFERENCE * Math.exp(-now / 1000) + 1000,
+      -121.696,
+      45.3736,
+      CIRCUMFERENCE * Math.exp(-now / 400) + 7000,
     ]);
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
@@ -201,15 +201,24 @@ const start = () => {
     mat4.identity(projection);
     mat4.perspective(
       projection,
-      (60 * Math.PI) / 180,
+      (30 * Math.PI) / 180,
       width / height,
-      0.000000001,
-      0.5
+      0.0000001,
+      1
     );
     mat4.identity(modelView);
-    mat4.translate(modelView, modelView, [0, 0, -camera[2]]);
-    mat4.rotateX(modelView, modelView, -1);
-    mat4.translate(modelView, modelView, [0, 0, camera[2]]);
+    mat4.translate(modelView, modelView, [
+      0,
+      0,
+      -(camera[2] - 3000 / CIRCUMFERENCE),
+    ]);
+    mat4.rotateX(modelView, modelView, (-pitch * Math.PI) / 180);
+    mat4.rotateZ(modelView, modelView, (bearing * Math.PI) / 180);
+    mat4.translate(modelView, modelView, [
+      0,
+      0,
+      camera[2] - 3000 / CIRCUMFERENCE,
+    ]);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
