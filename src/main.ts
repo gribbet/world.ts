@@ -2,6 +2,14 @@ import { glMatrix, mat4, vec2, vec3, vec4 } from "gl-matrix";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
+/**
+ * TODO:
+ * - Float32 issues?
+ * - Skirts
+ * - non-zero altitude tiles
+ * - mouse control
+ */
+
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
   "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
@@ -176,13 +184,11 @@ const start = () => {
   const modelView = mat4.create();
 
   const render = (now: number) => {
-    const pitch = 45;
+    const center: vec3 = [-121.696, 45.3736, 3000];
+    const pitch = 60;
     const bearing = now / 100;
-    const camera: vec3 = mercator([
-      -121.696,
-      45.3736,
-      CIRCUMFERENCE * Math.exp(-now / 400) + 7000,
-    ]);
+    const distance = 50000;
+
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
     gl.enable(gl.DEPTH_TEST);
@@ -206,19 +212,13 @@ const start = () => {
       0.0000001,
       1
     );
+
+    const [lng, lat, alt] = center;
     mat4.identity(modelView);
-    mat4.translate(modelView, modelView, [
-      0,
-      0,
-      -(camera[2] - 3000 / CIRCUMFERENCE),
-    ]);
+    mat4.translate(modelView, modelView, mercator([0, 0, -(distance - alt)]));
     mat4.rotateX(modelView, modelView, (-pitch * Math.PI) / 180);
     mat4.rotateZ(modelView, modelView, (bearing * Math.PI) / 180);
-    mat4.translate(modelView, modelView, [
-      0,
-      0,
-      camera[2] - 3000 / CIRCUMFERENCE,
-    ]);
+    mat4.translate(modelView, modelView, mercator([0, 0, distance - alt]));
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
@@ -231,6 +231,8 @@ const start = () => {
     gl.uniform1i(terrainUniform, 0);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
+
+    const camera = mercator([lng, lat, distance]);
     gl.uniform3iv(cameraUniform, [...to(camera)]);
 
     const project = ([u, v]: vec2, [x, y, z]: vec3) => {
@@ -247,7 +249,6 @@ const start = () => {
         vec4.transformMat4(vec4.create(), [tx, ty, tz, 1], a),
         [1, -1, 1, 1]
       );
-      if (z === 0) console.log(rw, ry);
       return [rx / Math.abs(rw), ry / Math.abs(rw), rz / Math.abs(rw)] as vec3;
     };
 
@@ -263,7 +264,6 @@ const start = () => {
         ([x, y]) => [(x + 1) * width, (y + 1) * height] as vec2
       );
       all.push(...pixels);
-      if (x === 0 && y === 0 && z === 0) console.log(clip([1, 1])[1]);
       if (
         vs.every(([x]) => x > 1) ||
         vs.every(([x]) => x < -1) ||
