@@ -18,7 +18,7 @@ const n = 30;
 const z0 = 0;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
-const center: vec3 = [-121.696, 45.3736, 3000];
+let center: vec3 = [-121.696, 45.3736, 3000];
 let pitch = 0;
 let bearing = 0;
 let distance = 10000;
@@ -36,6 +36,13 @@ const mercator = ([lng, lat, alt]: vec3) =>
     lng / 360,
     -Math.asinh(Math.tan((lat / 180) * Math.PI)) / (2 * Math.PI),
     alt / CIRCUMFERENCE,
+  ] as vec3;
+
+const geodetic = ([x, y, z]: vec3) =>
+  [
+    x * 360,
+    (Math.atan(Math.sinh(-y * (2 * Math.PI))) * 180) / Math.PI,
+    z * CIRCUMFERENCE,
   ] as vec3;
 
 const indices = range(0, n).flatMap((y) =>
@@ -68,13 +75,32 @@ const start = () => {
     event.preventDefault();
   });
 
+  let start: vec3 | undefined;
+  canvas.addEventListener("mousedown", ({ buttons, x, y }) => {
+    if (buttons !== 1) return;
+    start = pick([x, y]);
+  });
+
+  canvas.addEventListener("mouseup", ({ buttons }) => {
+    if (buttons !== 1) return;
+    start = undefined;
+  });
+
   canvas.addEventListener(
     "mousemove",
     ({ buttons, movementX, movementY, x, y }) => {
-      pick([x, y]);
-      if (buttons !== 2) return;
-      bearing += movementX / Math.PI;
-      pitch += -movementY / Math.PI;
+      if (buttons === 1 && start) {
+        const q = pick([x, y]);
+        center = vec3.add(
+          vec3.create(),
+          center,
+          vec3.sub(vec3.create(), start, q)
+        );
+      }
+      if (buttons === 2) {
+        bearing += movementX / Math.PI;
+        pitch += -movementY / Math.PI;
+      }
     }
   );
 
@@ -429,13 +455,13 @@ const start = () => {
     requestAnimationFrame(frame);
   };
 
-  const pick = ([x, y]: vec2) => {
+  const pick = ([mouseX, mouseY]: vec2) => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
     render();
     const buffer = new Uint8Array(4);
     gl.readPixels(
-      x * 2,
-      (window.innerHeight - y) * 2,
+      mouseX * 2,
+      (window.innerHeight - mouseY) * 2,
       1,
       1,
       gl.RGBA,
@@ -443,20 +469,49 @@ const start = () => {
       buffer
     );
 
-    const [r, g] = buffer;
+    const x = (2 * mouseX) / window.innerWidth - 1;
+    const y = -((2 * mouseY) / window.innerHeight - 1);
 
+    const [r, g] = buffer;
     const depth =
       ((r / 256 + g / 256 / 256) * (256.0 * 256.0)) / (256.0 * 256.0 - 1.0);
+    const z = 2 * depth - 1;
 
     const [, , near] = mercator([0, 0, distance / 100]);
+    const [, , far] = mercator([0, 0, 100 * distance]);
+
+    mat4.identity(projection);
+    mat4.perspective(
+      projection,
+      (45 * Math.PI) / 180,
+      window.innerWidth / window.innerHeight,
+      near,
+      far
+    );
+
+    const a = mat4.multiply(mat4.create(), projection, modelView);
+
+    const inverse = mat4.invert(mat4.create(), a);
+
+    const [tx, ty, tz, tw] = vec4.transformMat4(
+      vec4.create(),
+      [x, y, z, 1],
+      inverse
+    );
+
+    const [cx, cy, cz] = mercator(center);
+
+    /*const [, , near] = mercator([0, 0, distance / 100]);
     const [, , far] = mercator([0, 0, 100 * distance]);
 
     const znorm = 2 * depth - 1;
     console.log(
       ((2 * (near * far)) / (far + near - znorm * (far - near))) * CIRCUMFERENCE
-    );
+    );*/
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    return geodetic([tx / tw + cx, -ty / tw + cy, tz / tw + cz]);
   };
 
   requestAnimationFrame(frame);
