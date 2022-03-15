@@ -21,6 +21,11 @@ const z0 = 0;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
 
+const center: vec3 = [-121.696, 45.3736, 3000];
+let pitch = 60;
+let bearing = 0;
+let distance = 20000;
+
 glMatrix.setMatrixArrayType(Array);
 
 const range = (start: number, end: number) =>
@@ -59,12 +64,20 @@ interface Tile {
 
 const start = () => {
   const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
-  const canvas2 = document.querySelector<HTMLCanvasElement>("#canvas2");
-  if (!canvas || !canvas2) return;
+  if (!canvas) return;
+
+  canvas.addEventListener("contextmenu", (event) => {
+    event.preventDefault();
+  });
+
+  canvas.addEventListener("mousemove", ({ buttons, movementX, movementY }) => {
+    if (buttons !== 2) return;
+    bearing += movementX / Math.PI;
+    pitch += -movementY / Math.PI;
+  });
+
   const gl = canvas.getContext("webgl") as WebGLRenderingContext;
   if (!gl) return;
-  const context = canvas2.getContext("2d") as CanvasRenderingContext2D;
-  if (!context) return;
 
   function loadShader(type: number, source: string) {
     const shader = gl.createShader(type);
@@ -186,10 +199,7 @@ const start = () => {
   const modelView = mat4.create();
 
   const render = (now: number) => {
-    const center: vec3 = [-121.696, 45.3736, 3000];
-    const pitch = 60;
-    const bearing = now / 100;
-    const distance = 20000;
+    distance = 100000 * Math.exp(-now / 10000) + 4000;
 
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
@@ -203,8 +213,6 @@ const start = () => {
 
     canvas.width = width * devicePixelRatio;
     canvas.height = height * devicePixelRatio;
-    canvas2.width = width * devicePixelRatio;
-    canvas2.height = height * devicePixelRatio;
 
     mat4.identity(projection);
     mat4.perspective(
@@ -215,7 +223,7 @@ const start = () => {
       1
     );
 
-    const [lng, lat, alt] = center;
+    const [, , alt] = center;
     mat4.identity(modelView);
     mat4.translate(modelView, modelView, mercator([0, 0, -(distance - alt)]));
     mat4.rotateX(modelView, modelView, (-pitch * Math.PI) / 180);
@@ -251,7 +259,6 @@ const start = () => {
       return [rx / Math.abs(rw), ry / Math.abs(rw), rz / Math.abs(rw)] as vec3;
     };
 
-    const all: vec2[] = [];
     const divide: (xyz: vec3) => vec3[] = (xyz: vec3) => {
       const [x, y, z] = xyz;
       if (z > 24) return [xyz];
@@ -262,12 +269,11 @@ const start = () => {
       const pixels = vs.map(
         ([x, y]) => [(x + 1) * width, (y + 1) * height] as vec2
       );
-      all.push(...pixels);
       if (
         vs.every(([x]) => x > 1) ||
         vs.every(([x]) => x < -1) ||
-        vs.every(([, y]) => y > 1) ||
-        vs.every(([, y]) => y < -1) ||
+        vs.every(([, y]) => y > 1.5) ||
+        vs.every(([, y]) => y < -1.5) ||
         vs.every(([, , z]) => z > 1) ||
         vs.every(([, , z]) => z < -1)
       )
@@ -278,7 +284,7 @@ const start = () => {
         vec2.length(vec2.sub(vec2.create(), pixels[0], pixels[2])),
         vec2.length(vec2.sub(vec2.create(), pixels[1], pixels[3]))
       );
-      if (size > 1024) {
+      if (size > 512) {
         const divided: vec3[] = [
           [2 * x, 2 * y, z + 1],
           [2 * x + 1, 2 * y, z + 1],
@@ -306,9 +312,6 @@ const start = () => {
     }
 
     requestAnimationFrame(render);
-
-    context.fillStyle = "white";
-    all.forEach(([x, y]) => context.fillRect(x - 5, y - 5, 10, 10));
   };
 
   requestAnimationFrame(render);
