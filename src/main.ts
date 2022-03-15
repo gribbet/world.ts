@@ -285,9 +285,8 @@ const start = () => {
         [2 * x, 2 * y + 1, z + 1],
         [2 * x + 1, 2 * y + 1, z + 1],
       ];
-      const next = divided.flatMap((_) => divide(_, [width, height]));
       if (divided.some((_) => !getTile(_).loaded)) return [xyz];
-      return next;
+      return divided.flatMap((_) => divide(_, [width, height]));
     } else return [xyz];
   };
 
