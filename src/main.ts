@@ -4,12 +4,12 @@ import vertexSource from "./vertex.glsl";
 
 /**
  * TODO:
- * - Float32 issues?
  * - Skirts
- * - non-zero altitude tiles
- * - mouse control
+ * - mouse drag and zoom
  * - picking
  * - sphere projection
+ * - smooth transition
+ * - throttle divide
  */
 
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
