@@ -21,7 +21,7 @@ const CIRCUMFERENCE = 40075017;
 const center: vec3 = [-121.696, 45.3736, 3000];
 let pitch = 0;
 let bearing = 0;
-let distance = 2000000;
+let distance = 10000;
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -144,8 +144,8 @@ const start = () => {
     gl.TEXTURE_2D,
     0,
     gl.RGBA,
-    window.innerWidth,
-    window.innerHeight,
+    window.innerWidth * devicePixelRatio,
+    window.innerHeight * devicePixelRatio,
     0,
     gl.RGBA,
     gl.UNSIGNED_BYTE,
@@ -155,9 +155,9 @@ const start = () => {
   gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
   gl.renderbufferStorage(
     gl.RENDERBUFFER,
-    gl.DEPTH_COMPONENT24,
-    window.innerWidth,
-    window.innerHeight
+    gl.DEPTH_COMPONENT16,
+    window.innerWidth * devicePixelRatio,
+    window.innerHeight * devicePixelRatio
   );
 
   const framebuffer = gl.createFramebuffer();
@@ -366,7 +366,7 @@ const start = () => {
     gl.clearColor(0, 0, 0, 1);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
-    gl.clearDepth(far);
+    gl.clearDepth(1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     const { innerWidth: width, innerHeight: height, devicePixelRatio } = window;
@@ -424,9 +424,6 @@ const start = () => {
   };
 
   const frame = (now: number) => {
-    center[1] = 45.3736 + now / 10000;
-    distance = 2000000 * Math.exp(-now / 1000) + 10000;
-
     render();
 
     requestAnimationFrame(frame);
@@ -436,20 +433,28 @@ const start = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
     render();
     const buffer = new Uint8Array(4);
-    gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
+    gl.readPixels(
+      x * 2,
+      (window.innerHeight - y) * 2,
+      1,
+      1,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      buffer
+    );
 
-    const [r, g, b] = buffer;
+    const [r, g] = buffer;
 
     const depth =
-      ((r / 256 + g / 256 / 256 + b / 256 / 256 / 256) * (256 * 256 * 256)) /
-      (256 * 256 * 256 - 1);
-
-    console.log(depth);
+      ((r / 256 + g / 256 / 256) * (256.0 * 256.0)) / (256.0 * 256.0 - 1.0);
 
     const [, , near] = mercator([0, 0, distance / 100]);
     const [, , far] = mercator([0, 0, 100 * distance]);
 
-    console.log((depth * (far - near) + near) * CIRCUMFERENCE);
+    const znorm = 2 * depth - 1;
+    console.log(
+      ((2 * (near * far)) / (far + near - znorm * (far - near))) * CIRCUMFERENCE
+    );
 
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   };
