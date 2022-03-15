@@ -307,14 +307,17 @@ const start = () => {
           [2 * x, 2 * y + 1, z + 1],
           [2 * x + 1, 2 * y + 1, z + 1],
         ];
+        const next = divided.flatMap((_) => divide(_));
         if (divided.some((_) => !getTile(_).loaded)) return [xyz];
-        return divided.flatMap((_) => divide(_));
+        return next;
       } else return [[x, y, z]];
     };
 
     const tiles = range(0, Math.pow(2, z0))
       .flatMap((x) => range(0, Math.pow(2, z0)).map<vec3>((y) => [x, y, z0]))
       .flatMap(divide);
+
+    console.log(tiles.length);
 
     for (const xyz of tiles) {
       const { imagery, terrain } = getTile(xyz);
