@@ -232,6 +232,65 @@ const start = () => {
     return tile;
   };
 
+  const project = ([u, v]: vec2, [x, y, z]: vec3) => {
+    const k = Math.pow(2, -z);
+    const [cx, cy, cz] = mercator(center);
+    const [, , oz] = mercator([0, 0, tileAltitudes?.[z]?.[y]?.[x] || 0]);
+    const [tx, ty, tz] = [
+      (x + u) * k - 0.5 - cx,
+      -((y + v) * k - 0.5 - cy),
+      -cz + oz,
+    ] as vec3;
+    const a = mat4.multiply(mat4.create(), projection, modelView);
+    const [rx, ry, rz, rw] = vec4.multiply(
+      vec4.create(),
+      vec4.transformMat4(vec4.create(), [tx, ty, tz, 1], a),
+      [1, -1, 1, 1]
+    );
+    return [rx / Math.abs(rw), ry / Math.abs(rw), rz / Math.abs(rw)] as vec3;
+  };
+
+  const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
+    const [x, y, z] = xyz;
+    if (z > 24) return [xyz];
+
+    const clip = (uv: vec2) => project(uv, xyz);
+
+    const vs = [clip([0, 0]), clip([1, 0]), clip([1, 1]), clip([0, 1])];
+    const pixels = vs.map(
+      ([x, y]) => [(x + 1) * width, (y + 1) * height] as vec2
+    );
+    if (
+      vs.every(([x]) => x > 1) ||
+      vs.every(([x]) => x < -1) ||
+      vs.every(([, y]) => y > 1) ||
+      vs.every(([, y]) => y < -1) ||
+      vs.every(([, , z]) => z > 1) ||
+      vs.every(([, , z]) => z < -1)
+    )
+      return [];
+
+    // TODO: Improve
+    const size = Math.max(
+      vec2.length(vec2.sub(vec2.create(), pixels[0], pixels[2])),
+      vec2.length(vec2.sub(vec2.create(), pixels[1], pixels[3]))
+    );
+    const l = Math.sqrt(
+      2 * 256 * 256 * window.devicePixelRatio * window.devicePixelRatio
+    );
+    if (size > l) {
+      const divided: vec3[] = [
+        [2 * x, 2 * y, z + 1],
+        [2 * x + 1, 2 * y, z + 1],
+        [2 * x, 2 * y + 1, z + 1],
+        [2 * x + 1, 2 * y + 1, z + 1],
+      ];
+      const next = divided.flatMap((_) => divide(_, [width, height]));
+      if (divided.some((_) => !getTile(_).loaded)) return [xyz];
+      return next;
+    } else return [xyz];
+  };
+
   const projection = mat4.create();
   const modelView = mat4.create();
 
@@ -283,68 +342,9 @@ const start = () => {
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
     gl.uniform3iv(cameraUniform, [...to(mercator(center))]);
 
-    const project = ([u, v]: vec2, [x, y, z]: vec3) => {
-      const k = Math.pow(2, -z);
-      const [cx, cy, cz] = mercator(center);
-      const [, , oz] = mercator([0, 0, tileAltitudes?.[z]?.[y]?.[x] || 0]);
-      const [tx, ty, tz] = [
-        (x + u) * k - 0.5 - cx,
-        -((y + v) * k - 0.5 - cy),
-        -cz + oz,
-      ] as vec3;
-      const a = mat4.multiply(mat4.create(), projection, modelView);
-      const [rx, ry, rz, rw] = vec4.multiply(
-        vec4.create(),
-        vec4.transformMat4(vec4.create(), [tx, ty, tz, 1], a),
-        [1, -1, 1, 1]
-      );
-      return [rx / Math.abs(rw), ry / Math.abs(rw), rz / Math.abs(rw)] as vec3;
-    };
-
-    const divide: (xyz: vec3) => vec3[] = (xyz: vec3) => {
-      const [x, y, z] = xyz;
-      if (z > 24) return [xyz];
-
-      const clip = (uv: vec2) => project(uv, xyz);
-
-      const vs = [clip([0, 0]), clip([1, 0]), clip([1, 1]), clip([0, 1])];
-      const pixels = vs.map(
-        ([x, y]) => [(x + 1) * width, (y + 1) * height] as vec2
-      );
-      if (
-        vs.every(([x]) => x > 1) ||
-        vs.every(([x]) => x < -1) ||
-        vs.every(([, y]) => y > 1) ||
-        vs.every(([, y]) => y < -1) ||
-        vs.every(([, , z]) => z > 1) ||
-        vs.every(([, , z]) => z < -1)
-      )
-        return [];
-
-      // TODO: Improve
-      const size = Math.max(
-        vec2.length(vec2.sub(vec2.create(), pixels[0], pixels[2])),
-        vec2.length(vec2.sub(vec2.create(), pixels[1], pixels[3]))
-      );
-      const l = Math.sqrt(
-        2 * 256 * 256 * window.devicePixelRatio * window.devicePixelRatio
-      );
-      if (size > l) {
-        const divided: vec3[] = [
-          [2 * x, 2 * y, z + 1],
-          [2 * x + 1, 2 * y, z + 1],
-          [2 * x, 2 * y + 1, z + 1],
-          [2 * x + 1, 2 * y + 1, z + 1],
-        ];
-        const next = divided.flatMap((_) => divide(_));
-        if (divided.some((_) => !getTile(_).loaded)) return [xyz];
-        return next;
-      } else return [[x, y, z]];
-    };
-
     const tiles = range(0, Math.pow(2, z0))
       .flatMap((x) => range(0, Math.pow(2, z0)).map<vec3>((y) => [x, y, z0]))
-      .flatMap(divide);
+      .flatMap((xyz) => divide(xyz, [width, height]));
 
     console.log(tiles.length);
 
