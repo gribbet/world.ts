@@ -15,12 +15,11 @@ import vertexSource from "./vertex.glsl";
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
   "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
-
 const n = 30;
 const z0 = 0;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
-const center: vec3 = [-122.6784, 45.5152, 15];
+const center: vec3 = [-121.696, 45.3736, 3000];
 let pitch = 60;
 let bearing = 0;
 let distance = 20000;
@@ -59,6 +58,7 @@ interface Tile {
   imagery: WebGLTexture;
   terrain: WebGLTexture;
   loaded: boolean;
+  elevation: number;
 }
 
 const start = () => {
@@ -127,38 +127,18 @@ const start = () => {
   gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STATIC_DRAW);
 
-  const tileAltitudes: number[][][] = [];
-  const cacheTileAltitude = (image: HTMLImageElement, [x, y, z]: vec3) => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1;
-    canvas.height = 1;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Context failure");
-
-    context.drawImage(image, 0, 0, image.width, image.height);
-
-    const {
-      data: [r, g, b],
-    } = context.getImageData(0, 0, 1, 1);
-
-    const tileAltitude: number = (256 * 256 * r + 256 * g + b - 100000) * 0.1;
-    tileAltitudes[z] = tileAltitudes[z] || [];
-    tileAltitudes[z][y] = tileAltitudes[z][y] || [];
-    tileAltitudes[z][y][x] = tileAltitude;
-  };
-
   const loadTexture = ({
     index,
     url,
     xyz,
-    terrain,
     onLoad,
+    onError,
   }: {
     index: number;
     url: string;
     xyz: vec3;
-    terrain?: boolean;
     onLoad?: () => void;
+    onError?: () => void;
   }) => {
     const [x, y, z] = xyz;
     const texture = gl.createTexture();
@@ -176,24 +156,37 @@ const start = () => {
         gl.UNSIGNED_BYTE,
         image
       );
-      if (terrain) {
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-
-        cacheTileAltitude(image, xyz);
-      } else gl.generateMipmap(gl.TEXTURE_2D);
       onLoad?.();
     };
     image.onerror = (error) => {
       console.log("Tile load error", error);
-      onLoad?.();
+      onError?.();
     };
     image.src = url
       .replace("{x}", `${x}`)
       .replace("{y}", `${y}`)
       .replace("{z}", `${z}`);
     return texture!;
+  };
+
+  const getAverageAltitude = (texture: WebGLTexture) => {
+    const framebuffer = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    gl.framebufferTexture2D(
+      gl.FRAMEBUFFER,
+      gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D,
+      texture,
+      0
+    );
+    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE)
+      return 0;
+    const pixel = new Uint8Array(4);
+    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    const [r, g, b] = pixel;
+    const elevation = (256 * 256 * r + 256 * g + b - 100000) * 0.1;
+    return elevation;
   };
 
   let tiles: Tile[][][] = [];
@@ -204,24 +197,42 @@ const start = () => {
 
     let imageryLoaded = false;
     let terrainLoaded = false;
+    let elevation = 0;
     const imagery = loadTexture({
       index: 1,
       url: imageryUrl,
       xyz,
-      onLoad: () => (imageryLoaded = true),
+      onLoad: () => {
+        imageryLoaded = true;
+        gl.bindTexture(gl.TEXTURE_2D, imagery);
+        gl.generateMipmap(gl.TEXTURE_2D);
+      },
     });
     const terrain = loadTexture({
       index: 0,
       url: terrainUrl,
       xyz,
-      terrain: true,
-      onLoad: () => (terrainLoaded = true),
+      onLoad: () => {
+        terrainLoaded = true;
+        elevation = getAverageAltitude(terrain);
+      },
+      onError: () => {
+        terrainLoaded = true;
+      },
     });
+    gl.bindTexture(gl.TEXTURE_2D, terrain);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
     const tile: Tile = {
       imagery,
       terrain,
       get loaded() {
         return imageryLoaded && terrainLoaded;
+      },
+      get elevation() {
+        return elevation;
       },
     };
 
@@ -232,10 +243,10 @@ const start = () => {
     return tile;
   };
 
-  const project = ([u, v]: vec2, [x, y, z]: vec3) => {
+  const project = ([u, v]: vec2, [x, y, z]: vec3, elevation: number) => {
     const k = Math.pow(2, -z);
     const [cx, cy, cz] = mercator(center);
-    const [, , oz] = mercator([0, 0, tileAltitudes?.[z]?.[y]?.[x] || 0]);
+    const [, , oz] = mercator([0, 0, elevation]);
     const [tx, ty, tz] = [
       (x + u) * k - 0.5 - cx,
       -((y + v) * k - 0.5 - cy),
@@ -254,7 +265,9 @@ const start = () => {
     const [x, y, z] = xyz;
     if (z > 24) return [xyz];
 
-    const clip = (uv: vec2) => project(uv, xyz);
+    const { elevation } = getTile(xyz);
+
+    const clip = (uv: vec2) => project(uv, xyz, elevation);
 
     const vs = [clip([0, 0]), clip([1, 0]), clip([1, 1]), clip([0, 1])];
     const pixels = vs.map(
@@ -294,7 +307,7 @@ const start = () => {
   const modelView = mat4.create();
 
   const render = (now: number) => {
-    distance = 1000000 * Math.exp(-now / 1000) + 1000;
+    distance = 1000000 * Math.exp(-now / 1000) + 4000;
 
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
@@ -314,8 +327,8 @@ const start = () => {
       projection,
       (30 * Math.PI) / 180,
       width / height,
-      0.0000001,
-      1
+      0.00001,
+      10
     );
 
     const [, , altitude] = center;
