@@ -307,7 +307,7 @@ const start = () => {
   const modelView = mat4.create();
 
   const render = (now: number) => {
-    distance = 1000000 * Math.exp(-now / 1000) + 4000;
+    distance = 1000000 * Math.exp(-now / 200) + 10000;
 
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
@@ -325,10 +325,10 @@ const start = () => {
     mat4.identity(projection);
     mat4.perspective(
       projection,
-      (30 * Math.PI) / 180,
+      (45 * Math.PI) / 180,
       width / height,
-      0.00001,
-      10
+      distance / 100 / CIRCUMFERENCE,
+      (100 * distance) / CIRCUMFERENCE
     );
 
     const [, , altitude] = center;
