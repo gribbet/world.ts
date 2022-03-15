@@ -68,13 +68,17 @@ const start = () => {
     event.preventDefault();
   });
 
-  canvas.addEventListener("mousemove", ({ buttons, movementX, movementY }) => {
-    if (buttons !== 2) return;
-    bearing += movementX / Math.PI;
-    pitch += -movementY / Math.PI;
-  });
+  canvas.addEventListener(
+    "mousemove",
+    ({ buttons, movementX, movementY, x, y }) => {
+      pick([x, y]);
+      if (buttons !== 2) return;
+      bearing += movementX / Math.PI;
+      pitch += -movementY / Math.PI;
+    }
+  );
 
-  const gl = canvas.getContext("webgl") as WebGLRenderingContext;
+  const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) return;
 
   function loadShader(type: number, source: string) {
@@ -125,6 +129,52 @@ const start = () => {
   const textureCoordinateBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STATIC_DRAW);
+
+  const targetTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, targetTexture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  const depthBuffer = gl.createRenderbuffer();
+  gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
+
+  gl.bindTexture(gl.TEXTURE_2D, targetTexture);
+  gl.texImage2D(
+    gl.TEXTURE_2D,
+    0,
+    gl.RGBA,
+    window.innerWidth,
+    window.innerHeight,
+    0,
+    gl.RGBA,
+    gl.UNSIGNED_BYTE,
+    null
+  );
+
+  gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
+  gl.renderbufferStorage(
+    gl.RENDERBUFFER,
+    gl.DEPTH_COMPONENT24,
+    window.innerWidth,
+    window.innerHeight
+  );
+
+  const framebuffer = gl.createFramebuffer();
+  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+  gl.framebufferTexture2D(
+    gl.FRAMEBUFFER,
+    gl.COLOR_ATTACHMENT0,
+    gl.TEXTURE_2D,
+    targetTexture,
+    0
+  );
+  gl.framebufferRenderbuffer(
+    gl.FRAMEBUFFER,
+    gl.DEPTH_ATTACHMENT,
+    gl.RENDERBUFFER,
+    depthBuffer
+  );
 
   const loadTexture = ({
     index,
@@ -375,10 +425,33 @@ const start = () => {
 
   const frame = (now: number) => {
     center[1] = 45.3736 + now / 10000;
+    distance = 2000000 * Math.exp(-now / 1000) + 10000;
 
     render();
 
     requestAnimationFrame(frame);
+  };
+
+  const pick = ([x, y]: vec2) => {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    render();
+    const buffer = new Uint8Array(4);
+    gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
+
+    const [r, g, b] = buffer;
+
+    const depth =
+      ((r / 256 + g / 256 / 256 + b / 256 / 256 / 256) * (256 * 256 * 256)) /
+      (256 * 256 * 256 - 1);
+
+    console.log(depth);
+
+    const [, , near] = mercator([0, 0, distance / 100]);
+    const [, , far] = mercator([0, 0, 100 * distance]);
+
+    console.log((depth * (far - near) + near) * CIRCUMFERENCE);
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
   };
 
   requestAnimationFrame(frame);
