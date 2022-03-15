@@ -8,6 +8,8 @@ import vertexSource from "./vertex.glsl";
  * - Skirts
  * - non-zero altitude tiles
  * - mouse control
+ * - picking
+ * - sphere projection
  */
 
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
@@ -187,7 +189,7 @@ const start = () => {
     const center: vec3 = [-121.696, 45.3736, 3000];
     const pitch = 60;
     const bearing = now / 100;
-    const distance = 50000;
+    const distance = 20000;
 
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
@@ -218,7 +220,6 @@ const start = () => {
     mat4.translate(modelView, modelView, mercator([0, 0, -(distance - alt)]));
     mat4.rotateX(modelView, modelView, (-pitch * Math.PI) / 180);
     mat4.rotateZ(modelView, modelView, (bearing * Math.PI) / 180);
-    mat4.translate(modelView, modelView, mercator([0, 0, distance - alt]));
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
 
@@ -231,13 +232,11 @@ const start = () => {
     gl.uniform1i(terrainUniform, 0);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-
-    const camera = mercator([lng, lat, distance]);
-    gl.uniform3iv(cameraUniform, [...to(camera)]);
+    gl.uniform3iv(cameraUniform, [...to(mercator(center))]);
 
     const project = ([u, v]: vec2, [x, y, z]: vec3) => {
       const k = Math.pow(2, -z);
-      const [cx, cy, cz] = camera;
+      const [cx, cy, cz] = mercator(center);
       const [tx, ty, tz] = [
         (x + u) * k - 0.5 - cx,
         -((y + v) * k - 0.5 - cy),
