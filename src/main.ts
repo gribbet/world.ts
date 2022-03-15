@@ -168,9 +168,9 @@ const start = () => {
     return texture!;
   };
 
-  const getAverageAltitude = (texture: WebGLTexture) => {
-    const framebuffer = gl.createFramebuffer();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+  const elevationFramebuffer = gl.createFramebuffer();
+  const getTileElevation = (texture: WebGLTexture) => {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, elevationFramebuffer);
     gl.framebufferTexture2D(
       gl.FRAMEBUFFER,
       gl.COLOR_ATTACHMENT0,
@@ -211,7 +211,7 @@ const start = () => {
       xyz,
       onLoad: () => {
         terrainLoaded = true;
-        elevation = getAverageAltitude(terrain);
+        elevation = getTileElevation(terrain);
       },
       onError: () => {
         terrainLoaded = true;
@@ -312,11 +312,11 @@ const start = () => {
   const render = () => {
     const [, , near] = mercator([0, 0, distance / 100]);
     const [, , far] = mercator([0, 0, 100 * distance]);
+
     gl.clearColor(0, 0, 0, 1);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
     gl.clearDepth(far);
-
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     const { innerWidth: width, innerHeight: height, devicePixelRatio } = window;
