@@ -309,12 +309,9 @@ const start = () => {
   const projection = mat4.create();
   const modelView = mat4.create();
 
-  const frame = (now: number) => {
-    center[1] = 45.3736 + now / 10000;
-
+  const render = () => {
     const [, , near] = mercator([0, 0, distance / 100]);
     const [, , far] = mercator([0, 0, 100 * distance]);
-
     gl.clearColor(0, 0, 0, 1);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
@@ -374,6 +371,12 @@ const start = () => {
 
       gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
     }
+  };
+
+  const frame = (now: number) => {
+    center[1] = 45.3736 + now / 10000;
+
+    render();
 
     requestAnimationFrame(frame);
   };
