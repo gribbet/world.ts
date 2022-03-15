@@ -20,8 +20,7 @@ const n = 30;
 const z0 = 0;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
-
-const center: vec3 = [-121.696, 45.3736, 3000];
+const center: vec3 = [-122.6784, 45.5152, 15];
 let pitch = 60;
 let bearing = 0;
 let distance = 20000;
@@ -128,17 +127,40 @@ const start = () => {
   gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STATIC_DRAW);
 
+  const tileAltitudes: number[][][] = [];
+  const cacheTileAltitude = (image: HTMLImageElement, [x, y, z]: vec3) => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 1;
+    canvas.height = 1;
+    const context = canvas.getContext("2d");
+    if (!context) throw new Error("Context failure");
+
+    context.drawImage(image, 0, 0, image.width, image.height);
+
+    const {
+      data: [r, g, b],
+    } = context.getImageData(0, 0, 1, 1);
+
+    const tileAltitude: number = (256 * 256 * r + 256 * g + b - 100000) * 0.1;
+    tileAltitudes[z] = tileAltitudes[z] || [];
+    tileAltitudes[z][y] = tileAltitudes[z][y] || [];
+    tileAltitudes[z][y][x] = tileAltitude;
+  };
+
   const loadTexture = ({
     index,
     url,
+    xyz,
     terrain,
     onLoad,
   }: {
     index: number;
     url: string;
+    xyz: vec3;
     terrain?: boolean;
     onLoad?: () => void;
   }) => {
+    const [x, y, z] = xyz;
     const texture = gl.createTexture();
 
     const image = new Image();
@@ -158,6 +180,8 @@ const start = () => {
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+
+        cacheTileAltitude(image, xyz);
       } else gl.generateMipmap(gl.TEXTURE_2D);
       onLoad?.();
     };
@@ -165,12 +189,16 @@ const start = () => {
       console.log("Tile load error", error);
       onLoad?.();
     };
-    image.src = url;
+    image.src = url
+      .replace("{x}", `${x}`)
+      .replace("{y}", `${y}`)
+      .replace("{z}", `${z}`);
     return texture!;
   };
 
   let tiles: Tile[][][] = [];
-  const getTile = ([x, y, z]: vec3) => {
+  const getTile = (xyz: vec3) => {
+    const [x, y, z] = xyz;
     const cached = tiles[z]?.[y]?.[x];
     if (cached) return cached;
 
@@ -178,18 +206,14 @@ const start = () => {
     let terrainLoaded = false;
     const imagery = loadTexture({
       index: 1,
-      url: imageryUrl
-        .replace("{x}", `${x}`)
-        .replace("{y}", `${y}`)
-        .replace("{z}", `${z}`),
+      url: imageryUrl,
+      xyz,
       onLoad: () => (imageryLoaded = true),
     });
     const terrain = loadTexture({
       index: 0,
-      url: terrainUrl
-        .replace("{x}", `${x}`)
-        .replace("{y}", `${y}`)
-        .replace("{z}", `${z}`),
+      url: terrainUrl,
+      xyz,
       terrain: true,
       onLoad: () => (terrainLoaded = true),
     });
@@ -212,7 +236,7 @@ const start = () => {
   const modelView = mat4.create();
 
   const render = (now: number) => {
-    distance = 1000000 * Math.exp(-now / 10000) + 4000;
+    distance = 1000000 * Math.exp(-now / 1000) + 1000;
 
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
@@ -236,9 +260,13 @@ const start = () => {
       1
     );
 
-    const [, , alt] = center;
+    const [, , altitude] = center;
     mat4.identity(modelView);
-    mat4.translate(modelView, modelView, mercator([0, 0, -(distance - alt)]));
+    mat4.translate(
+      modelView,
+      modelView,
+      mercator([0, 0, -(distance - altitude)])
+    );
     mat4.rotateX(modelView, modelView, (-pitch * Math.PI) / 180);
     mat4.rotateZ(modelView, modelView, (bearing * Math.PI) / 180);
 
@@ -258,10 +286,11 @@ const start = () => {
     const project = ([u, v]: vec2, [x, y, z]: vec3) => {
       const k = Math.pow(2, -z);
       const [cx, cy, cz] = mercator(center);
+      const [, , oz] = mercator([0, 0, tileAltitudes?.[z]?.[y]?.[x] || 0]);
       const [tx, ty, tz] = [
         (x + u) * k - 0.5 - cx,
         -((y + v) * k - 0.5 - cy),
-        -cz,
+        -cz + oz,
       ] as vec3;
       const a = mat4.multiply(mat4.create(), projection, modelView);
       const [rx, ry, rz, rw] = vec4.multiply(
