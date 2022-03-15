@@ -104,6 +104,10 @@ const start = () => {
     }
   );
 
+  canvas.addEventListener("wheel", ({ deltaY }) => {
+    distance *= Math.exp(deltaY / 1000);
+  });
+
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) return;
 
