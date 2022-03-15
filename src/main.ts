@@ -264,24 +264,28 @@ const start = () => {
     const [x, y, z] = xyz;
     if (z > 24) return [xyz];
 
+    const corners: vec2[] = [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+    ];
     const { elevation } = getTile(xyz);
+    const clip = corners.map((_) => project(_, xyz, elevation));
 
-    const clip = (uv: vec2) => project(uv, xyz, elevation);
-
-    const vs = [clip([0, 0]), clip([1, 0]), clip([1, 1]), clip([0, 1])];
-    const pixels = vs.map(
-      ([x, y]) => [(x + 1) * width, (y + 1) * height] as vec2
-    );
     if (
-      vs.every(([x]) => x > 1) ||
-      vs.every(([x]) => x < -1) ||
-      vs.every(([, y]) => y > 1) ||
-      vs.every(([, y]) => y < -1) ||
-      vs.every(([, , z]) => z > 1) ||
-      vs.every(([, , z]) => z < -1)
+      clip.every(([x]) => x > 1) ||
+      clip.every(([x]) => x < -1) ||
+      clip.every(([, y]) => y > 1) ||
+      clip.every(([, y]) => y < -1) ||
+      clip.every(([, , z]) => z > 1) ||
+      clip.every(([, , z]) => z < -1)
     )
       return [];
 
+    const pixels = clip.map(
+      ([x, y]) => [(x + 1) * width, (y + 1) * height] as vec2
+    );
     const area =
       range(0, 4)
         .map((i) => {
@@ -307,6 +311,7 @@ const start = () => {
   const modelView = mat4.create();
 
   const render = (now: number) => {
+    center[1] = 45.3736 + now / 10000;
     distance = 1000000 * Math.exp(-now / 200) + 10000;
 
     gl.clearColor(0, 0, 0, 1);
