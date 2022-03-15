@@ -19,9 +19,9 @@ const z0 = 0;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
 const center: vec3 = [-121.696, 45.3736, 3000];
-let pitch = 60;
+let pitch = 0;
 let bearing = 0;
-let distance = 20000;
+let distance = 2000000;
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -178,8 +178,6 @@ const start = () => {
       texture,
       0
     );
-    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE)
-      return 0;
     const pixel = new Uint8Array(4);
     gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
@@ -302,8 +300,9 @@ const start = () => {
         [2 * x, 2 * y + 1, z + 1],
         [2 * x + 1, 2 * y + 1, z + 1],
       ];
-      if (divided.some((_) => !getTile(_).loaded)) return [xyz];
-      return divided.flatMap((_) => divide(_, [width, height]));
+      const next = divided.flatMap((_) => divide(_, [width, height]));
+      if (next.some((_) => !getTile(_).loaded)) return [xyz];
+      return next;
     } else return [xyz];
   };
 
@@ -312,7 +311,6 @@ const start = () => {
 
   const render = (now: number) => {
     center[1] = 45.3736 + now / 10000;
-    distance = 1000000 * Math.exp(-now / 200) + 10000;
 
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
