@@ -309,13 +309,17 @@ const start = () => {
   const projection = mat4.create();
   const modelView = mat4.create();
 
-  const render = (now: number) => {
+  const frame = (now: number) => {
     center[1] = 45.3736 + now / 10000;
 
+    const [, , near] = mercator([0, 0, distance / 100]);
+    const [, , far] = mercator([0, 0, 100 * distance]);
+
     gl.clearColor(0, 0, 0, 1);
-    gl.clearDepth(1);
     gl.enable(gl.DEPTH_TEST);
     gl.depthFunc(gl.LEQUAL);
+    gl.clearDepth(far);
+
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     const { innerWidth: width, innerHeight: height, devicePixelRatio } = window;
@@ -330,8 +334,8 @@ const start = () => {
       projection,
       (45 * Math.PI) / 180,
       width / height,
-      distance / 100 / CIRCUMFERENCE,
-      (100 * distance) / CIRCUMFERENCE
+      near,
+      far
     );
 
     const [, , altitude] = center;
@@ -345,7 +349,6 @@ const start = () => {
     mat4.rotateZ(modelView, modelView, (bearing * Math.PI) / 180);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-
     gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
     gl.vertexAttribPointer(uvAttribute, 2, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(uvAttribute);
@@ -361,8 +364,6 @@ const start = () => {
       .flatMap((x) => range(0, Math.pow(2, z0)).map<vec3>((y) => [x, y, z0]))
       .flatMap((xyz) => divide(xyz, [width, height]));
 
-    console.log(tiles.length);
-
     for (const xyz of tiles) {
       const { imagery, terrain } = getTile(xyz);
       gl.activeTexture(gl.TEXTURE1);
@@ -374,10 +375,10 @@ const start = () => {
       gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
     }
 
-    requestAnimationFrame(render);
+    requestAnimationFrame(frame);
   };
 
-  requestAnimationFrame(render);
+  requestAnimationFrame(frame);
 };
 
 start();
