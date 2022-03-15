@@ -9,7 +9,6 @@ import vertexSource from "./vertex.glsl";
  * - picking
  * - sphere projection
  * - smooth transition
- * - throttle divide
  */
 
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
@@ -283,15 +282,16 @@ const start = () => {
     )
       return [];
 
-    // TODO: Improve
-    const size = Math.max(
-      vec2.length(vec2.sub(vec2.create(), pixels[0], pixels[2])),
-      vec2.length(vec2.sub(vec2.create(), pixels[1], pixels[3]))
-    );
-    const l = Math.sqrt(
-      2 * 256 * 256 * window.devicePixelRatio * window.devicePixelRatio
-    );
-    if (size > l) {
+    const area =
+      range(0, 4)
+        .map((i) => {
+          const [x1, y1] = pixels[i];
+          const [x2, y2] = pixels[(i + 1) % pixels.length];
+          return x1 * y2 - x2 * y1;
+        })
+        .reduce((a, b) => a + b, 0) * 0.5;
+
+    if (area > 256 * 256 * window.devicePixelRatio * window.devicePixelRatio) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
