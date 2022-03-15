@@ -297,7 +297,10 @@ const start = () => {
         vec2.length(vec2.sub(vec2.create(), pixels[0], pixels[2])),
         vec2.length(vec2.sub(vec2.create(), pixels[1], pixels[3]))
       );
-      if (size > 1024) {
+      const l = Math.sqrt(
+        2 * 256 * 256 * window.devicePixelRatio * window.devicePixelRatio
+      );
+      if (size > l) {
         const divided: vec3[] = [
           [2 * x, 2 * y, z + 1],
           [2 * x + 1, 2 * y, z + 1],
