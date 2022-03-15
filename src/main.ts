@@ -128,7 +128,17 @@ const start = () => {
   gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
   gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STATIC_DRAW);
 
-  const loadTexture = (index: number, url: string, onLoad: () => void) => {
+  const loadTexture = ({
+    index,
+    url,
+    terrain,
+    onLoad,
+  }: {
+    index: number;
+    url: string;
+    terrain?: boolean;
+    onLoad?: () => void;
+  }) => {
     const texture = gl.createTexture();
 
     const image = new Image();
@@ -144,14 +154,16 @@ const start = () => {
         gl.UNSIGNED_BYTE,
         image
       );
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      onLoad();
+      if (terrain) {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      } else gl.generateMipmap(gl.TEXTURE_2D);
+      onLoad?.();
     };
     image.onerror = (error) => {
       console.log("Tile load error", error);
-      onLoad();
+      onLoad?.();
     };
     image.src = url;
     return texture!;
@@ -164,22 +176,23 @@ const start = () => {
 
     let imageryLoaded = false;
     let terrainLoaded = false;
-    const imagery = loadTexture(
-      1,
-      imageryUrl
+    const imagery = loadTexture({
+      index: 1,
+      url: imageryUrl
         .replace("{x}", `${x}`)
         .replace("{y}", `${y}`)
         .replace("{z}", `${z}`),
-      () => (imageryLoaded = true)
-    );
-    const terrain = loadTexture(
-      0,
-      terrainUrl
+      onLoad: () => (imageryLoaded = true),
+    });
+    const terrain = loadTexture({
+      index: 0,
+      url: terrainUrl
         .replace("{x}", `${x}`)
         .replace("{y}", `${y}`)
         .replace("{z}", `${z}`),
-      () => (terrainLoaded = true)
-    );
+      terrain: true,
+      onLoad: () => (terrainLoaded = true),
+    });
     const tile: Tile = {
       imagery,
       terrain,
@@ -199,7 +212,7 @@ const start = () => {
   const modelView = mat4.create();
 
   const render = (now: number) => {
-    distance = 100000 * Math.exp(-now / 10000) + 4000;
+    distance = 1000000 * Math.exp(-now / 10000) + 4000;
 
     gl.clearColor(0, 0, 0, 1);
     gl.clearDepth(1);
@@ -284,7 +297,7 @@ const start = () => {
         vec2.length(vec2.sub(vec2.create(), pixels[0], pixels[2])),
         vec2.length(vec2.sub(vec2.create(), pixels[1], pixels[3]))
       );
-      if (size > 512) {
+      if (size > 1024) {
         const divided: vec3[] = [
           [2 * x, 2 * y, z + 1],
           [2 * x + 1, 2 * y, z + 1],
