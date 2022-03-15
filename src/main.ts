@@ -285,8 +285,8 @@ const start = () => {
       if (
         vs.every(([x]) => x > 1) ||
         vs.every(([x]) => x < -1) ||
-        vs.every(([, y]) => y > 1.5) ||
-        vs.every(([, y]) => y < -1.5) ||
+        vs.every(([, y]) => y > 1) ||
+        vs.every(([, y]) => y < -1) ||
         vs.every(([, , z]) => z > 1) ||
         vs.every(([, , z]) => z < -1)
       )
