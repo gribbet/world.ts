@@ -356,12 +356,12 @@ const start = () => {
     const clip = corners.map((_) => project(_, xyz, elevation));
 
     if (
-      clip.every(([x]) => x > 1) ||
-      clip.every(([x]) => x < -1) ||
-      clip.every(([, y]) => y > 1) ||
-      clip.every(([, y]) => y < -1) ||
-      clip.every(([, , z]) => z > 1) ||
-      clip.every(([, , z]) => z < -1)
+      clip.every(([x]) => x > 1.1) ||
+      clip.every(([x]) => x < -1.1) ||
+      clip.every(([, y]) => y > 1.1) ||
+      clip.every(([, y]) => y < -1.1) ||
+      clip.every(([, , z]) => z > 1.1) ||
+      clip.every(([, , z]) => z < -1.1)
     )
       return [];
 
