@@ -1,4 +1,4 @@
-attribute vec2 uv;
+attribute vec3 uvw;
 uniform mat4 projection;
 uniform mat4 modelView;
 uniform ivec3 xyz;
@@ -13,9 +13,9 @@ const float CIRCUMFERENCE = 40075017.;
 
 void main(void) {
     int k = int(pow(2., float(xyz.z)));
-    vec4 e = texture2D(terrain, uv);
+    vec4 e = texture2D(terrain, uvw.xy);
     float t = float((256 * 256 * int(255. * e.r) + 256 * int(255. * e.g) + int(255. * e.b)) / 10 - 10000) / CIRCUMFERENCE;
-    ivec3 q = ivec3(xyz.xy * (ONE / k) + ivec2(uv * float(ONE / k)) - ivec2(ONE / 2, ONE / 2), int(t * float(ONE)));
+    ivec3 q = ivec3(uvw * float(ONE / k)) + ivec3(xyz.xy * (ONE / k) - ivec2(ONE / 2, ONE / 2), int(t * float(ONE)));
     gl_Position = projection * modelView * vec4(vec3(q - center) * INV_ONE * vec3(1., -1., 1.), 1.);
-    uvOut = uv;
+    uvOut = uvw.xy;
 }

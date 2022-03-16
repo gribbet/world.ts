@@ -56,8 +56,30 @@ const indices = range(0, n).flatMap((y) =>
   ])
 );
 
-const uv = range(0, n + 1).flatMap((y) =>
-  range(0, n + 1).flatMap((x) => [x / n, y / n])
+const uvw = range(0, n + 1).flatMap((y) =>
+  range(0, n + 1).flatMap((x) => {
+    let u = (x - 1) / (n - 2);
+    let v = (y - 1) / (n - 2);
+    let w = 0;
+    if (x === 0) {
+      u = 0;
+      w = -1;
+    }
+    if (x === n) {
+      u = 1;
+      w = -1;
+    }
+    if (y === 0) {
+      v = 0;
+      w = -1;
+    }
+    if (y === n) {
+      v = 1;
+      w = -1;
+    }
+
+    return [u, v, w];
+  })
 );
 
 interface Tile {
@@ -159,9 +181,9 @@ const start = () => {
     gl.STATIC_DRAW
   );
 
-  const textureCoordinateBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uv), gl.STATIC_DRAW);
+  const uvwBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvw), gl.STATIC_DRAW);
 
   const targetTexture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, targetTexture);
@@ -431,7 +453,7 @@ const start = () => {
       .flatMap((xyz) => divide(xyz, [width, height]));
 
     if (depth) {
-      const uvAttribute = gl.getAttribLocation(depthProgram, "uv");
+      const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
       const projectionUniform = gl.getUniformLocation(
         depthProgram,
         "projection"
@@ -441,9 +463,9 @@ const start = () => {
       const centerUniform = gl.getUniformLocation(depthProgram, "center");
 
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-      gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
-      gl.vertexAttribPointer(uvAttribute, 2, gl.FLOAT, false, 0, 0);
-      gl.enableVertexAttribArray(uvAttribute);
+      gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
+      gl.vertexAttribPointer(uvwAttribute, 2, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(uvwAttribute);
 
       gl.useProgram(depthProgram);
       gl.uniformMatrix4fv(projectionUniform, false, projection);
@@ -459,7 +481,7 @@ const start = () => {
         gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
       }
     } else {
-      const uvAttribute = gl.getAttribLocation(renderProgram, "uv");
+      const uvwAttribute = gl.getAttribLocation(renderProgram, "uvw");
       const projectionUniform = gl.getUniformLocation(
         renderProgram,
         "projection"
@@ -474,9 +496,9 @@ const start = () => {
       const centerUniform = gl.getUniformLocation(renderProgram, "center");
 
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-      gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
-      gl.vertexAttribPointer(uvAttribute, 2, gl.FLOAT, false, 0, 0);
-      gl.enableVertexAttribArray(uvAttribute);
+      gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
+      gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(uvwAttribute);
 
       gl.useProgram(renderProgram);
       gl.uniform1i(imageryUniform, 0);
