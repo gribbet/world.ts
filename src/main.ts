@@ -14,7 +14,7 @@ import vertexSource from "./vertex.glsl";
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
   "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
-const n = 30;
+const n = 20;
 const z0 = 0;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
@@ -102,10 +102,10 @@ const start = () => {
     }
   );
 
-  canvas.addEventListener(
-    "wheel",
-    ({ deltaY }) => (distance *= Math.exp(deltaY / 1000))
-  );
+  canvas.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    distance *= Math.exp(event.deltaY / 1000);
+  });
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) return;
@@ -304,7 +304,7 @@ const start = () => {
     gl.bindTexture(gl.TEXTURE_2D, terrain);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
     gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 
     const tile: Tile = {
       imagery,
@@ -479,17 +479,17 @@ const start = () => {
       gl.enableVertexAttribArray(uvAttribute);
 
       gl.useProgram(renderProgram);
-      gl.uniform1i(imageryUniform, 1);
-      gl.uniform1i(terrainUniform, 0);
+      gl.uniform1i(imageryUniform, 0);
+      gl.uniform1i(terrainUniform, 1);
       gl.uniformMatrix4fv(projectionUniform, false, projection);
       gl.uniformMatrix4fv(modelViewUniform, false, modelView);
       gl.uniform3iv(centerUniform, [...to(mercator(center))]);
 
       for (const xyz of tiles) {
         const { imagery, terrain } = getTile(xyz);
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, imagery);
         gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, imagery);
+        gl.activeTexture(gl.TEXTURE1);
         gl.bindTexture(gl.TEXTURE_2D, terrain);
         gl.uniform3iv(xyzUniform, [...xyz]);
 
