@@ -6,7 +6,6 @@ import vertexSource from "./vertex.glsl";
  * TODO:
  * - Skirts
  * - mouse drag and zoom
- * - picking
  * - sphere projection
  * - smooth transition
  */
@@ -77,8 +76,9 @@ const start = () => {
 
   let start: vec3 | undefined;
   canvas.addEventListener("mousedown", ({ buttons, x, y }) => {
-    if (buttons !== 1) return;
-    start = pick([x, y]);
+    if (buttons === 1) start = pick([x, y]);
+    else if (buttons === 2)
+      center = pick([window.innerWidth / 2, window.innerHeight / 2]);
   });
 
   canvas.addEventListener("mouseup", ({ buttons }) => {
