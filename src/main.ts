@@ -70,9 +70,7 @@ const start = () => {
   const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
   if (!canvas) return;
 
-  canvas.addEventListener("contextmenu", (event) => {
-    event.preventDefault();
-  });
+  canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   let start: vec3 | undefined;
   canvas.addEventListener("mousedown", ({ buttons, x, y }) => {
@@ -82,8 +80,7 @@ const start = () => {
   });
 
   canvas.addEventListener("mouseup", ({ buttons }) => {
-    if (buttons !== 1) return;
-    start = undefined;
+    if (buttons === 1) start = undefined;
   });
 
   canvas.addEventListener(
@@ -104,9 +101,10 @@ const start = () => {
     }
   );
 
-  canvas.addEventListener("wheel", ({ deltaY }) => {
-    distance *= Math.exp(deltaY / 1000);
-  });
+  canvas.addEventListener(
+    "wheel",
+    ({ deltaY }) => (distance *= Math.exp(deltaY / 1000))
+  );
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) return;
@@ -146,7 +144,7 @@ const start = () => {
   const imageryUniform = gl.getUniformLocation(program, "imagery");
   const terrainUniform = gl.getUniformLocation(program, "terrain");
   const xyzUniform = gl.getUniformLocation(program, "xyz");
-  const cameraUniform = gl.getUniformLocation(program, "camera");
+  const centerUniform = gl.getUniformLocation(program, "center");
 
   const indexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -435,7 +433,7 @@ const start = () => {
     gl.uniform1i(terrainUniform, 0);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.uniform3iv(cameraUniform, [...to(mercator(center))]);
+    gl.uniform3iv(centerUniform, [...to(mercator(center))]);
 
     const tiles = range(0, Math.pow(2, z0))
       .flatMap((x) => range(0, Math.pow(2, z0)).map<vec3>((y) => [x, y, z0]))
