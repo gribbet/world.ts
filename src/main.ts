@@ -1,5 +1,6 @@
 import { glMatrix, mat4, vec2, vec3, vec4 } from "gl-matrix";
-import fragmentSource from "./fragment.glsl";
+import depthSource from "./depth.glsl";
+import renderSource from "./render.glsl";
 import vertexSource from "./vertex.glsl";
 
 /**
@@ -124,27 +125,31 @@ const start = () => {
   }
 
   const vertexShader = loadShader(gl.VERTEX_SHADER, vertexSource);
-  const fragmentShader = loadShader(gl.FRAGMENT_SHADER, fragmentSource);
-  if (!vertexShader || !fragmentShader) return;
+  const renderShader = loadShader(gl.FRAGMENT_SHADER, renderSource);
+  const depthShader = loadShader(gl.FRAGMENT_SHADER, depthSource);
+  if (!vertexShader || !renderShader || !depthShader) return;
 
-  const program = gl.createProgram();
-  if (!program) return;
-  gl.attachShader(program, vertexShader);
-  gl.attachShader(program, fragmentShader);
-  gl.linkProgram(program);
+  const renderProgram = gl.createProgram();
+  if (!renderProgram) return;
+  gl.attachShader(renderProgram, vertexShader);
+  gl.attachShader(renderProgram, renderShader);
+  gl.linkProgram(renderProgram);
 
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    console.log("Link failure", gl.getProgramInfoLog(program));
+  if (!gl.getProgramParameter(renderProgram, gl.LINK_STATUS)) {
+    console.log("Link failure", gl.getProgramInfoLog(renderProgram));
     return;
   }
 
-  const uvAttribute = gl.getAttribLocation(program, "uv");
-  const projectionUniform = gl.getUniformLocation(program, "projection");
-  const modelViewUniform = gl.getUniformLocation(program, "modelView");
-  const imageryUniform = gl.getUniformLocation(program, "imagery");
-  const terrainUniform = gl.getUniformLocation(program, "terrain");
-  const xyzUniform = gl.getUniformLocation(program, "xyz");
-  const centerUniform = gl.getUniformLocation(program, "center");
+  const depthProgram = gl.createProgram();
+  if (!depthProgram) return;
+  gl.attachShader(depthProgram, vertexShader);
+  gl.attachShader(depthProgram, depthShader);
+  gl.linkProgram(depthProgram);
+
+  if (!gl.getProgramParameter(depthProgram, gl.LINK_STATUS)) {
+    console.log("Link failure", gl.getProgramInfoLog(depthProgram));
+    return;
+  }
 
   const indexBuffer = gl.createBuffer();
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
@@ -163,11 +168,6 @@ const start = () => {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-  const depthBuffer = gl.createRenderbuffer();
-  gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
-
-  gl.bindTexture(gl.TEXTURE_2D, targetTexture);
   gl.texImage2D(
     gl.TEXTURE_2D,
     0,
@@ -180,6 +180,7 @@ const start = () => {
     null
   );
 
+  const depthBuffer = gl.createRenderbuffer();
   gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
   gl.renderbufferStorage(
     gl.RENDERBUFFER,
@@ -204,7 +205,12 @@ const start = () => {
     depthBuffer
   );
 
-  const loadTexture = ({
+  gl.clearColor(0, 0, 0, 1);
+  gl.enable(gl.DEPTH_TEST);
+  gl.depthFunc(gl.LEQUAL);
+  gl.clearDepth(1);
+
+  const loadTile = ({
     index,
     url,
     xyz,
@@ -223,7 +229,7 @@ const start = () => {
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.onload = () => {
-      gl.activeTexture(gl.TEXTURE0 + index);
+      gl.activeTexture(gl.TEXTURE0 + index); // TODO: Necessary?
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texImage2D(
         gl.TEXTURE_2D,
@@ -273,7 +279,7 @@ const start = () => {
     let imageryLoaded = false;
     let terrainLoaded = false;
     let elevation = 0;
-    const imagery = loadTexture({
+    const imagery = loadTile({
       index: 1,
       url: imageryUrl,
       xyz,
@@ -283,7 +289,7 @@ const start = () => {
         gl.generateMipmap(gl.TEXTURE_2D);
       },
     });
-    const terrain = loadTexture({
+    const terrain = loadTile({
       index: 0,
       url: terrainUrl,
       xyz,
@@ -387,16 +393,13 @@ const start = () => {
   const projection = mat4.create();
   const modelView = mat4.create();
 
-  const render = () => {
+  const render = ({ depth }: { depth?: boolean } = {}) => {
     const [, , near] = mercator([0, 0, distance / 100]);
     const [, , far] = mercator([0, 0, 100 * distance]);
 
-    gl.clearColor(0, 0, 0, 1);
-    gl.enable(gl.DEPTH_TEST);
-    gl.depthFunc(gl.LEQUAL);
-    gl.clearDepth(1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
+    // TODO: Different size for depth
     const { innerWidth: width, innerHeight: height, devicePixelRatio } = window;
 
     gl.viewport(0, 0, width * devicePixelRatio, height * devicePixelRatio);
@@ -423,31 +426,75 @@ const start = () => {
     mat4.rotateX(modelView, modelView, (-pitch * Math.PI) / 180);
     mat4.rotateZ(modelView, modelView, (bearing * Math.PI) / 180);
 
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
-    gl.vertexAttribPointer(uvAttribute, 2, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(uvAttribute);
-
-    gl.useProgram(program);
-    gl.uniform1i(imageryUniform, 1);
-    gl.uniform1i(terrainUniform, 0);
-    gl.uniformMatrix4fv(projectionUniform, false, projection);
-    gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.uniform3iv(centerUniform, [...to(mercator(center))]);
-
     const tiles = range(0, Math.pow(2, z0))
       .flatMap((x) => range(0, Math.pow(2, z0)).map<vec3>((y) => [x, y, z0]))
       .flatMap((xyz) => divide(xyz, [width, height]));
 
-    for (const xyz of tiles) {
-      const { imagery, terrain } = getTile(xyz);
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, imagery);
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, terrain);
-      gl.uniform3iv(xyzUniform, [...xyz]);
+    if (depth) {
+      const uvAttribute = gl.getAttribLocation(depthProgram, "uv");
+      const projectionUniform = gl.getUniformLocation(
+        depthProgram,
+        "projection"
+      );
+      const modelViewUniform = gl.getUniformLocation(depthProgram, "modelView");
+      const xyzUniform = gl.getUniformLocation(depthProgram, "xyz");
+      const centerUniform = gl.getUniformLocation(depthProgram, "center");
 
-      gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
+      gl.vertexAttribPointer(uvAttribute, 2, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(uvAttribute);
+
+      gl.useProgram(depthProgram);
+      gl.uniformMatrix4fv(projectionUniform, false, projection);
+      gl.uniformMatrix4fv(modelViewUniform, false, modelView);
+      gl.uniform3iv(centerUniform, [...to(mercator(center))]);
+
+      for (const xyz of tiles) {
+        const { terrain } = getTile(xyz);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, terrain);
+        gl.uniform3iv(xyzUniform, [...xyz]);
+
+        gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+      }
+    } else {
+      const uvAttribute = gl.getAttribLocation(renderProgram, "uv");
+      const projectionUniform = gl.getUniformLocation(
+        renderProgram,
+        "projection"
+      );
+      const modelViewUniform = gl.getUniformLocation(
+        renderProgram,
+        "modelView"
+      );
+      const imageryUniform = gl.getUniformLocation(renderProgram, "imagery");
+      const terrainUniform = gl.getUniformLocation(renderProgram, "terrain");
+      const xyzUniform = gl.getUniformLocation(renderProgram, "xyz");
+      const centerUniform = gl.getUniformLocation(renderProgram, "center");
+
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, textureCoordinateBuffer);
+      gl.vertexAttribPointer(uvAttribute, 2, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(uvAttribute);
+
+      gl.useProgram(renderProgram);
+      gl.uniform1i(imageryUniform, 1);
+      gl.uniform1i(terrainUniform, 0);
+      gl.uniformMatrix4fv(projectionUniform, false, projection);
+      gl.uniformMatrix4fv(modelViewUniform, false, modelView);
+      gl.uniform3iv(centerUniform, [...to(mercator(center))]);
+
+      for (const xyz of tiles) {
+        const { imagery, terrain } = getTile(xyz);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, imagery);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, terrain);
+        gl.uniform3iv(xyzUniform, [...xyz]);
+
+        gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+      }
     }
   };
 
@@ -458,9 +505,9 @@ const start = () => {
   };
 
   const pick = ([mouseX, mouseY]: vec2) => {
-    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-    render();
     const buffer = new Uint8Array(4);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    render({ depth: true });
     gl.readPixels(
       mouseX * 2,
       (window.innerHeight - mouseY) * 2,
@@ -470,6 +517,7 @@ const start = () => {
       gl.UNSIGNED_BYTE,
       buffer
     );
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     const x = (2 * mouseX) / window.innerWidth - 1;
     const y = -((2 * mouseY) / window.innerHeight - 1);
@@ -502,17 +550,6 @@ const start = () => {
     );
 
     const [cx, cy, cz] = mercator(center);
-
-    /*const [, , near] = mercator([0, 0, distance / 100]);
-    const [, , far] = mercator([0, 0, 100 * distance]);
-
-    const znorm = 2 * depth - 1;
-    console.log(
-      ((2 * (near * far)) / (far + near - znorm * (far - near))) * CIRCUMFERENCE
-    );*/
-
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
     return geodetic([tx / tw + cx, -ty / tw + cy, tz / tw + cz]);
   };
 

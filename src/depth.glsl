@@ -1,7 +1,3 @@
-varying highp vec2 uvOut;
-
-uniform sampler2D imagery;
-
 highp vec2 packDepth(in highp float depth) {
   highp float depthVal = depth * (256.0 * 256.0 - 1.0) / (256.0 * 256.0);
   highp vec3 encode = fract(depthVal * vec3(1.0, 256.0, 256.0 * 256.0));
