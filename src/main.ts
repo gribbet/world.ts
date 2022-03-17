@@ -1,11 +1,11 @@
 import { glMatrix, mat4, vec2, vec3, vec4 } from "gl-matrix";
+import * as LruCache from "lru-cache";
 import depthSource from "./depth.glsl";
 import renderSource from "./render.glsl";
 import vertexSource from "./vertex.glsl";
 
 /**
  * TODO:
- * - Skirts
  * - mouse drag and zoom
  * - sphere projection
  * - smooth transition
@@ -86,6 +86,7 @@ interface Tile {
   terrain: WebGLTexture;
   loaded: boolean;
   elevation: number;
+  dispose: () => void;
 }
 
 const start = () => {
@@ -280,7 +281,7 @@ const start = () => {
 
   const elevationFramebuffer = gl.createFramebuffer();
   const getTileElevation = (texture: WebGLTexture) => {
-    /*gl.bindFramebuffer(gl.FRAMEBUFFER, elevationFramebuffer);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, elevationFramebuffer);
     gl.framebufferTexture2D(
       gl.FRAMEBUFFER,
       gl.COLOR_ATTACHMENT0,
@@ -293,15 +294,19 @@ const start = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     const [r, g, b] = pixel;
     const elevation = (256 * 256 * r + 256 * g + b - 100000) * 0.1;
-    return elevation;*/
-    return 0;
+    return elevation;
   };
 
-  let tiles: { [key: string]: Tile } = {};
+  let tiles = new LruCache<string, Tile>({
+    max: 1000,
+    dispose: (tile) => {
+      tile.dispose();
+    },
+  });
   const getTile = (xyz: vec3) => {
     const [x, y, z] = xyz;
     const key = `${z}-${x}-${y}`;
-    const cached = tiles[key];
+    const cached = tiles.get(key);
     if (cached) return cached;
 
     let imageryLoaded = false;
@@ -341,9 +346,13 @@ const start = () => {
       get elevation() {
         return elevation;
       },
+      dispose: () => {
+        gl.deleteTexture(imagery);
+        gl.deleteTexture(terrain);
+      },
     };
 
-    tiles[key] = tile;
+    tiles.set(key, tile);
 
     return tile;
   };
