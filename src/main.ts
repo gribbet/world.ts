@@ -62,19 +62,19 @@ const uvw = range(0, n + 1).flatMap((y) =>
     let w = 0;
     if (x === 0) {
       u = 0;
-      w = -1;
+      w = -0.1;
     }
     if (x === n) {
       u = 1;
-      w = -1;
+      w = -0.1;
     }
     if (y === 0) {
       v = 0;
-      w = -1;
+      w = -0.1;
     }
     if (y === n) {
       v = 1;
-      w = -1;
+      w = -0.1;
     }
 
     return [u, v, w];
@@ -297,10 +297,11 @@ const start = () => {
     return 0;
   };
 
-  let tiles: Tile[][][] = [];
+  let tiles: { [key: string]: Tile } = {};
   const getTile = (xyz: vec3) => {
     const [x, y, z] = xyz;
-    const cached = tiles[z]?.[y]?.[x];
+    const key = `${z}-${x}-${y}`;
+    const cached = tiles[key];
     if (cached) return cached;
 
     let imageryLoaded = false;
@@ -342,9 +343,7 @@ const start = () => {
       },
     };
 
-    tiles[z] = tiles[z] || [];
-    tiles[z][y] = tiles[z][y] || [];
-    tiles[z][y][x] = tile;
+    tiles[key] = tile;
 
     return tile;
   };
@@ -412,9 +411,8 @@ const start = () => {
         [2 * x, 2 * y + 1, z + 1],
         [2 * x + 1, 2 * y + 1, z + 1],
       ];
-      const next = divided.flatMap((_) => divide(_, [width, height]));
-      if (next.some((_) => !getTile(_).loaded)) return [xyz];
-      return next;
+      if (divided.some((_) => !getTile(_).loaded)) return [xyz];
+      return divided.flatMap((_) => divide(_, [width, height]));
     } else return [xyz];
   };
 
