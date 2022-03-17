@@ -386,7 +386,7 @@ const start = () => {
   ];
   const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
     const [x, y, z] = xyz;
-    if (z > 24) return [xyz];
+    if (z > 22) return [xyz];
 
     const { elevation } = getTile(xyz);
     const clip = corners.map((_) => project(_, xyz, elevation));
