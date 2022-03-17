@@ -368,10 +368,10 @@ const start = () => {
       -((y + v) * k - 0.5 - cy),
       -cz + oz,
     ] as vec3;
-    mat4.multiply(matrix, projection, modelView);
+    const transform = mat4.multiply(matrix, projection, modelView);
     const [rx, ry, rz, rw] = vec4.multiply(
       vector,
-      vec4.transformMat4(vector, [tx, ty, tz, 1], matrix),
+      vec4.transformMat4(vector, [tx, ty, tz, 1], transform),
       [1, -1, 1, 1]
     );
     const l = Math.abs(rw);
@@ -550,16 +550,18 @@ const start = () => {
 
   const buffer = new Uint8Array(4);
   const pick = ([mouseX, mouseY]: vec2) => {
-    const f = 0.5;
+    const scale = 0.5;
+    const width = window.innerWidth * scale;
+    const height = window.innerHeight * scale;
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
     render({
-      width: window.innerWidth * f,
-      height: window.innerHeight * f,
+      width,
+      height,
       depth: true,
     });
     gl.readPixels(
-      mouseX * f,
-      (window.innerHeight - mouseY) * f,
+      mouseX * scale,
+      (window.innerHeight - mouseY) * scale,
       1,
       1,
       gl.RGBA,
@@ -588,15 +590,10 @@ const start = () => {
       far
     );
 
-    const a = mat4.multiply(mat4.create(), projection, modelView);
+    const transform = mat4.multiply(matrix, projection, modelView);
+    const inverse = mat4.invert(matrix, transform);
 
-    const inverse = mat4.invert(mat4.create(), a);
-
-    const [tx, ty, tz, tw] = vec4.transformMat4(
-      vec4.create(),
-      [x, y, z, 1],
-      inverse
-    );
+    const [tx, ty, tz, tw] = vec4.transformMat4(vector, [x, y, z, 1], inverse);
 
     const [cx, cy, cz] = mercator(center);
     return geodetic([tx / tw + cx, -ty / tw + cy, tz / tw + cz]);
