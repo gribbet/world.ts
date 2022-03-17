@@ -549,10 +549,11 @@ const start = () => {
   };
 
   const buffer = new Uint8Array(4);
-  const pick = ([mouseX, mouseY]: vec2) => {
+  const screenToWorld = ([screenX, screenY]: vec2) => {
     const scale = 0.5;
-    const width = window.innerWidth * scale;
-    const height = window.innerHeight * scale;
+    const { innerWidth, innerHeight } = window;
+    const width = innerWidth * scale;
+    const height = innerHeight * scale;
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
     render({
       width,
@@ -560,8 +561,8 @@ const start = () => {
       depth: true,
     });
     gl.readPixels(
-      mouseX * scale,
-      (window.innerHeight - mouseY) * scale,
+      screenX * scale,
+      (innerHeight - screenY) * scale,
       1,
       1,
       gl.RGBA,
@@ -570,25 +571,17 @@ const start = () => {
     );
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    const x = (2 * mouseX) / window.innerWidth - 1;
-    const y = -((2 * mouseY) / window.innerHeight - 1);
+    const x = (2 * screenX) / window.innerWidth - 1;
+    const y = -((2 * screenY) / window.innerHeight - 1);
 
     const [r, g] = buffer;
-    const depth =
-      ((r / 256 + g / 256 / 256) * (256.0 * 256.0)) / (256.0 * 256.0 - 1.0);
+    const depth = (r * 256 + g) / (256 * 256 - 1);
     const z = 2 * depth - 1;
+    return [x, y, z];
+  };
 
-    const [, , near] = mercator([0, 0, distance / 100]);
-    const [, , far] = mercator([0, 0, 100 * distance]);
-
-    mat4.identity(projection);
-    mat4.perspective(
-      projection,
-      (45 * Math.PI) / 180,
-      window.innerWidth / window.innerHeight,
-      near,
-      far
-    );
+  const pick = (screen: vec2) => {
+    const [x, y, z] = screenToWorld(screen);
 
     const transform = mat4.multiply(matrix, projection, modelView);
     const inverse = mat4.invert(matrix, transform);
