@@ -349,6 +349,8 @@ const start = () => {
     return tile;
   };
 
+  const matrix = mat4.create();
+  const vector = vec4.create();
   const project = ([u, v]: vec2, [x, y, z]: vec3, elevation: number) => {
     const k = Math.pow(2, -z);
     const [cx, cy, cz] = mercator(center);
@@ -358,25 +360,26 @@ const start = () => {
       -((y + v) * k - 0.5 - cy),
       -cz + oz,
     ] as vec3;
-    const a = mat4.multiply(mat4.create(), projection, modelView);
+    mat4.multiply(matrix, projection, modelView);
     const [rx, ry, rz, rw] = vec4.multiply(
-      vec4.create(),
-      vec4.transformMat4(vec4.create(), [tx, ty, tz, 1], a),
+      vector,
+      vec4.transformMat4(vector, [tx, ty, tz, 1], matrix),
       [1, -1, 1, 1]
     );
-    return [rx / Math.abs(rw), ry / Math.abs(rw), rz / Math.abs(rw)] as vec3;
+    const l = Math.abs(rw);
+    return [rx / l, ry / l, rz / l] as vec3;
   };
 
+  const corners: vec2[] = [
+    [0, 0],
+    [1, 0],
+    [1, 1],
+    [0, 1],
+  ];
   const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
     const [x, y, z] = xyz;
     if (z > 24) return [xyz];
 
-    const corners: vec2[] = [
-      [0, 0],
-      [1, 0],
-      [1, 1],
-      [0, 1],
-    ];
     const { elevation } = getTile(xyz);
     const clip = corners.map((_) => project(_, xyz, elevation));
 
@@ -429,12 +432,11 @@ const start = () => {
   }) => {
     const [, , near] = mercator([0, 0, distance / 100]);
     const [, , far] = mercator([0, 0, 100 * distance]);
+    const [, , altitude] = center;
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     gl.viewport(0, 0, width, height);
-
-    // projection * modelView
 
     mat4.identity(projection);
     mat4.perspective(
@@ -445,7 +447,6 @@ const start = () => {
       far
     );
 
-    const [, , altitude] = center;
     mat4.identity(modelView);
     mat4.translate(
       modelView,
@@ -455,9 +456,7 @@ const start = () => {
     mat4.rotateX(modelView, modelView, (-pitch * Math.PI) / 180);
     mat4.rotateZ(modelView, modelView, (bearing * Math.PI) / 180);
 
-    const tiles = range(0, Math.pow(2, z0))
-      .flatMap((x) => range(0, Math.pow(2, z0)).map<vec3>((y) => [x, y, z0]))
-      .flatMap((xyz) => divide(xyz, [width, height]));
+    const tiles = divide([0, 0, 0], [width, height]);
 
     if (depth) {
       const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
@@ -538,17 +537,18 @@ const start = () => {
     requestAnimationFrame(frame);
   };
 
+  const buffer = new Uint8Array(4);
   const pick = ([mouseX, mouseY]: vec2) => {
-    const buffer = new Uint8Array(4);
+    const f = 0.5;
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
     render({
-      width: window.innerWidth / 2,
-      height: window.innerHeight / 2,
+      width: window.innerWidth * f,
+      height: window.innerHeight * f,
       depth: true,
     });
     gl.readPixels(
-      mouseX * 2,
-      (window.innerHeight - mouseY) * 2,
+      mouseX * f,
+      (window.innerHeight - mouseY) * f,
       1,
       1,
       gl.RGBA,
