@@ -118,11 +118,9 @@ const start = () => {
     ({ buttons, movementX, movementY, x, y }) => {
       if (buttons === 1 && start) {
         const q = pick([x, y]);
-        center = vec3.add(
-          vec3.create(),
-          center,
-          vec3.sub(vec3.create(), start, q)
-        );
+        const [cx, cy, cz] = center;
+        const [dx, dy, dz] = vec3.sub(vec3.create(), start, q);
+        center = [cx + dx, cy + dy, cz];
       }
       if (buttons === 2) {
         bearing += movementX / Math.PI;
@@ -579,7 +577,8 @@ const start = () => {
     const z = 2 * depth - 1;
     return [x, y, z];
   };
-
+  // Find dx, dy, dz st. pick(mouse) === start;
+  //
   const pick = (screen: vec2) => {
     const [x, y, z] = screenToWorld(screen);
 
