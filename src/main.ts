@@ -119,7 +119,7 @@ const start = () => {
       if (buttons === 1 && start) {
         const q = pick([x, y]);
         const [cx, cy, cz] = center;
-        const [dx, dy, dz] = vec3.sub(vec3.create(), start, q);
+        const [dx, dy] = vec3.sub(vec3.create(), start, q);
         center = [cx + dx, cy + dy, cz];
       }
       if (buttons === 2) {
