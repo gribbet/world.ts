@@ -413,15 +413,19 @@ const start = () => {
         })
         .reduce((a, b) => a + b, 0) * 0.5;
 
-    if (area > 256 * 256 * window.devicePixelRatio * window.devicePixelRatio) {
+    if (
+      area >
+      256 * 256 * window.devicePixelRatio * window.devicePixelRatio * 16
+    ) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
         [2 * x, 2 * y + 1, z + 1],
         [2 * x + 1, 2 * y + 1, z + 1],
       ];
+      const next = divided.flatMap((_) => divide(_, [width, height]));
       if (divided.some((_) => !getTile(_).loaded)) return [xyz];
-      return divided.flatMap((_) => divide(_, [width, height]));
+      return next;
     } else return [xyz];
   };
 
