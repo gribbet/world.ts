@@ -232,6 +232,7 @@ const start = () => {
     gl.RENDERBUFFER,
     depthBuffer
   );
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
   gl.clearColor(0, 0, 0, 1);
   gl.enable(gl.DEPTH_TEST);
@@ -279,7 +280,7 @@ const start = () => {
 
   const elevationFramebuffer = gl.createFramebuffer();
   const getTileElevation = (texture: WebGLTexture) => {
-    gl.bindFramebuffer(gl.FRAMEBUFFER, elevationFramebuffer);
+    /*gl.bindFramebuffer(gl.FRAMEBUFFER, elevationFramebuffer);
     gl.framebufferTexture2D(
       gl.FRAMEBUFFER,
       gl.COLOR_ATTACHMENT0,
@@ -292,7 +293,8 @@ const start = () => {
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
     const [r, g, b] = pixel;
     const elevation = (256 * 256 * r + 256 * g + b - 100000) * 0.1;
-    return elevation;
+    return elevation;*/
+    return 0;
   };
 
   let tiles: Tile[][][] = [];
@@ -392,7 +394,7 @@ const start = () => {
       ([x, y]) => [(x + 1) * width, (y + 1) * height] as vec2
     );
     const area =
-      range(0, 4)
+      [0, 1, 2, 3]
         .map((i) => {
           const [x1, y1] = pixels[i];
           const [x2, y2] = pixels[(i + 1) % pixels.length];
@@ -416,19 +418,21 @@ const start = () => {
   const projection = mat4.create();
   const modelView = mat4.create();
 
-  const render = ({ depth }: { depth?: boolean } = {}) => {
+  const render = ({
+    depth,
+    width,
+    height,
+  }: {
+    width: number;
+    height: number;
+    depth?: boolean;
+  }) => {
     const [, , near] = mercator([0, 0, distance / 100]);
     const [, , far] = mercator([0, 0, 100 * distance]);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    // TODO: Different size for depth
-    const { innerWidth: width, innerHeight: height, devicePixelRatio } = window;
-
-    gl.viewport(0, 0, width * devicePixelRatio, height * devicePixelRatio);
-
-    canvas.width = width * devicePixelRatio;
-    canvas.height = height * devicePixelRatio;
+    gl.viewport(0, 0, width, height);
 
     // projection * modelView
 
@@ -524,7 +528,12 @@ const start = () => {
   };
 
   const frame = (now: number) => {
-    render();
+    const { innerWidth, innerHeight, devicePixelRatio } = window;
+    const width = innerWidth * devicePixelRatio;
+    const height = innerHeight * devicePixelRatio;
+    canvas.width = width;
+    canvas.height = height;
+    render({ width, height });
 
     requestAnimationFrame(frame);
   };
@@ -532,7 +541,11 @@ const start = () => {
   const pick = ([mouseX, mouseY]: vec2) => {
     const buffer = new Uint8Array(4);
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-    render({ depth: true });
+    render({
+      width: window.innerWidth / 2,
+      height: window.innerHeight / 2,
+      depth: true,
+    });
     gl.readPixels(
       mouseX * 2,
       (window.innerHeight - mouseY) * 2,
