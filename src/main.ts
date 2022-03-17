@@ -104,8 +104,9 @@ const start = () => {
         window.innerWidth / 2,
         window.innerHeight / 2,
       ]);
-      center = [cx, cy, altitude];
-      distance = altitude + distance - cz;
+      console.log(altitude);
+      //center = [cx, cy, altitude];
+      //distance = altitude + distance - cz;
     }
   });
 
@@ -577,8 +578,7 @@ const start = () => {
     const z = 2 * depth - 1;
     return [x, y, z];
   };
-  // Find dx, dy, dz st. pick(mouse) === start;
-  //
+
   const pick = (screen: vec2) => {
     const [x, y, z] = screenToWorld(screen);
 
