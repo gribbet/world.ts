@@ -10,7 +10,6 @@ import vertexSource from "./vertex.glsl";
  * - sphere projection
  * - smooth transition
  */
-
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
   "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
@@ -98,8 +97,15 @@ const start = () => {
   let start: vec3 | undefined;
   canvas.addEventListener("mousedown", ({ buttons, x, y }) => {
     if (buttons === 1) start = pick([x, y]);
-    else if (buttons === 2)
-      center = pick([window.innerWidth / 2, window.innerHeight / 2]);
+    else if (buttons === 2) {
+      const [cx, cy, cz] = center;
+      const [, , altitude] = pick([
+        window.innerWidth / 2,
+        window.innerHeight / 2,
+      ]);
+      center = [cx, cy, altitude];
+      distance = altitude + distance - cz;
+    }
   });
 
   canvas.addEventListener("mouseup", ({ buttons }) => {
@@ -233,13 +239,11 @@ const start = () => {
   gl.clearDepth(1);
 
   const loadTile = ({
-    index,
     url,
     xyz,
     onLoad,
     onError,
   }: {
-    index: number;
     url: string;
     xyz: vec3;
     onLoad?: () => void;
@@ -251,7 +255,6 @@ const start = () => {
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.onload = () => {
-      gl.activeTexture(gl.TEXTURE0 + index); // TODO: Necessary?
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texImage2D(
         gl.TEXTURE_2D,
@@ -302,7 +305,6 @@ const start = () => {
     let terrainLoaded = false;
     let elevation = 0;
     const imagery = loadTile({
-      index: 1,
       url: imageryUrl,
       xyz,
       onLoad: () => {
@@ -312,7 +314,6 @@ const start = () => {
       },
     });
     const terrain = loadTile({
-      index: 0,
       url: terrainUrl,
       xyz,
       onLoad: () => {
@@ -428,6 +429,8 @@ const start = () => {
 
     canvas.width = width * devicePixelRatio;
     canvas.height = height * devicePixelRatio;
+
+    // projection * modelView
 
     mat4.identity(projection);
     mat4.perspective(
