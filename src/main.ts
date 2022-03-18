@@ -104,9 +104,8 @@ const start = () => {
         window.innerWidth / 2,
         window.innerHeight / 2,
       ]);
-      console.log(altitude);
-      //center = [cx, cy, altitude];
-      //distance = altitude + distance - cz;
+      center = [cx, cy, altitude];
+      distance = altitude + distance - cz;
     }
   });
 
@@ -129,6 +128,8 @@ const start = () => {
       }
     }
   );
+
+  canvas.addEventListener("click", ({ x, y }) => pick([x, y]));
 
   canvas.addEventListener("wheel", (event) => {
     event.preventDefault();
@@ -236,8 +237,6 @@ const start = () => {
 
   gl.clearColor(0, 0, 0, 1);
   gl.enable(gl.DEPTH_TEST);
-  gl.depthFunc(gl.LEQUAL);
-  gl.clearDepth(1);
 
   const loadTile = ({
     url,
@@ -475,15 +474,17 @@ const start = () => {
         "projection"
       );
       const modelViewUniform = gl.getUniformLocation(depthProgram, "modelView");
+      const terrainUniform = gl.getUniformLocation(depthProgram, "terrain");
       const xyzUniform = gl.getUniformLocation(depthProgram, "xyz");
       const centerUniform = gl.getUniformLocation(depthProgram, "center");
 
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
-      gl.vertexAttribPointer(uvwAttribute, 2, gl.FLOAT, false, 0, 0);
+      gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
       gl.enableVertexAttribArray(uvwAttribute);
 
       gl.useProgram(depthProgram);
+      gl.uniform1i(terrainUniform, 0);
       gl.uniformMatrix4fv(projectionUniform, false, projection);
       gl.uniformMatrix4fv(modelViewUniform, false, modelView);
       gl.uniform3iv(centerUniform, [...to(mercator(center))]);
@@ -540,8 +541,8 @@ const start = () => {
     const { innerWidth, innerHeight, devicePixelRatio } = window;
     const width = innerWidth * devicePixelRatio;
     const height = innerHeight * devicePixelRatio;
-    canvas.width = width;
-    canvas.height = height;
+    if (canvas.width !== width) canvas.width = width;
+    if (canvas.height !== height) canvas.height = height;
     render({ width, height });
 
     requestAnimationFrame(frame);
@@ -551,8 +552,8 @@ const start = () => {
   const screenToWorld = ([screenX, screenY]: vec2) => {
     const scale = 0.5;
     const { innerWidth, innerHeight } = window;
-    const width = innerWidth * scale;
-    const height = innerHeight * scale;
+    const width = Math.floor(innerWidth * scale);
+    const height = Math.floor(innerHeight * scale);
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
     render({
       width,
