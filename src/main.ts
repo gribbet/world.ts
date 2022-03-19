@@ -1,4 +1,4 @@
-import { glMatrix, mat4, vec2, vec3, vec4 } from "gl-matrix";
+import { glMatrix, mat4, quat, vec2, vec3, vec4 } from "gl-matrix";
 import * as LruCache from "lru-cache";
 import depthSource from "./depth.glsl";
 import renderSource from "./render.glsl";
@@ -18,9 +18,7 @@ const z0 = 0;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
 let center: vec3 = [-121.696, 45.3736, 3000];
-let pitch = 0;
-let bearing = 0;
-let distance = 10000;
+let altitude = 10000;
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -93,38 +91,71 @@ const start = () => {
   const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
   if (!canvas) return;
 
+  const projection = mat4.create();
+  const modelView = mat4.create();
+  mat4.identity(modelView);
+  mat4.translate(modelView, modelView, mercator([0, 0, -altitude]));
+
+  mat4.rotateX(modelView, modelView, -(30 / 180) * Math.PI);
+  mat4.rotateZ(modelView, modelView, (27 * Math.PI) / 180);
+
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
-  let start: vec3 | undefined;
+  let orbit: vec3 | undefined;
   canvas.addEventListener("mousedown", ({ buttons, x, y }) => {
-    if (buttons === 1) start = pick([x, y]);
-    else if (buttons === 2) {
-      const [cx, cy, cz] = center;
-      const [, , altitude] = pick([
-        window.innerWidth / 2,
-        window.innerHeight / 2,
-      ]);
-      center = [cx, cy, altitude];
-      distance = altitude + distance - cz;
-    }
+    orbit = pick([x, y]);
   });
 
   canvas.addEventListener("mouseup", ({ buttons }) => {
-    if (buttons === 1) start = undefined;
+    orbit = undefined;
   });
 
   canvas.addEventListener(
     "mousemove",
     ({ buttons, movementX, movementY, x, y }) => {
-      if (buttons === 1 && start) {
+      if (!orbit) return;
+      if (buttons === 1) {
         const q = pick([x, y]);
         const [cx, cy, cz] = center;
-        const [dx, dy] = vec3.sub(vec3.create(), start, q);
+        const [dx, dy] = vec3.sub(vec3.create(), orbit, q);
         center = [cx + dx, cy + dy, cz];
       }
       if (buttons === 2) {
-        bearing += movementX / Math.PI;
-        pitch += -movementY / Math.PI;
+        const rotation = mat4.getRotation(quat.create(), modelView);
+
+        const r = vec3.transformQuat(
+          vec3.create(),
+          vec3.sub(vec3.create(), mercator(orbit), mercator(center)),
+          quat.invert(quat.create(), rotation)
+        );
+
+        mat4.translate(modelView, modelView, vec3.scale(vec3.create(), r, -1));
+
+        const transform = mat4.identity(mat4.create());
+        mat4.rotate(
+          transform,
+          transform,
+          (movementY / window.innerWidth) * Math.PI,
+          vec3.transformQuat(
+            vec3.create(),
+            [1, 0, 0],
+            quat.invert(quat.create(), rotation)
+          )
+        );
+        mat4.rotate(
+          transform,
+          transform,
+          (movementX / window.innerHeight) * Math.PI,
+          [0, 0, 1]
+        );
+        mat4.mul(modelView, modelView, transform);
+        vec3.transformMat4(r, r, transform);
+        mat4.invert(transform, transform);
+        mat4.translate(
+          modelView,
+          modelView,
+          vec3.transformMat4(vec3.create(), r, transform)
+        );
       }
     }
   );
@@ -133,7 +164,6 @@ const start = () => {
 
   canvas.addEventListener("wheel", (event) => {
     event.preventDefault();
-    distance *= Math.exp(event.deltaY / 1000);
   });
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
@@ -427,9 +457,6 @@ const start = () => {
     } else return [xyz];
   };
 
-  const projection = mat4.create();
-  const modelView = mat4.create();
-
   const render = ({
     depth,
     width,
@@ -439,9 +466,8 @@ const start = () => {
     height: number;
     depth?: boolean;
   }) => {
-    const [, , near] = mercator([0, 0, distance / 100]);
-    const [, , far] = mercator([0, 0, 100 * distance]);
-    const [, , altitude] = center;
+    const [, , near] = mercator([0, 0, altitude / 100]);
+    const [, , far] = mercator([0, 0, 100 * altitude]);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -455,15 +481,6 @@ const start = () => {
       near,
       far
     );
-
-    mat4.identity(modelView);
-    mat4.translate(
-      modelView,
-      modelView,
-      mercator([0, 0, -(distance - altitude)])
-    );
-    mat4.rotateX(modelView, modelView, (-pitch * Math.PI) / 180);
-    mat4.rotateZ(modelView, modelView, (bearing * Math.PI) / 180);
 
     const tiles = divide([0, 0, 0], [width, height]);
 
@@ -596,3 +613,41 @@ const start = () => {
 };
 
 start();
+
+/**
+ * Returns an euler angle representation of a quaternion
+ * @param  {vec3} out Euler angles, pitch-yaw-roll
+ * @param  {quat} mat Quaternion
+ * @return {vec3} out
+ */
+export function getEuler(out: vec3, quat: quat): vec3 {
+  let x = quat[0],
+    y = quat[1],
+    z = quat[2],
+    w = quat[3],
+    x2 = x * x,
+    y2 = y * y,
+    z2 = z * z,
+    w2 = w * w;
+  let unit = x2 + y2 + z2 + w2;
+  let test = x * w - y * z;
+  if (test > 0.499995 * unit) {
+    //TODO: Use glmatrix.EPSILON
+    // singularity at the north pole
+    out[0] = Math.PI / 2;
+    out[1] = 2 * Math.atan2(y, x);
+    out[2] = 0;
+  } else if (test < -0.499995 * unit) {
+    //TODO: Use glmatrix.EPSILON
+    // singularity at the south pole
+    out[0] = -Math.PI / 2;
+    out[1] = 2 * Math.atan2(y, x);
+    out[2] = 0;
+  } else {
+    out[0] = Math.asin(2 * (x * z - w * y));
+    out[1] = Math.atan2(2 * (x * w + y * z), 1 - 2 * (z2 + w2));
+    out[2] = Math.atan2(2 * (x * y + z * w), 1 - 2 * (y2 + z2));
+  }
+  // TODO: Return them as degrees and not as radians
+  return out;
+}
