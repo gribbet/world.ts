@@ -18,7 +18,7 @@ const z0 = 0;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
 let center: vec3 = [-121.696, 45.3736, 3000];
-let altitude = 10000;
+let altitude = 8000;
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -96,8 +96,8 @@ const start = () => {
   mat4.identity(modelView);
   mat4.translate(modelView, modelView, mercator([0, 0, -altitude]));
 
-  mat4.rotateX(modelView, modelView, -(30 / 180) * Math.PI);
-  mat4.rotateZ(modelView, modelView, (27 * Math.PI) / 180);
+  mat4.rotateX(modelView, modelView, -(1 / 180) * Math.PI);
+  //mat4.rotateZ(modelView, modelView, (27 * Math.PI) / 180);
 
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
@@ -123,39 +123,68 @@ const start = () => {
       if (buttons === 2) {
         const rotation = mat4.getRotation(quat.create(), modelView);
 
-        const r = vec3.transformQuat(
+        /*const r = vec3.transformQuat(
           vec3.create(),
           vec3.sub(vec3.create(), mercator(orbit), mercator(center)),
           quat.invert(quat.create(), rotation)
-        );
+        );*/
 
-        mat4.translate(modelView, modelView, vec3.scale(vec3.create(), r, -1));
+        // v * P * T1 * R1 * R2^-1 = v * P * T2
+
+        // (o-c1) * P * M1 = (o-c2) * P * M2
+        // c1 * P * R1 = c2 * P * R2
+        // c2 = c1 * P * M1 * M2 ^ -1 * P^-1
+
+        // (o-c1) * P * M1 * (P * M2) ^ -1 = (o-c2)
+        //mat4.translate(modelView, modelView, vec3.scale(vec3.create(), r, -1));
+
+        const deltaBearing = (movementX / window.innerHeight) * Math.PI;
+        const deltaPitch = (movementY / window.innerWidth) * Math.PI;
 
         const transform = mat4.identity(mat4.create());
+        mat4.rotate(transform, transform, deltaBearing, [0, 0, 1]);
         mat4.rotate(
           transform,
           transform,
-          (movementY / window.innerWidth) * Math.PI,
+          deltaPitch,
           vec3.transformQuat(
             vec3.create(),
             [1, 0, 0],
             quat.invert(quat.create(), rotation)
           )
         );
-        mat4.rotate(
-          transform,
-          transform,
-          (movementX / window.innerHeight) * Math.PI,
-          [0, 0, 1]
-        );
+
+        const clip = localToClip(worldToLocal(orbit));
+
         mat4.mul(modelView, modelView, transform);
-        vec3.transformMat4(r, r, transform);
-        mat4.invert(transform, transform);
-        mat4.translate(
-          modelView,
-          modelView,
-          vec3.transformMat4(vec3.create(), r, transform)
+
+        const q = localToWorld(clipToLocal(clip));
+
+        vec3.add(center, center, vec3.sub(vec3.create(), q, orbit));
+
+        console.log(center);
+
+        /*const modelView2 = mat4.mul(mat4.create(), modelView, transform);
+        const test = mat4.mul(
+          mat4.create(),
+          mat4.mul(mat4.create(), projection, modelView),
+          mat4.invert(
+            mat4.create(),
+            mat4.mul(mat4.create(), projection, modelView2)
+          )
         );
+        //mat4.mul(modelView, modelView, transform);
+        const center2 = vec3.sub(
+          vec3.create(),
+          mercator(orbit),
+          vec3.transformMat4(
+            vec3.create(),
+            vec3.sub(vec3.create(), mercator(center), mercator(center)),
+            test
+          )
+        );*/
+
+        //console.log(localToClip(worldToLocal(pick([x, y]))));
       }
     }
   );
@@ -386,24 +415,16 @@ const start = () => {
   };
 
   const matrix = mat4.create();
-  const vector = vec4.create();
+  const vector = vec3.create();
   const project = ([u, v]: vec2, [x, y, z]: vec3, elevation: number) => {
     const k = Math.pow(2, -z);
-    const [cx, cy, cz] = mercator(center);
-    const [, , oz] = mercator([0, 0, elevation]);
+    const [cx, cy, cz] = mercator(vec3.sub(vector, center, [0, 0, elevation]));
     const [tx, ty, tz] = [
       (x + u) * k - 0.5 - cx,
       -((y + v) * k - 0.5 - cy),
-      -cz + oz,
+      -cz,
     ] as vec3;
-    const transform = mat4.multiply(matrix, projection, modelView);
-    const [rx, ry, rz, rw] = vec4.multiply(
-      vector,
-      vec4.transformMat4(vector, [tx, ty, tz, 1], transform),
-      [1, -1, 1, 1]
-    );
-    const l = Math.abs(rw);
-    return [rx / l, ry / l, rz / l] as vec3;
+    return localToClip([tx, ty, tz]);
   };
 
   const corners: vec2[] = [
@@ -566,7 +587,7 @@ const start = () => {
   };
 
   const buffer = new Uint8Array(4);
-  const screenToWorld = ([screenX, screenY]: vec2) => {
+  const screenToClip = ([screenX, screenY]: vec2) => {
     const scale = 0.5;
     const { innerWidth, innerHeight } = window;
     const width = Math.floor(innerWidth * scale);
@@ -594,20 +615,36 @@ const start = () => {
     const [r, g] = buffer;
     const depth = (r * 256 + g) / (256 * 256 - 1);
     const z = 2 * depth - 1;
-    return [x, y, z];
+    return [x, y, z] as vec3;
   };
 
-  const pick = (screen: vec2) => {
-    const [x, y, z] = screenToWorld(screen);
-
+  const clipToLocal = ([x, y, z]: vec3) => {
     const transform = mat4.multiply(matrix, projection, modelView);
     const inverse = mat4.invert(matrix, transform);
-
-    const [tx, ty, tz, tw] = vec4.transformMat4(vector, [x, y, z, 1], inverse);
-
-    const [cx, cy, cz] = mercator(center);
-    return geodetic([tx / tw + cx, -ty / tw + cy, tz / tw + cz]);
+    return vec3.transformMat4(vector, [x, -y, z], inverse);
   };
+
+  const localToWorld = ([x, y, z]: vec3) => {
+    const [cx, cy, cz] = mercator(center);
+    return geodetic([x + cx, y + cy, z + cz]);
+  };
+
+  const worldToLocal = (v: vec3) =>
+    vec3.sub(vector, mercator(v), mercator(center));
+
+  const localToClip = ([x, y, z]: vec3) => {
+    const transform = mat4.multiply(matrix, projection, modelView);
+    const [tx, ty, tz, tw] = vec4.transformMat4(
+      vec4.create(),
+      [x, y, z, 1],
+      transform
+    );
+    const l = Math.abs(tw); // TODO: Why?
+    return [tx / l, -ty / l, tz / l] as vec3;
+  };
+
+  const pick = (screen: vec2) =>
+    localToWorld(clipToLocal(screenToClip(screen)));
 
   requestAnimationFrame(frame);
 };
