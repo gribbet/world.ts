@@ -15,7 +15,7 @@ void main(void) {
     int k = int(pow(2., float(xyz.z)));
     vec4 e = texture2D(terrain, uvw.xy);
     float t = (((256. * 256. * 255. * e.r) + (256. * 255. * e.g) + (255. * e.b)) / 10. - 10000.) / CIRCUMFERENCE;
-    ivec3 q = ivec3(uvw * float(ONE / k)) + ivec3(xyz.xy * (ONE / k) - ivec2(ONE / 2, ONE / 2), int(t * float(ONE)));
-    gl_Position = projection * modelView * vec4(vec3(q - center) * INV_ONE * vec3(1., -1., 1.), 1.);
+    ivec3 q = ivec3(uvw * float(ONE / k)) + ivec3(xyz.xy * (ONE / k), int(t * float(ONE)));
+    gl_Position = projection * modelView * vec4(vec3(q - center) * INV_ONE * vec3(1., 1., 1.), 1.);
     uvOut = uvw.xy;
 }

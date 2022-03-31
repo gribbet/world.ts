@@ -14,11 +14,12 @@ const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
   "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
 const n = 20;
-const z0 = 0;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
-let center: vec3 = [-121.696, 45.3736, 3000];
-let altitude = 8000;
+let center: vec3 = [-121.696, 45.3736, 0];
+let bearing = 0;
+let pitch = 0;
+let altitude = 10000;
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -30,15 +31,15 @@ const to = ([x, y, z]: vec3) =>
 
 const mercator = ([lng, lat, alt]: vec3) =>
   [
-    lng / 360,
-    -Math.asinh(Math.tan((lat / 180) * Math.PI)) / (2 * Math.PI),
+    lng / 360 + 0.5,
+    -Math.asinh(Math.tan((lat / 180) * Math.PI)) / (2 * Math.PI) + 0.5,
     alt / CIRCUMFERENCE,
   ] as vec3;
 
 const geodetic = ([x, y, z]: vec3) =>
   [
-    x * 360,
-    (Math.atan(Math.sinh(-y * (2 * Math.PI))) * 180) / Math.PI,
+    (x - 0.5) * 360,
+    (Math.atan(Math.sinh(-(y - 0.5) * (2 * Math.PI))) * 180) / Math.PI,
     z * CIRCUMFERENCE,
   ] as vec3;
 
@@ -90,35 +91,46 @@ interface Tile {
 const start = () => {
   const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
   if (!canvas) return;
+  const canvas2 = document.querySelector<HTMLCanvasElement>("#canvas2");
+  if (!canvas2) return;
 
   const projection = mat4.create();
   const modelView = mat4.create();
-  mat4.identity(modelView);
-  mat4.translate(modelView, modelView, mercator([0, 0, -altitude]));
 
-  mat4.rotateX(modelView, modelView, -(1 / 180) * Math.PI);
-  //mat4.rotateZ(modelView, modelView, (27 * Math.PI) / 180);
+  //mat4.rotateZ(modelView, modelView, (25 * Math.PI) / 180);
 
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   let orbit: vec3 | undefined;
+  let xy: vec2 | undefined;
   canvas.addEventListener("mousedown", ({ buttons, x, y }) => {
     orbit = pick([x, y]);
+    xy = [x, y];
   });
 
   canvas.addEventListener("mouseup", ({ buttons }) => {
     orbit = undefined;
   });
 
+  let qblah: vec3 | undefined;
+
   canvas.addEventListener(
     "mousemove",
     ({ buttons, movementX, movementY, x, y }) => {
-      if (!orbit) return;
+      qblah = localToWorld(clipToLocal(screenToClip([x, y])));
+      console.log(qblah);
+      if (!orbit || !xy) return;
+
       if (buttons === 1) {
-        const q = pick([x, y]);
-        const [cx, cy, cz] = center;
-        const [dx, dy] = vec3.sub(vec3.create(), orbit, q);
-        center = [cx + dx, cy + dy, cz];
+        const [, , cz] = center;
+        const [cx, cy] = geodetic(
+          vec3.sub(
+            vec3.create(),
+            mercator(orbit),
+            clipToLocal(screenToClip([x, y]))
+          )
+        );
+        center = [cx, cy, cz];
       }
       if (buttons === 2) {
         const rotation = mat4.getRotation(quat.create(), modelView);
@@ -138,65 +150,81 @@ const start = () => {
         // (o-c1) * P * M1 * (P * M2) ^ -1 = (o-c2)
         //mat4.translate(modelView, modelView, vec3.scale(vec3.create(), r, -1));
 
-        const deltaBearing = (movementX / window.innerHeight) * Math.PI;
-        const deltaPitch = (movementY / window.innerWidth) * Math.PI;
+        bearing -= (movementX / window.innerHeight) * Math.PI;
+        pitch -= (movementY / window.innerWidth) * Math.PI;
 
-        const transform = mat4.identity(mat4.create());
-        mat4.rotate(transform, transform, deltaBearing, [0, 0, 1]);
-        mat4.rotate(
-          transform,
-          transform,
-          deltaPitch,
-          vec3.transformQuat(
+        //localToClip1(a) = localToClip2(a)
+        //localToClip(worldToLocal(a)) =
+
+        /*const [, , cz] = center;
+        const [cx, cy] = geodetic(
+          vec3.sub(
             vec3.create(),
-            [1, 0, 0],
-            quat.invert(quat.create(), rotation)
+            mercator(orbit),
+            clipToLocal(screenToClip([x, y]))
           )
         );
+        center = [cx, cy, cz];*/
 
-        const clip = localToClip(worldToLocal(orbit));
+        /*const transform = mat4.identity(mat4.create());
+        //mat4.translate(modelView, modelView, mercator([0, 0, altitude]));
+        mat4.rotate(transform, transform, deltaBearing, [0, 0, 1]);
+        mat4.rotate(transform, transform, deltaPitch, [1, 0, 0]);
+        //mat4.translate(modelView, modelView, mercator([0, 0, -altitude]));
 
         mat4.mul(modelView, modelView, transform);
 
-        const q = localToWorld(clipToLocal(clip));
-
-        vec3.add(center, center, vec3.sub(vec3.create(), q, orbit));
-
-        console.log(center);
-
-        /*const modelView2 = mat4.mul(mat4.create(), modelView, transform);
-        const test = mat4.mul(
-          mat4.create(),
-          mat4.mul(mat4.create(), projection, modelView),
-          mat4.invert(
-            mat4.create(),
-            mat4.mul(mat4.create(), projection, modelView2)
+        const [, , cz] = center;
+        const [cx, cy] = geodetic(
+          vec3.sub(
+            vec3.create(),
+            mercator(orbit),
+            clipToLocal(screenToClip(xy))
           )
         );
-        //mat4.mul(modelView, modelView, transform);
-        const center2 = vec3.sub(
-          vec3.create(),
-          mercator(orbit),
-          vec3.transformMat4(
-            vec3.create(),
-            vec3.sub(vec3.create(), mercator(center), mercator(center)),
-            test
-          )
-        );*/
-
-        //console.log(localToClip(worldToLocal(pick([x, y]))));
+        center = [cx, cy, cz];*/
       }
     }
   );
 
   canvas.addEventListener("click", ({ x, y }) => pick([x, y]));
 
+  let blah = setTimeout(() => (orbit = undefined), 200);
+  const test = () => {
+    if (blah) clearTimeout(blah);
+    blah = setTimeout(() => (orbit = undefined), 200);
+  };
+
   canvas.addEventListener("wheel", (event) => {
     event.preventDefault();
+    const { x, y } = event;
+    if (!orbit) orbit = pick([x, y]);
+    test();
+
+    // find center st. world1([x, y]) == world2([x, y])
+
+    const clip = screenToClip([x, y]);
+    const a = clipToLocal(clip);
+
+    altitude *= Math.exp(event.deltaY * 0.001);
+
+    // const [, , cz] = center;
+    center = geodetic(
+      vec3.sub(
+        vec3.create(),
+        mercator(orbit),
+        clipToLocal(screenToClip([x, y]))
+      )
+    );
+    //center = [cx, cy, cz];
+    console.log(center);
   });
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) return;
+
+  const context = canvas2.getContext("2d") as CanvasRenderingContext2D;
+  if (!context) return;
 
   function loadShader(type: number, source: string) {
     const shader = gl.createShader(type);
@@ -418,12 +446,8 @@ const start = () => {
   const vector = vec3.create();
   const project = ([u, v]: vec2, [x, y, z]: vec3, elevation: number) => {
     const k = Math.pow(2, -z);
-    const [cx, cy, cz] = mercator(vec3.sub(vector, center, [0, 0, elevation]));
-    const [tx, ty, tz] = [
-      (x + u) * k - 0.5 - cx,
-      -((y + v) * k - 0.5 - cy),
-      -cz,
-    ] as vec3;
+    const [cx, cy, cz] = mercator(vec3.sub(vector, center, [0, 0, 0]));
+    const [tx, ty, tz] = [(x + u) * k - cx, (y + v) * k - cy, -cz] as vec3;
     return localToClip([tx, ty, tz]);
   };
 
@@ -450,9 +474,8 @@ const start = () => {
     )
       return [];
 
-    const pixels = clip.map(
-      ([x, y]) => [(x + 1) * width, (y + 1) * height] as vec2
-    );
+    const pixels = clip.map(clipToScreen);
+    allPixels.push(...pixels);
     const area =
       [0, 1, 2, 3]
         .map((i) => {
@@ -462,10 +485,8 @@ const start = () => {
         })
         .reduce((a, b) => a + b, 0) * 0.5;
 
-    if (
-      area >
-      256 * 256 * window.devicePixelRatio * window.devicePixelRatio * 16
-    ) {
+    if (Math.abs(area) > 256 * 256 * 4) {
+      // TODO: Negative?
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
@@ -478,6 +499,8 @@ const start = () => {
     } else return [xyz];
   };
 
+  let allPixels: vec2[] = [];
+
   const render = ({
     depth,
     width,
@@ -487,6 +510,19 @@ const start = () => {
     height: number;
     depth?: boolean;
   }) => {
+    allPixels = [];
+    if (!depth) {
+      canvas2.width = width * 0.5;
+      canvas2.height = height * 0.5;
+      context.clearRect(0, 0, width, height);
+
+      if (qblah) {
+        const [x, y] = clipToScreen(localToClip(worldToLocal(qblah)));
+        context.fillStyle = "#f00";
+        context.fillRect(x - 2, y - 2, 5, 5);
+      }
+    }
+
     const [, , near] = mercator([0, 0, altitude / 100]);
     const [, , far] = mercator([0, 0, 100 * altitude]);
 
@@ -503,7 +539,20 @@ const start = () => {
       far
     );
 
+    mat4.identity(modelView);
+    mat4.scale(modelView, modelView, [1, -1, 1]);
+    const [cx, cy] = center;
+    mat4.translate(modelView, modelView, worldToLocal([cx, cy, -altitude]));
+
+    mat4.rotateX(modelView, modelView, pitch);
+    mat4.rotateZ(modelView, modelView, bearing);
+
     const tiles = divide([0, 0, 0], [width, height]);
+
+    if (!depth) {
+      context.fillStyle = "#fff";
+      allPixels.forEach(([x, y]) => context.fillRect(x - 1, y - 1, 2, 2));
+    }
 
     if (depth) {
       const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
@@ -618,19 +667,17 @@ const start = () => {
     return [x, y, z] as vec3;
   };
 
+  const clipToScreen: (v: vec3) => vec2 = ([x, y]) =>
+    [
+      (x + 1) * window.innerWidth * 0.5,
+      (-y + 1) * window.innerHeight * 0.5,
+    ] as vec2;
+
   const clipToLocal = ([x, y, z]: vec3) => {
     const transform = mat4.multiply(matrix, projection, modelView);
     const inverse = mat4.invert(matrix, transform);
-    return vec3.transformMat4(vector, [x, -y, z], inverse);
+    return vec3.transformMat4(vec3.create(), [x, y, z], inverse);
   };
-
-  const localToWorld = ([x, y, z]: vec3) => {
-    const [cx, cy, cz] = mercator(center);
-    return geodetic([x + cx, y + cy, z + cz]);
-  };
-
-  const worldToLocal = (v: vec3) =>
-    vec3.sub(vector, mercator(v), mercator(center));
 
   const localToClip = ([x, y, z]: vec3) => {
     const transform = mat4.multiply(matrix, projection, modelView);
@@ -640,8 +687,16 @@ const start = () => {
       transform
     );
     const l = Math.abs(tw); // TODO: Why?
-    return [tx / l, -ty / l, tz / l] as vec3;
+    return [tx / l, ty / l, tz / l] as vec3;
   };
+
+  const localToWorld = ([x, y, z]: vec3) => {
+    const [cx, cy, cz] = mercator(center);
+    return geodetic([x + cx, y + cy, z + cz]);
+  };
+
+  const worldToLocal = (v: vec3) =>
+    vec3.sub(vec3.create(), mercator(v), mercator(center));
 
   const pick = (screen: vec2) =>
     localToWorld(clipToLocal(screenToClip(screen)));
@@ -650,41 +705,3 @@ const start = () => {
 };
 
 start();
-
-/**
- * Returns an euler angle representation of a quaternion
- * @param  {vec3} out Euler angles, pitch-yaw-roll
- * @param  {quat} mat Quaternion
- * @return {vec3} out
- */
-export function getEuler(out: vec3, quat: quat): vec3 {
-  let x = quat[0],
-    y = quat[1],
-    z = quat[2],
-    w = quat[3],
-    x2 = x * x,
-    y2 = y * y,
-    z2 = z * z,
-    w2 = w * w;
-  let unit = x2 + y2 + z2 + w2;
-  let test = x * w - y * z;
-  if (test > 0.499995 * unit) {
-    //TODO: Use glmatrix.EPSILON
-    // singularity at the north pole
-    out[0] = Math.PI / 2;
-    out[1] = 2 * Math.atan2(y, x);
-    out[2] = 0;
-  } else if (test < -0.499995 * unit) {
-    //TODO: Use glmatrix.EPSILON
-    // singularity at the south pole
-    out[0] = -Math.PI / 2;
-    out[1] = 2 * Math.atan2(y, x);
-    out[2] = 0;
-  } else {
-    out[0] = Math.asin(2 * (x * z - w * y));
-    out[1] = Math.atan2(2 * (x * w + y * z), 1 - 2 * (z2 + w2));
-    out[2] = Math.atan2(2 * (x * y + z * w), 1 - 2 * (y2 + z2));
-  }
-  // TODO: Return them as degrees and not as radians
-  return out;
-}
