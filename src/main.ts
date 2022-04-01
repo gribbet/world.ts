@@ -6,8 +6,9 @@ import vertexSource from "./vertex.glsl";
 
 /**
  * TODO:
- * - mouse drag and zoom
- * - sphere projection
+ * - cancel load
+ * - fix elevation estimate
+ * - lower resolution for elevation data?
  * - smooth transition
  */
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
@@ -405,8 +406,7 @@ const start = () => {
         })
         .reduce((a, b) => a + b, 0) * 0.5;
 
-    if (Math.sqrt(area) > 256) {
-      // TODO: Negative?
+    if (Math.sqrt(area) > 256 * 2) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
