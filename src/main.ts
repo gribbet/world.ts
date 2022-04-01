@@ -1,4 +1,4 @@
-import { glMatrix, mat4, quat, vec2, vec3, vec4 } from "gl-matrix";
+import { glMatrix, mat4, vec2, vec3, vec4 } from "gl-matrix";
 import * as LruCache from "lru-cache";
 import depthSource from "./depth.glsl";
 import renderSource from "./render.glsl";
@@ -13,7 +13,7 @@ import vertexSource from "./vertex.glsl";
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
   "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
-const n = 20;
+const n = 64;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
 let center: vec3 = [-121.696, 45.3736, 0];
@@ -118,7 +118,7 @@ const start = () => {
     "mousemove",
     ({ buttons, movementX, movementY, x, y }) => {
       qblah = localToWorld(clipToLocal(screenToClip([x, y])));
-      console.log(qblah);
+      // console.log(qblah);
       if (!orbit || !xy) return;
 
       if (buttons === 1) {
@@ -133,8 +133,6 @@ const start = () => {
         center = [cx, cy, cz];
       }
       if (buttons === 2) {
-        const rotation = mat4.getRotation(quat.create(), modelView);
-
         /*const r = vec3.transformQuat(
           vec3.create(),
           vec3.sub(vec3.create(), mercator(orbit), mercator(center)),
@@ -183,6 +181,10 @@ const start = () => {
           )
         );
         center = [cx, cy, cz];*/
+        /*const [, , z] = center;
+        center = orbit;
+        const [, , cz] = center;
+        altitude += cz - z;*/
       }
     }
   );
@@ -209,6 +211,16 @@ const start = () => {
     altitude *= Math.exp(event.deltaY * 0.001);
 
     // const [, , cz] = center;
+    /*const [cx, cy] = geodetic(
+      vec3.sub(
+        vec3.create(),
+        mercator(orbit),
+        clipToLocal(screenToClip([x, y]))
+      )
+    );
+    const [, , cz] = orbit;
+    center = [cx, cy, cz];*/
+
     center = geodetic(
       vec3.sub(
         vec3.create(),
@@ -216,8 +228,9 @@ const start = () => {
         clipToLocal(screenToClip([x, y]))
       )
     );
+
     //center = [cx, cy, cz];
-    console.log(center);
+    console.log(center, altitude);
   });
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
@@ -523,8 +536,8 @@ const start = () => {
       }
     }
 
-    const [, , near] = mercator([0, 0, altitude / 100]);
-    const [, , far] = mercator([0, 0, 100 * altitude]);
+    const [, , near] = mercator([0, 0, altitude / 1000]);
+    const [, , far] = mercator([0, 0, 1000 * altitude]);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -538,6 +551,12 @@ const start = () => {
       near,
       far
     );
+
+    /*
+      worldToScreen2(orbit) = mouse
+      clipToScreen(localToClip(worldToLocal2(orbit))) = mouse
+     geodetic(mercator(orbit) - clipToLocal(screenToClip(mouse))) = center2
+     */
 
     mat4.identity(modelView);
     mat4.scale(modelView, modelView, [1, -1, 1]);
