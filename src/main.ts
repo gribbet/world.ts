@@ -61,19 +61,19 @@ const uvw = range(0, n + 1).flatMap((y) =>
     let w = 0;
     if (x === 0) {
       u = 0;
-      w = -0.1;
+      w = -0.01;
     }
     if (x === n) {
       u = 1;
-      w = -0.1;
+      w = -0.01;
     }
     if (y === 0) {
       v = 0;
-      w = -0.1;
+      w = -0.01;
     }
     if (y === n) {
       v = 1;
-      w = -0.1;
+      w = -0.01;
     }
 
     return [u, v, w];
@@ -91,8 +91,6 @@ interface Tile {
 const start = () => {
   const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
   if (!canvas) return;
-  const canvas2 = document.querySelector<HTMLCanvasElement>("#canvas2");
-  if (!canvas2) return;
 
   const projection = mat4.create();
   const modelView = mat4.create();
@@ -143,16 +141,11 @@ const start = () => {
 
     altitude *= Math.exp(event.deltaY * 0.001);
 
-    console.log(orbit, center, altitude);
-
     test();
   });
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) return;
-
-  const context = canvas2.getContext("2d") as CanvasRenderingContext2D;
-  if (!context) return;
 
   function loadShader(type: number, source: string) {
     const shader = gl.createShader(type);
@@ -403,7 +396,6 @@ const start = () => {
       return [];
 
     const pixels = clip.map(clipToScreen);
-    allPixels.push(...pixels);
     const area =
       [0, 1, 2, 3]
         .map((i) => {
@@ -413,7 +405,7 @@ const start = () => {
         })
         .reduce((a, b) => a + b, 0) * 0.5;
 
-    if (Math.abs(area) > 256 * 256 * 4) {
+    if (Math.sqrt(area) > 256) {
       // TODO: Negative?
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
@@ -427,8 +419,6 @@ const start = () => {
     } else return [xyz];
   };
 
-  let allPixels: vec2[] = [];
-
   const render = ({
     depth,
     width,
@@ -438,13 +428,6 @@ const start = () => {
     height: number;
     depth?: boolean;
   }) => {
-    allPixels = [];
-    if (!depth) {
-      canvas2.width = width * 0.5;
-      canvas2.height = height * 0.5;
-      context.clearRect(0, 0, width, height);
-    }
-
     const [, , near] = mercator([0, 0, altitude / 1000]);
     const [, , far] = mercator([0, 0, 1000 * altitude]);
 
@@ -472,18 +455,9 @@ const start = () => {
       center = geodetic(
         vec3.sub(vec3.create(), mercator(orbit), clipToLocal(mouse))
       );
-      /*const oldCenter = center[2];
-      center[2] = orbit[2];
-      mouse[2] -= center[2] - oldCenter;*/
-      //orbit[2] = -oldCenter;
     }
 
     const tiles = divide([0, 0, 0], [width, height]);
-
-    if (!depth) {
-      context.fillStyle = "#fff";
-      allPixels.forEach(([x, y]) => context.fillRect(x - 1, y - 1, 2, 2));
-    }
 
     if (depth) {
       const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
