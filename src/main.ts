@@ -102,89 +102,27 @@ const start = () => {
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   let orbit: vec3 | undefined;
-  let xy: vec2 | undefined;
+  let mouse: vec3 | undefined;
   canvas.addEventListener("mousedown", ({ buttons, x, y }) => {
-    orbit = pick([x, y]);
-    xy = [x, y];
+    mouse = screenToClip([x, y]);
+    orbit = localToWorld(clipToLocal(mouse));
   });
 
   canvas.addEventListener("mouseup", ({ buttons }) => {
     orbit = undefined;
+    mouse = undefined;
   });
-
-  let qblah: vec3 | undefined;
 
   canvas.addEventListener(
     "mousemove",
     ({ buttons, movementX, movementY, x, y }) => {
-      qblah = localToWorld(clipToLocal(screenToClip([x, y])));
-      // console.log(qblah);
-      if (!orbit || !xy) return;
+      if (!orbit) return;
 
       if (buttons === 1) {
-        const [, , cz] = center;
-        const [cx, cy] = geodetic(
-          vec3.sub(
-            vec3.create(),
-            mercator(orbit),
-            clipToLocal(screenToClip([x, y]))
-          )
-        );
-        center = [cx, cy, cz];
-      }
-      if (buttons === 2) {
-        /*const r = vec3.transformQuat(
-          vec3.create(),
-          vec3.sub(vec3.create(), mercator(orbit), mercator(center)),
-          quat.invert(quat.create(), rotation)
-        );*/
-
-        // v * P * T1 * R1 * R2^-1 = v * P * T2
-
-        // (o-c1) * P * M1 = (o-c2) * P * M2
-        // c1 * P * R1 = c2 * P * R2
-        // c2 = c1 * P * M1 * M2 ^ -1 * P^-1
-
-        // (o-c1) * P * M1 * (P * M2) ^ -1 = (o-c2)
-        //mat4.translate(modelView, modelView, vec3.scale(vec3.create(), r, -1));
-
+        mouse = screenToClip([x, y]);
+      } else if (buttons === 2) {
         bearing -= (movementX / window.innerHeight) * Math.PI;
         pitch -= (movementY / window.innerWidth) * Math.PI;
-
-        //localToClip1(a) = localToClip2(a)
-        //localToClip(worldToLocal(a)) =
-
-        /*const [, , cz] = center;
-        const [cx, cy] = geodetic(
-          vec3.sub(
-            vec3.create(),
-            mercator(orbit),
-            clipToLocal(screenToClip([x, y]))
-          )
-        );
-        center = [cx, cy, cz];*/
-
-        /*const transform = mat4.identity(mat4.create());
-        //mat4.translate(modelView, modelView, mercator([0, 0, altitude]));
-        mat4.rotate(transform, transform, deltaBearing, [0, 0, 1]);
-        mat4.rotate(transform, transform, deltaPitch, [1, 0, 0]);
-        //mat4.translate(modelView, modelView, mercator([0, 0, -altitude]));
-
-        mat4.mul(modelView, modelView, transform);
-
-        const [, , cz] = center;
-        const [cx, cy] = geodetic(
-          vec3.sub(
-            vec3.create(),
-            mercator(orbit),
-            clipToLocal(screenToClip(xy))
-          )
-        );
-        center = [cx, cy, cz];*/
-        /*const [, , z] = center;
-        center = orbit;
-        const [, , cz] = center;
-        altitude += cz - z;*/
       }
     }
   );
@@ -200,37 +138,14 @@ const start = () => {
   canvas.addEventListener("wheel", (event) => {
     event.preventDefault();
     const { x, y } = event;
-    if (!orbit) orbit = pick([x, y]);
-    test();
-
-    // find center st. world1([x, y]) == world2([x, y])
-
-    const clip = screenToClip([x, y]);
-    const a = clipToLocal(clip);
+    mouse = screenToClip([x, y]);
+    if (!orbit) orbit = localToWorld(clipToLocal(mouse));
 
     altitude *= Math.exp(event.deltaY * 0.001);
 
-    // const [, , cz] = center;
-    /*const [cx, cy] = geodetic(
-      vec3.sub(
-        vec3.create(),
-        mercator(orbit),
-        clipToLocal(screenToClip([x, y]))
-      )
-    );
-    const [, , cz] = orbit;
-    center = [cx, cy, cz];*/
+    console.log(orbit, center, altitude);
 
-    center = geodetic(
-      vec3.sub(
-        vec3.create(),
-        mercator(orbit),
-        clipToLocal(screenToClip([x, y]))
-      )
-    );
-
-    //center = [cx, cy, cz];
-    console.log(center, altitude);
+    test();
   });
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
@@ -528,12 +443,6 @@ const start = () => {
       canvas2.width = width * 0.5;
       canvas2.height = height * 0.5;
       context.clearRect(0, 0, width, height);
-
-      if (qblah) {
-        const [x, y] = clipToScreen(localToClip(worldToLocal(qblah)));
-        context.fillStyle = "#f00";
-        context.fillRect(x - 2, y - 2, 5, 5);
-      }
     }
 
     const [, , near] = mercator([0, 0, altitude / 1000]);
@@ -552,19 +461,22 @@ const start = () => {
       far
     );
 
-    /*
-      worldToScreen2(orbit) = mouse
-      clipToScreen(localToClip(worldToLocal2(orbit))) = mouse
-     geodetic(mercator(orbit) - clipToLocal(screenToClip(mouse))) = center2
-     */
-
     mat4.identity(modelView);
     mat4.scale(modelView, modelView, [1, -1, 1]);
-    const [cx, cy] = center;
-    mat4.translate(modelView, modelView, worldToLocal([cx, cy, -altitude]));
+    mat4.translate(modelView, modelView, [0, 0, -altitude / CIRCUMFERENCE]);
 
     mat4.rotateX(modelView, modelView, pitch);
     mat4.rotateZ(modelView, modelView, bearing);
+
+    if (orbit && mouse && !depth) {
+      center = geodetic(
+        vec3.sub(vec3.create(), mercator(orbit), clipToLocal(mouse))
+      );
+      /*const oldCenter = center[2];
+      center[2] = orbit[2];
+      mouse[2] -= center[2] - oldCenter;*/
+      //orbit[2] = -oldCenter;
+    }
 
     const tiles = divide([0, 0, 0], [width, height]);
 
