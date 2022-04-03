@@ -17,10 +17,9 @@ const terrainUrl =
 const n = 64;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
-let center: vec3 = [-121.696, 45.3736, 0];
+let center: vec3 = [-121.696, 45.3736, 10000];
 let bearing = 0;
 let pitch = 0;
-let altitude = 10000;
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -140,7 +139,8 @@ const start = () => {
     mouse = screenToClip([x, y]);
     if (!orbit) orbit = localToWorld(clipToLocal(mouse));
 
-    altitude *= Math.exp(event.deltaY * 0.001);
+    center[2] =
+      orbit[2] + (center[2] - orbit[2]) * Math.exp(event.deltaY * 0.001);
 
     test();
   });
@@ -368,7 +368,7 @@ const start = () => {
   const vector = vec3.create();
   const project = ([u, v]: vec2, [x, y, z]: vec3, elevation: number) => {
     const k = Math.pow(2, -z);
-    const [cx, cy, cz] = mercator(vec3.sub(vector, center, [0, 0, 0]));
+    const [cx, cy, cz] = mercator(vec3.sub(vector, center, [0, 0, elevation]));
     const [tx, ty, tz] = [(x + u) * k - cx, (y + v) * k - cy, -cz] as vec3;
     return localToClip([tx, ty, tz]);
   };
@@ -406,7 +406,7 @@ const start = () => {
         })
         .reduce((a, b) => a + b, 0) * 0.5;
 
-    if (Math.sqrt(area) > 256 * 2) {
+    if (Math.sqrt(area) > 256 * 4) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
@@ -428,8 +428,8 @@ const start = () => {
     height: number;
     depth?: boolean;
   }) => {
-    const [, , near] = mercator([0, 0, altitude / 1000]);
-    const [, , far] = mercator([0, 0, 1000 * altitude]);
+    const [, , near] = mercator([0, 0, center[2] / 1000]);
+    const [, , far] = mercator([0, 0, 1000 * center[2]]);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -446,10 +446,11 @@ const start = () => {
 
     mat4.identity(modelView);
     mat4.scale(modelView, modelView, [1, -1, 1]);
-    mat4.translate(modelView, modelView, [0, 0, -altitude / CIRCUMFERENCE]);
+    mat4.translate(modelView, modelView, [0, 0, -center[2] / CIRCUMFERENCE]);
 
     mat4.rotateX(modelView, modelView, pitch);
     mat4.rotateZ(modelView, modelView, bearing);
+    mat4.translate(modelView, modelView, [0, 0, center[2] / CIRCUMFERENCE]);
 
     if (orbit && mouse && !depth) {
       center = geodetic(
