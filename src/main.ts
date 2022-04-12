@@ -6,7 +6,6 @@ import vertexSource from "./vertex.glsl";
 
 /**
  * TODO:
- * - pitch
  * - abs everywhere?
  * - cancel load
  * - fix elevation estimate
@@ -19,7 +18,8 @@ const terrainUrl =
 const n = 16;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
-let center: vec3 = [-121, 37, 5000000]; //[-121.696, 45.3736, 10000000];
+let center: vec3 = [-121, 37, 100]; //[-121.696, 45.3736, 10000000];
+let distance = 5000000;
 let bearing = 0;
 let pitch = (30 / 180) * Math.PI;
 
@@ -97,8 +97,6 @@ const start = () => {
   const projection = mat4.create();
   const modelView = mat4.create();
 
-  //mat4.rotateZ(modelView, modelView, (25 * Math.PI) / 180);
-
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   let orbit: vec3 | undefined;
@@ -141,8 +139,7 @@ const start = () => {
     mouse = screenToClip([x, y]);
     if (!orbit) orbit = localToWorld(clipToLocal(mouse));
 
-    center[2] =
-      orbit[2] + (center[2] - orbit[2]) * Math.exp(event.deltaY * 0.001);
+    distance = distance * Math.exp(event.deltaY * 0.001);
 
     test();
   });
@@ -437,8 +434,8 @@ const start = () => {
     height: number;
     depth?: boolean;
   }) => {
-    const [, , near] = mercator([0, 0, center[2] / 10]);
-    const [, , far] = mercator([0, 0, 10 * center[2]]);
+    const [, , near] = mercator([0, 0, distance / 10]);
+    const [, , far] = mercator([0, 0, 10 * distance]);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -455,18 +452,16 @@ const start = () => {
 
     mat4.identity(modelView);
     mat4.scale(modelView, modelView, [1, -1, 1]);
-    mat4.translate(modelView, modelView, [0, 0, -center[2] / CIRCUMFERENCE]);
+
+    mat4.translate(modelView, modelView, [0, 0, -distance / CIRCUMFERENCE]);
 
     mat4.rotateX(modelView, modelView, pitch);
     mat4.rotateZ(modelView, modelView, bearing);
-    mat4.translate(modelView, modelView, [0, 0, center[2] / CIRCUMFERENCE]);
 
     if (orbit && mouse && !depth) {
-      //const t = center[2];
       center = geodetic(
         vec3.sub(vec3.create(), mercator(orbit), clipToLocal(mouse))
       );
-      //center[2] = t;
     }
 
     const tiles = divide([0, 0, 0], [width, height]);
