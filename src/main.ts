@@ -8,7 +8,7 @@ import vertexSource from "./vertex.glsl";
  * TODO:
  * - abs everywhere?
  * - cancel load
- * - fix elevation estimate
+ * - fix elevation corners
  * - lower resolution for elevation data?
  * - smooth transition
  */
@@ -18,12 +18,20 @@ const terrainUrl =
 const n = 16;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
-let center: vec3 = [-121, 37, 1000]; //[-121.696, 45.3736, 10000000];
-let distance = 500;
+let center: vec3 = [-121.696, 45.3736, 3000];
+let distance = 10000;
 let bearing = 0;
 let pitch = (75 / 180) * Math.PI;
 
 glMatrix.setMatrixArrayType(Array);
+
+const debounce = (f: (...args: any[]) => void, delay: number) => {
+  let timeout: number;
+  return (...args: any[]) => {
+    clearTimeout(timeout);
+    timeout = setTimeout(() => f(args), delay);
+  };
+};
 
 const range = (start: number, end: number) =>
   Array.from({ length: end - start }, (_, k) => k + start);
@@ -101,14 +109,15 @@ const start = () => {
 
   let orbit: vec3 | undefined;
   let mouse: vec3 | undefined;
+
+  const clearOrbit = debounce(() => {
+    orbit = undefined;
+    mouse = undefined;
+  }, 100);
+
   canvas.addEventListener("mousedown", ({ x, y }) => {
     mouse = screenToClip([x, y]);
     orbit = localToWorld(clipToLocal(mouse));
-  });
-
-  canvas.addEventListener("mouseup", () => {
-    orbit = undefined;
-    mouse = undefined;
   });
 
   canvas.addEventListener(
@@ -125,29 +134,24 @@ const start = () => {
     }
   );
 
-  canvas.addEventListener("click", ({ x, y }) => pick([x, y]));
-
-  let blah = setTimeout(() => (orbit = undefined), 200);
-  const test = () => {
-    if (blah) clearTimeout(blah);
-    blah = setTimeout(() => (orbit = undefined), 200);
-  };
+  canvas.addEventListener("mouseup", clearOrbit);
 
   canvas.addEventListener("wheel", (event) => {
     event.preventDefault();
+
     const { x, y } = event;
     mouse = screenToClip([x, y]);
     if (!orbit) orbit = localToWorld(clipToLocal(mouse));
 
     distance = distance * Math.exp(event.deltaY * 0.001);
 
-    test();
+    clearOrbit();
   });
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) return;
 
-  function loadShader(type: number, source: string) {
+  const loadShader = (type: number, source: string) => {
     const shader = gl.createShader(type);
     if (!shader) return;
     gl.shaderSource(shader, source);
@@ -159,7 +163,7 @@ const start = () => {
     }
 
     return shader;
-  }
+  };
 
   const vertexShader = loadShader(gl.VERTEX_SHADER, vertexSource);
   const renderShader = loadShader(gl.FRAGMENT_SHADER, renderSource);
@@ -434,7 +438,7 @@ const start = () => {
     height: number;
     depth?: boolean;
   }) => {
-    const [, , near] = mercator([0, 0, distance / 10]);
+    const [, , near] = mercator([0, 0, distance / 100]);
     const [, , far] = mercator([0, 0, 1000 * distance]);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
@@ -536,7 +540,7 @@ const start = () => {
     }
   };
 
-  const frame = (now: number) => {
+  const frame = () => {
     const { innerWidth, innerHeight, devicePixelRatio } = window;
     const width = innerWidth * devicePixelRatio;
     const height = innerHeight * devicePixelRatio;
@@ -595,12 +599,6 @@ const start = () => {
     const [cx, cy, cz] = mercator(center);
     return geodetic([x + cx, y + cy, z + cz]);
   };
-
-  const worldToLocal = (v: vec3) =>
-    vec3.sub(vec3.create(), mercator(v), mercator(center));
-
-  const pick = (screen: vec2) =>
-    localToWorld(clipToLocal(screenToClip(screen)));
 
   requestAnimationFrame(frame);
 };
