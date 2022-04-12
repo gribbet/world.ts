@@ -19,9 +19,9 @@ const terrainUrl =
 const n = 16;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
-let center: vec3 = [0, 0, 50000000]; //[-121.696, 45.3736, 10000000];
+let center: vec3 = [-121, 37, 5000000]; //[-121.696, 45.3736, 10000000];
 let bearing = 0;
-let pitch = 0; //(30 / 180) * Math.PI;
+let pitch = (30 / 180) * Math.PI;
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -437,8 +437,8 @@ const start = () => {
     height: number;
     depth?: boolean;
   }) => {
-    const [, , near] = mercator([0, 0, center[2] / 1000]);
-    const [, , far] = mercator([0, 0, 1000 * center[2]]);
+    const [, , near] = mercator([0, 0, center[2] / 10]);
+    const [, , far] = mercator([0, 0, 10 * center[2]]);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -462,11 +462,11 @@ const start = () => {
     mat4.translate(modelView, modelView, [0, 0, center[2] / CIRCUMFERENCE]);
 
     if (orbit && mouse && !depth) {
-      const t = center[2];
+      //const t = center[2];
       center = geodetic(
         vec3.sub(vec3.create(), mercator(orbit), clipToLocal(mouse))
       );
-      center[2] = t;
+      //center[2] = t;
     }
 
     const tiles = divide([0, 0, 0], [width, height]);
