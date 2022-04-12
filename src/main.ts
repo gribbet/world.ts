@@ -6,6 +6,8 @@ import vertexSource from "./vertex.glsl";
 
 /**
  * TODO:
+ * - pitch
+ * - abs everywhere?
  * - cancel load
  * - fix elevation estimate
  * - lower resolution for elevation data?
@@ -14,12 +16,12 @@ import vertexSource from "./vertex.glsl";
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
   "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
-const n = 64;
+const n = 16;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
-let center: vec3 = [-121.696, 45.3736, 10000];
+let center: vec3 = [0, 0, 50000000]; //[-121.696, 45.3736, 10000000];
 let bearing = 0;
-let pitch = 0;
+let pitch = 0; //(30 / 180) * Math.PI;
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -61,19 +63,19 @@ const uvw = range(0, n + 1).flatMap((y) =>
     let w = 0;
     if (x === 0) {
       u = 0;
-      w = -0.01;
+      w = -0.1;
     }
     if (x === n) {
       u = 1;
-      w = -0.01;
+      w = -0.1;
     }
     if (y === 0) {
       v = 0;
-      w = -0.01;
+      w = -0.1;
     }
     if (y === n) {
       v = 1;
-      w = -0.01;
+      w = -0.1;
     }
 
     return [u, v, w];
@@ -370,7 +372,8 @@ const start = () => {
     const k = Math.pow(2, -z);
     const [cx, cy, cz] = mercator(vec3.sub(vector, center, [0, 0, elevation]));
     const [tx, ty, tz] = [(x + u) * k - cx, (y + v) * k - cy, -cz] as vec3;
-    return localToClip([tx, ty, tz]);
+    const transform = mat4.multiply(matrix, projection, modelView);
+    return vec4.transformMat4(vec4.create(), [tx, ty, tz, 1], transform);
   };
 
   const corners: vec2[] = [
@@ -387,16 +390,22 @@ const start = () => {
     const clip = corners.map((_) => project(_, xyz, elevation));
 
     if (
-      clip.every(([x]) => x > 1) ||
-      clip.every(([x]) => x < -1) ||
-      clip.every(([, y]) => y > 1) ||
-      clip.every(([, y]) => y < -1) ||
-      clip.every(([, , z]) => z > 1) ||
-      clip.every(([, , z]) => z < -1)
+      clip.every(([x, , , w]) => x > Math.abs(w)) ||
+      clip.every(([x, , , w]) => x < -Math.abs(w)) ||
+      clip.every(([, y, , w]) => y > Math.abs(w)) ||
+      clip.every(([, y, , w]) => y < -Math.abs(w)) ||
+      clip.every(([, , z, w]) => z > Math.abs(w)) ||
+      clip.every(([, , z, w]) => z < -Math.abs(w)) ||
+      clip.every(([, , , w]) => w < 0)
     )
       return [];
 
-    const pixels = clip.map(clipToScreen);
+    const a = clip.map(
+      ([x, y, z, w]) =>
+        [x / Math.abs(w), y / Math.abs(w), z / Math.abs(w)] as vec3
+    );
+
+    const pixels = a.map(clipToScreen);
     const area =
       [0, 1, 2, 3]
         .map((i) => {
@@ -406,7 +415,7 @@ const start = () => {
         })
         .reduce((a, b) => a + b, 0) * 0.5;
 
-    if (Math.sqrt(area) > 256 * 4) {
+    if (Math.sqrt(Math.abs(area)) > 256 * 2) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
@@ -453,9 +462,11 @@ const start = () => {
     mat4.translate(modelView, modelView, [0, 0, center[2] / CIRCUMFERENCE]);
 
     if (orbit && mouse && !depth) {
+      const t = center[2];
       center = geodetic(
         vec3.sub(vec3.create(), mercator(orbit), clipToLocal(mouse))
       );
+      center[2] = t;
     }
 
     const tiles = divide([0, 0, 0], [width, height]);
@@ -576,24 +587,13 @@ const start = () => {
   const clipToScreen: (v: vec3) => vec2 = ([x, y]) =>
     [
       (x + 1) * window.innerWidth * 0.5,
-      (-y + 1) * window.innerHeight * 0.5,
+      (y + 1) * window.innerHeight * 0.5,
     ] as vec2;
 
   const clipToLocal = ([x, y, z]: vec3) => {
     const transform = mat4.multiply(matrix, projection, modelView);
     const inverse = mat4.invert(matrix, transform);
     return vec3.transformMat4(vec3.create(), [x, y, z], inverse);
-  };
-
-  const localToClip = ([x, y, z]: vec3) => {
-    const transform = mat4.multiply(matrix, projection, modelView);
-    const [tx, ty, tz, tw] = vec4.transformMat4(
-      vec4.create(),
-      [x, y, z, 1],
-      transform
-    );
-    const l = Math.abs(tw); // TODO: Why?
-    return [tx / l, ty / l, tz / l] as vec3;
   };
 
   const localToWorld = ([x, y, z]: vec3) => {
