@@ -18,10 +18,10 @@ const terrainUrl =
 const n = 16;
 const ONE = 1073741824; // 2^30
 const CIRCUMFERENCE = 40075017;
-let center: vec3 = [-121, 37, 100]; //[-121.696, 45.3736, 10000000];
-let distance = 5000000;
+let center: vec3 = [-121, 37, 1000]; //[-121.696, 45.3736, 10000000];
+let distance = 500;
 let bearing = 0;
-let pitch = (30 / 180) * Math.PI;
+let pitch = (75 / 180) * Math.PI;
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -101,12 +101,12 @@ const start = () => {
 
   let orbit: vec3 | undefined;
   let mouse: vec3 | undefined;
-  canvas.addEventListener("mousedown", ({ buttons, x, y }) => {
+  canvas.addEventListener("mousedown", ({ x, y }) => {
     mouse = screenToClip([x, y]);
     orbit = localToWorld(clipToLocal(mouse));
   });
 
-  canvas.addEventListener("mouseup", ({ buttons }) => {
+  canvas.addEventListener("mouseup", () => {
     orbit = undefined;
     mouse = undefined;
   });
@@ -435,7 +435,7 @@ const start = () => {
     depth?: boolean;
   }) => {
     const [, , near] = mercator([0, 0, distance / 10]);
-    const [, , far] = mercator([0, 0, 10 * distance]);
+    const [, , far] = mercator([0, 0, 1000 * distance]);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
