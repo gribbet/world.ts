@@ -1,6 +1,7 @@
 import { glMatrix, mat4, vec2, vec3, vec4 } from "gl-matrix";
 import * as LruCache from "lru-cache";
 import depthSource from "./depth.glsl";
+import { elevation } from "./elevation";
 import renderSource from "./render.glsl";
 import vertexSource from "./vertex.glsl";
 
@@ -94,7 +95,6 @@ interface Tile {
   imagery: WebGLTexture;
   terrain: WebGLTexture;
   loaded: boolean;
-  elevation: number;
   dispose: () => void;
 }
 
@@ -289,24 +289,6 @@ const start = () => {
     return texture!;
   };
 
-  const elevationFramebuffer = gl.createFramebuffer();
-  const getTileElevation = (texture: WebGLTexture) => {
-    gl.bindFramebuffer(gl.FRAMEBUFFER, elevationFramebuffer);
-    gl.framebufferTexture2D(
-      gl.FRAMEBUFFER,
-      gl.COLOR_ATTACHMENT0,
-      gl.TEXTURE_2D,
-      texture,
-      0
-    );
-    const pixel = new Uint8Array(4);
-    gl.readPixels(0, 0, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-    const [r, g, b] = pixel;
-    const elevation = (256 * 256 * r + 256 * g + b - 100000) * 0.1;
-    return elevation;
-  };
-
   let tiles = new LruCache<string, Tile>({
     max: 1000,
     dispose: (tile) => {
@@ -336,7 +318,6 @@ const start = () => {
       xyz,
       onLoad: () => {
         terrainLoaded = true;
-        elevation = getTileElevation(terrain);
       },
       onError: () => {
         terrainLoaded = true;
@@ -353,9 +334,6 @@ const start = () => {
       get loaded() {
         return imageryLoaded && terrainLoaded;
       },
-      get elevation() {
-        return elevation;
-      },
       dispose: () => {
         gl.deleteTexture(imagery);
         gl.deleteTexture(terrain);
@@ -368,11 +346,13 @@ const start = () => {
   };
 
   const matrix = mat4.create();
-  const vector = vec3.create();
-  const project = ([u, v]: vec2, [x, y, z]: vec3, elevation: number) => {
+  const project = ([u, v]: vec2, [x, y, z]: vec3) => {
     const k = Math.pow(2, -z);
-    const [cx, cy, cz] = mercator(vec3.sub(vector, center, [0, 0, elevation]));
-    const [tx, ty, tz] = [(x + u) * k - cx, (y + v) * k - cy, -cz] as vec3;
+    const [cx, cy, cz] = mercator(center);
+    const [lx, ly, lz] = [(x + u) * k, (y + v) * k, 0] as vec3;
+    const [lng, lat] = geodetic([lx, ly, lz]);
+    const [, , zz] = mercator([0, 0, elevation([lng, lat]) || 0]);
+    const [tx, ty, tz] = [lx - cx, ly - cy, lz - cz + zz];
     const transform = mat4.multiply(matrix, projection, modelView);
     return vec4.transformMat4(vec4.create(), [tx, ty, tz, 1], transform);
   };
@@ -387,8 +367,7 @@ const start = () => {
     const [x, y, z] = xyz;
     if (z > 22) return [xyz];
 
-    const { elevation } = getTile(xyz);
-    const clip = corners.map((_) => project(_, xyz, elevation));
+    const clip = corners.map((_) => project(_, xyz));
 
     if (
       clip.every(([x, , , w]) => x > Math.abs(w)) ||
