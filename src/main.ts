@@ -102,13 +102,16 @@ const start = () => {
   const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
   if (!canvas) return;
 
+  const canvas2 = document.querySelector<HTMLCanvasElement>("#canvas2");
+  if (!canvas2) return;
+
   const projection = mat4.create();
   const modelView = mat4.create();
 
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   let orbit: vec3 | undefined;
-  let mouse: vec3 | undefined;
+  let mouse: vec4 | undefined;
 
   const clearOrbit = debounce(() => {
     orbit = undefined;
@@ -150,6 +153,9 @@ const start = () => {
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) return;
+
+  const context = canvas2.getContext("2d") as CanvasRenderingContext2D;
+  if (!context) return;
 
   const loadShader = (type: number, source: string) => {
     const shader = gl.createShader(type);
@@ -351,10 +357,10 @@ const start = () => {
     const [cx, cy, cz] = mercator(center);
     const [lx, ly, lz] = [(x + u) * k, (y + v) * k, 0] as vec3;
     const [lng, lat] = geodetic([lx, ly, lz]);
-    const [, , zz] = mercator([0, 0, elevation([lng, lat]) || 0]);
+    const h = elevation([lng, lat]);
+    const [, , zz] = mercator([0, 0, h || 0]);
     const [tx, ty, tz] = [lx - cx, ly - cy, lz - cz + zz];
-    const transform = mat4.multiply(matrix, projection, modelView);
-    return vec4.transformMat4(vec4.create(), [tx, ty, tz, 1], transform);
+    return localToClip([tx, ty, tz]);
   };
 
   const corners: vec2[] = [
@@ -363,6 +369,9 @@ const start = () => {
     [1, 1],
     [0, 1],
   ];
+
+  let allPixels: vec2[];
+
   const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
     const [x, y, z] = xyz;
     if (z > 22) return [xyz];
@@ -380,22 +389,18 @@ const start = () => {
     )
       return [];
 
-    const a = clip.map(
-      ([x, y, z, w]) =>
-        [x / Math.abs(w), y / Math.abs(w), z / Math.abs(w)] as vec3
-    );
-
-    const pixels = a.map(clipToScreen);
-    const area =
+    const pixels = clip.map(clipToScreen);
+    allPixels.push(...pixels);
+    const l = Math.sqrt(
       [0, 1, 2, 3]
         .map((i) => {
           const [x1, y1] = pixels[i];
           const [x2, y2] = pixels[(i + 1) % pixels.length];
-          return x1 * y2 - x2 * y1;
+          return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
         })
-        .reduce((a, b) => a + b, 0) * 0.5;
-
-    if (Math.sqrt(Math.abs(area)) > 256 * 2) {
+        .reduce((a, b) => a + b, 0) / 4
+    );
+    if (l > 256 * 4) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
@@ -447,6 +452,7 @@ const start = () => {
       );
     }
 
+    allPixels = [];
     const tiles = divide([0, 0, 0], [width, height]);
 
     if (depth) {
@@ -480,6 +486,11 @@ const start = () => {
         gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
       }
     } else {
+      /*context.clearRect(0, 0, width, height);
+      context.fillStyle = "red";
+      allPixels.forEach(([x, y]) =>
+        context.fillRect(x * 2 - 5, y * 2 - 5, 10, 10)
+      );*/
       const uvwAttribute = gl.getAttribLocation(renderProgram, "uvw");
       const projectionUniform = gl.getUniformLocation(
         renderProgram,
@@ -525,6 +536,8 @@ const start = () => {
     const height = innerHeight * devicePixelRatio;
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
+    if (canvas2.width !== width) canvas2.width = width;
+    if (canvas2.height !== height) canvas2.height = height;
     render({ width, height });
 
     requestAnimationFrame(frame);
@@ -559,19 +572,25 @@ const start = () => {
     const [r, g] = buffer;
     const depth = (r * 256 + g) / (256 * 256 - 1);
     const z = 2 * depth - 1;
-    return [x, y, z] as vec3;
+    return [x, y, z, 1] as vec4;
   };
 
-  const clipToScreen: (v: vec3) => vec2 = ([x, y]) =>
+  const clipToScreen: (v: vec4) => vec2 = ([x, y, , w]) =>
     [
-      (x + 1) * window.innerWidth * 0.5,
-      (y + 1) * window.innerHeight * 0.5,
+      (x / Math.abs(w) + 1) * window.innerWidth * 0.5,
+      (1 - y / Math.abs(w)) * window.innerHeight * 0.5,
     ] as vec2;
 
-  const clipToLocal = ([x, y, z]: vec3) => {
+  const clipToLocal = (v: vec4) => {
     const transform = mat4.multiply(matrix, projection, modelView);
     const inverse = mat4.invert(matrix, transform);
-    return vec3.transformMat4(vec3.create(), [x, y, z], inverse);
+    const [x, y, z, w] = vec4.transformMat4(vec4.create(), v, inverse);
+    return [x / Math.abs(w), y / Math.abs(w), z / Math.abs(w)] as vec3;
+  };
+
+  const localToClip = ([x, y, z]: vec3) => {
+    const transform = mat4.multiply(matrix, projection, modelView);
+    return vec4.transformMat4(vec4.create(), [x, y, z, 1], transform);
   };
 
   const localToWorld = ([x, y, z]: vec3) => {
