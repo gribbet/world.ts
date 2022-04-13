@@ -22,7 +22,7 @@ const CIRCUMFERENCE = 40075017;
 let center: vec3 = [-121.696, 45.3736, 3000];
 let distance = 10000;
 let bearing = 0;
-let pitch = (75 / 180) * Math.PI;
+let pitch = (30 / 180) * Math.PI;
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -400,7 +400,7 @@ const start = () => {
         })
         .reduce((a, b) => a + b, 0) / 4
     );
-    if (l > 256 * 4) {
+    if (l > 256) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
@@ -455,6 +455,8 @@ const start = () => {
     allPixels = [];
     const tiles = divide([0, 0, 0], [width, height]);
 
+    console.log(tiles.length);
+
     if (depth) {
       const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
       const projectionUniform = gl.getUniformLocation(
@@ -486,11 +488,11 @@ const start = () => {
         gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
       }
     } else {
-      /*context.clearRect(0, 0, width, height);
+      context.clearRect(0, 0, width, height);
       context.fillStyle = "red";
       allPixels.forEach(([x, y]) =>
         context.fillRect(x * 2 - 5, y * 2 - 5, 10, 10)
-      );*/
+      );
       const uvwAttribute = gl.getAttribLocation(renderProgram, "uvw");
       const projectionUniform = gl.getUniformLocation(
         renderProgram,
