@@ -156,17 +156,20 @@ const start = () => {
     event.preventDefault();
 
     const { x, y } = event;
-    const world = pick([x, y]);
     if (!anchor)
       anchor = {
         screen: [x, y],
-        world,
+        world: pick([x, y]),
       };
 
     camera = vec3.add(
       vector,
       camera,
-      vec3.scale(vector, vec3.sub(vector, camera, world), event.deltaY * 0.001)
+      vec3.scale(
+        vector,
+        vec3.sub(vector, camera, anchor.world),
+        event.deltaY * 0.001
+      )
     );
 
     clearAnchor();
@@ -592,13 +595,6 @@ const start = () => {
   };
 
   const buffer = new Uint8Array(4);
-
-  const screenToClip = ([screenX, screenY]: vec2) => {
-    const x = (2 * screenX) / window.innerWidth - 1;
-    const y = -((2 * screenY) / window.innerHeight - 1);
-    return [x, y, 0, 1] as vec4;
-  };
-
   const pick = ([screenX, screenY]: vec2) => {
     const scale = 0.5;
     const { innerWidth, innerHeight } = window;
@@ -626,6 +622,12 @@ const start = () => {
     const z = 2 * depth - 1;
     const [x, y] = screenToClip([screenX, screenY]);
     return localToWorld(clipToLocal([x, y, z, 1]));
+  };
+
+  const screenToClip = ([screenX, screenY]: vec2) => {
+    const x = (2 * screenX) / window.innerWidth - 1;
+    const y = -((2 * screenY) / window.innerHeight - 1);
+    return [x, y, 0, 1] as vec4;
   };
 
   const clipToScreen: (v: vec4) => vec2 = ([x, y, , w]) =>
