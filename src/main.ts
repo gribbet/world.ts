@@ -17,8 +17,7 @@ const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
   "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
 
-const terrainSubdivide = 4;
-const n = Math.pow(2, terrainSubdivide);
+const n = 16;
 const one = 1073741824; // 2^30
 const circumference = 40075017;
 let center: vec3 = [-121.696, 45.3736, 3000];
@@ -292,10 +291,6 @@ const start = () => {
         gl.UNSIGNED_BYTE,
         cropped
       );
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       onLoad?.();
     };
     image.onerror = (error) => {
@@ -338,15 +333,16 @@ const start = () => {
       subdivide: 4,
       onLoad: () => {
         terrainLoaded = true;
+        gl.bindTexture(gl.TEXTURE_2D, terrain);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       },
       onError: () => {
         terrainLoaded = true;
       },
     });
-    gl.bindTexture(gl.TEXTURE_2D, terrain);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
 
     const tile: Tile = {
       imagery,
@@ -500,11 +496,11 @@ const start = () => {
         gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
       }
     } else {
-      /*context.clearRect(0, 0, width, height);
+      context.clearRect(0, 0, width, height);
       context.fillStyle = "red";
       allPixels.forEach(([x, y]) =>
         context.fillRect(x * 2 - 5, y * 2 - 5, 10, 10)
-      );*/
+      );
       const uvwAttribute = gl.getAttribLocation(renderProgram, "uvw");
       const projectionUniform = gl.getUniformLocation(
         renderProgram,
