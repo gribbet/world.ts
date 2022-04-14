@@ -16,9 +16,11 @@ import vertexSource from "./vertex.glsl";
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
   "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
-const n = 16;
-const ONE = 1073741824; // 2^30
-const CIRCUMFERENCE = 40075017;
+
+const terrainSubdivide = 4;
+const n = Math.pow(2, terrainSubdivide);
+const one = 1073741824; // 2^30
+const circumference = 40075017;
 let center: vec3 = [-121.696, 45.3736, 3000];
 let distance = 10000;
 let bearing = 0;
@@ -38,20 +40,20 @@ const range = (start: number, end: number) =>
   Array.from({ length: end - start }, (_, k) => k + start);
 
 const to = ([x, y, z]: vec3) =>
-  [Math.floor(x * ONE), Math.floor(y * ONE), Math.floor(z * ONE)] as vec3;
+  [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
 
 const mercator = ([lng, lat, alt]: vec3) =>
   [
     lng / 360 + 0.5,
     -Math.asinh(Math.tan((lat / 180) * Math.PI)) / (2 * Math.PI) + 0.5,
-    alt / CIRCUMFERENCE,
+    alt / circumference,
   ] as vec3;
 
 const geodetic = ([x, y, z]: vec3) =>
   [
     (x - 0.5) * 360,
     (Math.atan(Math.sinh(-(y - 0.5) * (2 * Math.PI))) * 180) / Math.PI,
-    z * CIRCUMFERENCE,
+    z * circumference,
   ] as vec3;
 
 const indices = range(0, n).flatMap((y) =>
@@ -259,20 +261,28 @@ const start = () => {
   const loadTile = ({
     url,
     xyz,
+    subdivide = 0,
     onLoad,
     onError,
   }: {
     url: string;
     xyz: vec3;
+    subdivide?: number;
     onLoad?: () => void;
     onError?: () => void;
   }) => {
-    const [x, y, z] = xyz;
+    const [x0, y0, z0] = xyz;
+    subdivide = Math.min(subdivide, z0);
+    const k = Math.pow(2, subdivide);
+    const [x, y, z] = [Math.floor(x0 / k), Math.floor(y0 / k), z0 - subdivide];
+    const [u, v, w] = [x0 % k, y0 % k, subdivide];
     const texture = gl.createTexture();
 
     const image = new Image();
     image.crossOrigin = "anonymous";
-    image.onload = () => {
+    image.onload = async () => {
+      const k = image.width * Math.pow(2, -w);
+      const cropped = await createImageBitmap(image, k * u, k * v, k, k);
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texImage2D(
         gl.TEXTURE_2D,
@@ -280,8 +290,12 @@ const start = () => {
         gl.RGBA,
         gl.RGBA,
         gl.UNSIGNED_BYTE,
-        image
+        cropped
       );
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       onLoad?.();
     };
     image.onerror = (error) => {
@@ -296,7 +310,7 @@ const start = () => {
   };
 
   let tiles = new LruCache<string, Tile>({
-    max: 1000,
+    max: 500,
     dispose: (tile) => {
       tile.dispose();
     },
@@ -309,7 +323,6 @@ const start = () => {
 
     let imageryLoaded = false;
     let terrainLoaded = false;
-    let elevation = 0;
     const imagery = loadTile({
       url: imageryUrl,
       xyz,
@@ -322,6 +335,7 @@ const start = () => {
     const terrain = loadTile({
       url: terrainUrl,
       xyz,
+      subdivide: 4,
       onLoad: () => {
         terrainLoaded = true;
       },
@@ -400,7 +414,7 @@ const start = () => {
         })
         .reduce((a, b) => a + b, 0) / 4
     );
-    if (l > 256) {
+    if (l > 256 * 2) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
@@ -441,7 +455,7 @@ const start = () => {
     mat4.identity(modelView);
     mat4.scale(modelView, modelView, [1, -1, 1]);
 
-    mat4.translate(modelView, modelView, [0, 0, -distance / CIRCUMFERENCE]);
+    mat4.translate(modelView, modelView, [0, 0, -distance / circumference]);
 
     mat4.rotateX(modelView, modelView, pitch);
     mat4.rotateZ(modelView, modelView, bearing);
