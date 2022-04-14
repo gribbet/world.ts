@@ -1,7 +1,9 @@
 import { glMatrix, mat4, vec2, vec3, vec4 } from "gl-matrix";
 import * as LruCache from "lru-cache";
+import { circumference, imageryUrl, terrainUrl } from "./constants";
 import depthSource from "./depth.glsl";
 import { elevation } from "./elevation";
+import { geodetic, mercator, quadratic } from "./math";
 import renderSource from "./render.glsl";
 import vertexSource from "./vertex.glsl";
 
@@ -14,16 +16,9 @@ import vertexSource from "./vertex.glsl";
  * - mercator elevation
  * - offset
  */
-const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
-const terrainUrl =
-  "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
 
 const n = 16;
 const one = 1073741824; // 2^30
-const circumference = 40075017;
-let camera: vec3 = [0, 0, circumference];
-let bearing = 0;
-let pitch = 0;
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -40,25 +35,6 @@ const range = (start: number, end: number) =>
 
 const to = ([x, y, z]: vec3) =>
   [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
-
-const quadratic = (a: number, b: number, c: number) => {
-  const q = Math.sqrt(b * b - 4 * a * c);
-  return [(-b - q) / (2 * a), (-b + q) / (2 * a)];
-};
-
-const mercator = ([lng, lat, alt]: vec3) =>
-  [
-    lng / 360 + 0.5,
-    -Math.asinh(Math.tan((lat / 180) * Math.PI)) / (2 * Math.PI) + 0.5,
-    alt / circumference,
-  ] as vec3;
-
-const geodetic = ([x, y, z]: vec3) =>
-  [
-    (x - 0.5) * 360,
-    (Math.atan(Math.sinh(-(y - 0.5) * (2 * Math.PI))) * 180) / Math.PI,
-    z * circumference,
-  ] as vec3;
 
 const indices = range(0, n).flatMap((y) =>
   range(0, n).flatMap((x) => [
@@ -116,6 +92,9 @@ const matrix = mat4.create();
 const vector = vec3.create();
 
 const start = () => {
+  let camera: vec3 = [0, 0, circumference];
+  let bearing = 0;
+  let pitch = 0;
   let anchor: Anchor | undefined;
 
   const canvas = document.querySelector<HTMLCanvasElement>("#canvas");

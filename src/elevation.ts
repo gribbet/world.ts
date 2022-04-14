@@ -1,9 +1,8 @@
 import * as LRUCache from "lru-cache";
+import { terrainUrl } from "./constants";
+import { mercator } from "./math";
 
 const z = 13;
-
-const terrainUrl =
-  "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
 
 const cache = new LRUCache<number, number>({
   max: 10000,
@@ -23,7 +22,7 @@ export function elevation([lng, lat]: [number, number]): number | undefined {
 }
 
 async function getElevation([lng, lat]: [number, number]): Promise<number> {
-  const p = mercator([lng, lat]).map((_) => _ * Math.pow(2, z));
+  const p = mercator([lng, lat, 0]).map((_) => _ * Math.pow(2, z));
   const [x, y] = p.map((_) => Math.floor(_));
   const [px, py] = p.map((_) => _ % 1);
   const cached = calculateCache.get(key([lng, lat]));
@@ -87,11 +86,4 @@ async function loadTile(x: number, y: number, z: number): Promise<Tile> {
     console.warn("Elevation tile load failure", { x, y, z });
     return { query: () => 0 };
   }
-}
-
-function mercator([lng, lat]: [number, number]) {
-  return [
-    lng / 360 + 0.5,
-    -Math.asinh(Math.tan((lat / 180) * Math.PI)) / (2 * Math.PI) + 0.5,
-  ];
 }
