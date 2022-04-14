@@ -1,5 +1,6 @@
 import { glMatrix, mat4, vec2, vec3, vec4 } from "gl-matrix";
 import * as LruCache from "lru-cache";
+import { debounce, range } from "./common";
 import { circumference, imageryUrl, terrainUrl } from "./constants";
 import depthSource from "./depth.glsl";
 import { elevation } from "./elevation";
@@ -15,23 +16,14 @@ import vertexSource from "./vertex.glsl";
  * - elevation tile -1
  * - mercator elevation
  * - offset
+ * - width/height
+ * - subdivide const
  */
 
 const n = 16;
 const one = 1073741824; // 2^30
 
 glMatrix.setMatrixArrayType(Array);
-
-const debounce = (f: (...args: any[]) => void, delay: number) => {
-  let timeout: number;
-  return (...args: any[]) => {
-    clearTimeout(timeout);
-    timeout = setTimeout(() => f(args), delay);
-  };
-};
-
-const range = (start: number, end: number) =>
-  Array.from({ length: end - start }, (_, k) => k + start);
 
 const to = ([x, y, z]: vec3) =>
   [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
@@ -100,9 +92,6 @@ const start = () => {
   const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
   if (!canvas) return;
 
-  const canvas2 = document.querySelector<HTMLCanvasElement>("#canvas2");
-  if (!canvas2) return;
-
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   const mouseAnchor: (screen: vec2) => Anchor = (screen) => {
@@ -153,9 +142,6 @@ const start = () => {
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) return;
-
-  const context = canvas2.getContext("2d") as CanvasRenderingContext2D;
-  if (!context) return;
 
   const loadShader = (type: number, source: string) => {
     const shader = gl.createShader(type);
@@ -377,9 +363,6 @@ const start = () => {
     [1, 1],
     [0, 1],
   ];
-
-  let allPixels: vec2[];
-
   const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
     const [x, y, z] = xyz;
     if (z > 22) return [xyz];
@@ -398,14 +381,11 @@ const start = () => {
       return [];
 
     const pixels = clip.map(clipToScreen);
-    allPixels.push(...pixels);
     const l = Math.sqrt(
       [0, 1, 2, 3]
-        .map((i) => {
-          const [x1, y1] = pixels[i];
-          const [x2, y2] = pixels[(i + 1) % pixels.length];
-          return (x2 - x1) * (x2 - x1) + (y2 - y1) * (y2 - y1);
-        })
+        .map((i) =>
+          vec2.squaredDistance(pixels[i], pixels[(i + 1) % pixels.length])
+        )
         .reduce((a, b) => a + b, 0) / 4
     );
     if (l > 256 * 2) {
@@ -474,7 +454,6 @@ const start = () => {
 
     if (anchor && !depth) recenter(anchor);
 
-    allPixels = [];
     const tiles = divide([0, 0, 0], [width, height]);
 
     if (depth) {
@@ -508,11 +487,6 @@ const start = () => {
         gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
       }
     } else {
-      context.clearRect(0, 0, width, height);
-      context.fillStyle = "red";
-      allPixels.forEach(([x, y]) =>
-        context.fillRect(x * 2 - 5, y * 2 - 5, 10, 10)
-      );
       const uvwAttribute = gl.getAttribLocation(renderProgram, "uvw");
       const projectionUniform = gl.getUniformLocation(
         renderProgram,
@@ -558,8 +532,6 @@ const start = () => {
     const height = innerHeight * devicePixelRatio;
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
-    if (canvas2.width !== width) canvas2.width = width;
-    if (canvas2.height !== height) canvas2.height = height;
     render({ width, height });
 
     requestAnimationFrame(frame);
