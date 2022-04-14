@@ -9,9 +9,8 @@ import vertexSource from "./vertex.glsl";
  * TODO:
  * - abs everywhere?
  * - cancel load
- * - fix elevation corners
- * - lower resolution for elevation data?
  * - smooth transition
+ * - elevation tile -1
  */
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
@@ -20,8 +19,7 @@ const terrainUrl =
 const n = 16;
 const one = 1073741824; // 2^30
 const circumference = 40075017;
-let center: vec3 = [-121.696, 45.3736, 3000];
-let distance = 10000;
+let camera: vec3 = [-121.696, 45.3736, 13000];
 let bearing = 0;
 let pitch = (30 / 180) * Math.PI;
 
@@ -147,7 +145,12 @@ const start = () => {
     mouse = screenToClip([x, y]);
     if (!orbit) orbit = localToWorld(clipToLocal(mouse));
 
-    distance = distance * Math.exp(event.deltaY * 0.001);
+    const vector = vec3.create();
+    camera = vec3.add(
+      vector,
+      camera,
+      vec3.scale(vector, vec3.sub(vector, camera, orbit), event.deltaY * 0.001)
+    );
 
     clearOrbit();
   });
@@ -275,8 +278,8 @@ const start = () => {
     const k = Math.pow(2, subdivide);
     const [x, y, z] = [Math.floor(x0 / k), Math.floor(y0 / k), z0 - subdivide];
     const [u, v, w] = [x0 % k, y0 % k, subdivide];
-    const texture = gl.createTexture();
 
+    const texture = gl.createTexture();
     const image = new Image();
     image.crossOrigin = "anonymous";
     image.onload = async () => {
@@ -364,7 +367,7 @@ const start = () => {
   const matrix = mat4.create();
   const project = ([u, v]: vec2, [x, y, z]: vec3) => {
     const k = Math.pow(2, -z);
-    const [cx, cy, cz] = mercator(center);
+    const [cx, cy, cz] = mercator(camera);
     const [lx, ly, lz] = [(x + u) * k, (y + v) * k, 0] as vec3;
     const [lng, lat] = geodetic([lx, ly, lz]);
     const h = elevation([lng, lat]);
@@ -432,8 +435,9 @@ const start = () => {
     height: number;
     depth?: boolean;
   }) => {
-    const [, , near] = mercator([0, 0, distance / 100]);
-    const [, , far] = mercator([0, 0, 1000 * distance]);
+    const [, , z] = camera;
+    const [, , near] = mercator([0, 0, z / 100]);
+    const [, , far] = mercator([0, 0, 1000 * z]);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
@@ -451,15 +455,32 @@ const start = () => {
     mat4.identity(modelView);
     mat4.scale(modelView, modelView, [1, -1, 1]);
 
-    mat4.translate(modelView, modelView, [0, 0, -distance / circumference]);
-
     mat4.rotateX(modelView, modelView, pitch);
     mat4.rotateZ(modelView, modelView, bearing);
 
     if (orbit && mouse && !depth) {
-      center = geodetic(
-        vec3.sub(vec3.create(), mercator(orbit), clipToLocal(mouse))
+      const [ax, ay, az] = clipToLocal([mouse[0], mouse[1], 100, 1] as vec4);
+      const [bx, by, bz] = clipToLocal([mouse[0], mouse[1], -100, 1] as vec4);
+      const l = vec3.distance(mercator(camera), mercator(orbit));
+
+      const quadratic = (a: number, b: number, c: number) => {
+        const q = Math.sqrt(b * b - 4 * a * c);
+        return [(-b - q) / (2 * a), (-b + q) / (2 * a)];
+      };
+
+      const [t1, t2] = quadratic(
+        (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
+        ax * (bx - ax) + ay * (by - ay) + az * (bz - az),
+        ax * ax + ay * ay + az * az - l * l
       );
+
+      const mouse3: vec3 = [
+        ax + t1 * (bx - ax),
+        ay + t1 * (by - ay),
+        az + t1 * (bz - az),
+      ];
+
+      camera = geodetic(vec3.sub(vec3.create(), mercator(orbit), mouse3));
     }
 
     allPixels = [];
@@ -474,7 +495,7 @@ const start = () => {
       const modelViewUniform = gl.getUniformLocation(depthProgram, "modelView");
       const terrainUniform = gl.getUniformLocation(depthProgram, "terrain");
       const xyzUniform = gl.getUniformLocation(depthProgram, "xyz");
-      const centerUniform = gl.getUniformLocation(depthProgram, "center");
+      const cameraUniform = gl.getUniformLocation(depthProgram, "camera");
 
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
@@ -485,7 +506,7 @@ const start = () => {
       gl.uniform1i(terrainUniform, 0);
       gl.uniformMatrix4fv(projectionUniform, false, projection);
       gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-      gl.uniform3iv(centerUniform, [...to(mercator(center))]);
+      gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
 
       for (const xyz of tiles) {
         const { terrain } = getTile(xyz);
@@ -496,11 +517,11 @@ const start = () => {
         gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
       }
     } else {
-      context.clearRect(0, 0, width, height);
+      /*context.clearRect(0, 0, width, height);
       context.fillStyle = "red";
       allPixels.forEach(([x, y]) =>
         context.fillRect(x * 2 - 5, y * 2 - 5, 10, 10)
-      );
+      );*/
       const uvwAttribute = gl.getAttribLocation(renderProgram, "uvw");
       const projectionUniform = gl.getUniformLocation(
         renderProgram,
@@ -513,7 +534,7 @@ const start = () => {
       const imageryUniform = gl.getUniformLocation(renderProgram, "imagery");
       const terrainUniform = gl.getUniformLocation(renderProgram, "terrain");
       const xyzUniform = gl.getUniformLocation(renderProgram, "xyz");
-      const centerUniform = gl.getUniformLocation(renderProgram, "center");
+      const cameraUniform = gl.getUniformLocation(renderProgram, "camera");
 
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
       gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
@@ -525,7 +546,7 @@ const start = () => {
       gl.uniform1i(terrainUniform, 1);
       gl.uniformMatrix4fv(projectionUniform, false, projection);
       gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-      gl.uniform3iv(centerUniform, [...to(mercator(center))]);
+      gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
 
       for (const xyz of tiles) {
         const { imagery, terrain } = getTile(xyz);
@@ -604,7 +625,7 @@ const start = () => {
   };
 
   const localToWorld = ([x, y, z]: vec3) => {
-    const [cx, cy, cz] = mercator(center);
+    const [cx, cy, cz] = mercator(camera);
     return geodetic([x + cx, y + cy, z + cz]);
   };
 
