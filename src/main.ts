@@ -7,7 +7,6 @@ import vertexSource from "./vertex.glsl";
 
 /**
  * TODO:
- * - abs everywhere?
  * - cancel load
  * - smooth transition
  * - elevation tile -1
@@ -413,12 +412,12 @@ const start = () => {
     const clip = corners.map((_) => project(_, xyz));
 
     if (
-      clip.every(([x, , , w]) => x > Math.abs(w)) ||
-      clip.every(([x, , , w]) => x < -Math.abs(w)) ||
-      clip.every(([, y, , w]) => y > Math.abs(w)) ||
-      clip.every(([, y, , w]) => y < -Math.abs(w)) ||
-      clip.every(([, , z, w]) => z > Math.abs(w)) ||
-      clip.every(([, , z, w]) => z < -Math.abs(w)) ||
+      clip.every(([x, , , w]) => x > w) ||
+      clip.every(([x, , , w]) => x < -w) ||
+      clip.every(([, y, , w]) => y > w) ||
+      clip.every(([, y, , w]) => y < -w) ||
+      clip.every(([, , z, w]) => z > w) ||
+      clip.every(([, , z, w]) => z < -w) ||
       clip.every(([, , , w]) => w < 0)
     )
       return [];
@@ -451,8 +450,8 @@ const start = () => {
     const { screen, world } = anchor;
 
     const [x, y] = screenToClip(screen);
-    const [ax, ay, az] = clipToLocal([x, y, 100, 1]);
-    const [bx, by, bz] = clipToLocal([x, y, -100, 1]);
+    const [ax, ay, az] = clipToLocal([x, y, -100, 1]);
+    const [bx, by, bz] = clipToLocal([x, y, 100, 1]);
     const distance = vec3.distance(mercator(camera), mercator(world));
 
     const [t1] = quadratic(
@@ -495,10 +494,9 @@ const start = () => {
       near,
       far
     );
+    mat4.scale(projection, projection, [1, -1, 1]);
 
     mat4.identity(modelView);
-    mat4.scale(modelView, modelView, [1, -1, 1]);
-
     mat4.rotateX(modelView, modelView, pitch);
     mat4.rotateZ(modelView, modelView, bearing);
 
@@ -506,8 +504,6 @@ const start = () => {
 
     allPixels = [];
     const tiles = divide([0, 0, 0], [width, height]);
-
-    console.log(tiles.length);
 
     if (depth) {
       const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
@@ -635,15 +631,15 @@ const start = () => {
 
   const clipToScreen: (v: vec4) => vec2 = ([x, y, , w]) =>
     [
-      (x / Math.abs(w) + 1) * window.innerWidth * 0.5,
-      (1 - y / Math.abs(w)) * window.innerHeight * 0.5,
+      (x / w + 1) * window.innerWidth * 0.5,
+      (1 - y / w) * window.innerHeight * 0.5,
     ] as vec2;
 
   const clipToLocal = (v: vec4) => {
     const transform = mat4.multiply(matrix, projection, modelView);
     const inverse = mat4.invert(matrix, transform);
     const [x, y, z, w] = vec4.transformMat4(vec4.create(), v, inverse);
-    return [x / Math.abs(w), y / Math.abs(w), z / Math.abs(w)] as vec3;
+    return [x / w, y / w, z / w] as vec3;
   };
 
   const localToClip = ([x, y, z]: vec3) => {
