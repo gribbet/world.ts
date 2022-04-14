@@ -11,6 +11,7 @@ import vertexSource from "./vertex.glsl";
  * - smooth transition
  * - elevation tile -1
  * - mercator elevation
+ * - offset
  */
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
@@ -19,9 +20,9 @@ const terrainUrl =
 const n = 16;
 const one = 1073741824; // 2^30
 const circumference = 40075017;
-let camera: vec3 = [-121.696, 45.3736, 13000];
+let camera: vec3 = [0, 0, circumference];
 let bearing = 0;
-let pitch = (30 / 180) * Math.PI;
+let pitch = 0;
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -105,39 +106,46 @@ interface Tile {
 interface Anchor {
   screen: vec2;
   world: vec3;
+  distance: number;
 }
 
+const projection = mat4.create();
+const modelView = mat4.create();
+const matrix = mat4.create();
+const vector = vec3.create();
+
 const start = () => {
+  let anchor: Anchor | undefined;
+
   const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
   if (!canvas) return;
 
   const canvas2 = document.querySelector<HTMLCanvasElement>("#canvas2");
   if (!canvas2) return;
 
-  const projection = mat4.create();
-  const modelView = mat4.create();
-  const vector = vec3.create();
-
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
-  let anchor: Anchor | undefined;
+  const mouseAnchor: (screen: vec2) => Anchor = (screen) => {
+    const world = pick(screen);
+    return {
+      screen,
+      world,
+      distance: vec3.distance(mercator(world), mercator(camera)),
+    };
+  };
 
   const clearAnchor = debounce(() => {
     anchor = undefined;
   }, 100);
 
   canvas.addEventListener("mousedown", ({ x, y }) => {
-    anchor = {
-      screen: [x, y],
-      world: pick([x, y]),
-    };
+    anchor = mouseAnchor([x, y]);
   });
 
   canvas.addEventListener(
     "mousemove",
     ({ buttons, movementX, movementY, x, y }) => {
       if (!anchor) return;
-
       if (buttons === 1) {
         anchor = {
           ...anchor,
@@ -154,24 +162,12 @@ const start = () => {
 
   canvas.addEventListener("wheel", (event) => {
     event.preventDefault();
-
     const { x, y } = event;
-    if (!anchor)
-      anchor = {
-        screen: [x, y],
-        world: pick([x, y]),
-      };
-
-    camera = vec3.add(
-      vector,
-      camera,
-      vec3.scale(
-        vector,
-        vec3.sub(vector, camera, anchor.world),
-        event.deltaY * 0.001
-      )
-    );
-
+    if (!anchor) anchor = mouseAnchor([x, y]);
+    anchor = {
+      ...anchor,
+      distance: anchor.distance * Math.exp(event.deltaY * 0.001),
+    };
     clearAnchor();
   });
 
@@ -384,7 +380,6 @@ const start = () => {
     return tile;
   };
 
-  const matrix = mat4.create();
   const project = ([u, v]: vec2, [x, y, z]: vec3) => {
     const k = Math.pow(2, -z);
     const [cx, cy, cz] = mercator(camera);
@@ -447,12 +442,11 @@ const start = () => {
   };
 
   const recenter = (anchor: Anchor) => {
-    const { screen, world } = anchor;
+    const { screen, world, distance } = anchor;
 
     const [x, y] = screenToClip(screen);
     const [ax, ay, az] = clipToLocal([x, y, -100, 1]);
     const [bx, by, bz] = clipToLocal([x, y, 100, 1]);
-    const distance = vec3.distance(mercator(camera), mercator(world));
 
     const [t1] = quadratic(
       (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
@@ -478,14 +472,12 @@ const start = () => {
     height: number;
     depth?: boolean;
   }) => {
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.viewport(0, 0, width, height);
+
     const [, , z] = camera;
     const [, , near] = mercator([0, 0, z / 100]);
     const [, , far] = mercator([0, 0, 1000 * z]);
-
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    gl.viewport(0, 0, width, height);
-
     mat4.identity(projection);
     mat4.perspective(
       projection,
