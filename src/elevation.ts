@@ -16,7 +16,7 @@ const calculateCache = new LRUCache<string, Promise<number>>({
 export function elevation([lng, lat]: [number, number]): number | undefined {
   const key = [lng, lat].join(",");
   const cached = cache.get(key);
-  if (cached) return cached;
+  if (cached !== undefined) return cached;
   getElevation([lng, lat]).then((_) => cache.set(key, _));
   return undefined;
 }
