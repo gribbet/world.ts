@@ -65,12 +65,12 @@ const uvw = range(0, n + 1).flatMap((y) =>
   })
 );
 
-interface Tile {
-  imagery: WebGLTexture;
-  terrain: WebGLTexture;
-  loaded: boolean;
-  dispose: () => void;
-}
+const corners: vec2[] = [
+  [0, 0],
+  [1, 0],
+  [1, 1],
+  [0, 1],
+];
 
 interface Anchor {
   screen: vec2;
@@ -289,6 +289,13 @@ const start = () => {
     return texture!;
   };
 
+  interface Tile {
+    imagery: WebGLTexture;
+    terrain: WebGLTexture;
+    loaded: boolean;
+    dispose: () => void;
+  }
+
   let tiles = new LruCache<string, Tile>({
     max: 500,
     dispose: (tile) => {
@@ -357,12 +364,6 @@ const start = () => {
     return localToClip([tx, ty, tz]);
   };
 
-  const corners: vec2[] = [
-    [0, 0],
-    [1, 0],
-    [1, 1],
-    [0, 1],
-  ];
   const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
     const [x, y, z] = xyz;
     if (z > 22) return [xyz];
@@ -381,14 +382,14 @@ const start = () => {
       return [];
 
     const pixels = clip.map(clipToScreen);
-    const l = Math.sqrt(
+    const size = Math.sqrt(
       [0, 1, 2, 3]
         .map((i) =>
           vec2.squaredDistance(pixels[i], pixels[(i + 1) % pixels.length])
         )
         .reduce((a, b) => a + b, 0) / 4
     );
-    if (l > 256 * 2) {
+    if (size > 256 * 2) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
