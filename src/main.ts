@@ -11,6 +11,7 @@ import vertexSource from "./vertex.glsl";
  * - cancel load
  * - smooth transition
  * - elevation tile -1
+ * - mercator elevation
  */
 const imageryUrl = "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
 const terrainUrl =
@@ -506,6 +507,8 @@ const start = () => {
     allPixels = [];
     const tiles = divide([0, 0, 0], [width, height]);
 
+    console.log(tiles.length);
+
     if (depth) {
       const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
       const projectionUniform = gl.getUniformLocation(
@@ -537,11 +540,11 @@ const start = () => {
         gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
       }
     } else {
-      /*context.clearRect(0, 0, width, height);
+      context.clearRect(0, 0, width, height);
       context.fillStyle = "red";
       allPixels.forEach(([x, y]) =>
         context.fillRect(x * 2 - 5, y * 2 - 5, 10, 10)
-      );*/
+      );
       const uvwAttribute = gl.getAttribLocation(renderProgram, "uvw");
       const projectionUniform = gl.getUniformLocation(
         renderProgram,
