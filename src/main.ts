@@ -39,6 +39,11 @@ const range = (start: number, end: number) =>
 const to = ([x, y, z]: vec3) =>
   [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
 
+const quadratic = (a: number, b: number, c: number) => {
+  const q = Math.sqrt(b * b - 4 * a * c);
+  return [(-b - q) / (2 * a), (-b + q) / (2 * a)];
+};
+
 const mercator = ([lng, lat, alt]: vec3) =>
   [
     lng / 360 + 0.5,
@@ -97,6 +102,11 @@ interface Tile {
   dispose: () => void;
 }
 
+interface Anchor {
+  screen: vec2;
+  world: vec3;
+}
+
 const start = () => {
   const canvas = document.querySelector<HTMLCanvasElement>("#canvas");
   if (!canvas) return;
@@ -106,29 +116,33 @@ const start = () => {
 
   const projection = mat4.create();
   const modelView = mat4.create();
+  const vector = vec3.create();
 
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
-  let orbit: vec3 | undefined;
-  let mouse: vec4 | undefined;
+  let anchor: Anchor | undefined;
 
-  const clearOrbit = debounce(() => {
-    orbit = undefined;
-    mouse = undefined;
+  const clearAnchor = debounce(() => {
+    anchor = undefined;
   }, 100);
 
   canvas.addEventListener("mousedown", ({ x, y }) => {
-    mouse = screenToClip([x, y]);
-    orbit = localToWorld(clipToLocal(mouse));
+    anchor = {
+      screen: [x, y],
+      world: pick([x, y]),
+    };
   });
 
   canvas.addEventListener(
     "mousemove",
     ({ buttons, movementX, movementY, x, y }) => {
-      if (!orbit) return;
+      if (!anchor) return;
 
       if (buttons === 1) {
-        mouse = screenToClip([x, y]);
+        anchor = {
+          ...anchor,
+          screen: [x, y],
+        };
       } else if (buttons === 2) {
         bearing -= (movementX / window.innerHeight) * Math.PI;
         pitch -= (movementY / window.innerWidth) * Math.PI;
@@ -136,23 +150,26 @@ const start = () => {
     }
   );
 
-  canvas.addEventListener("mouseup", clearOrbit);
+  canvas.addEventListener("mouseup", clearAnchor);
 
   canvas.addEventListener("wheel", (event) => {
     event.preventDefault();
 
     const { x, y } = event;
-    mouse = screenToClip([x, y]);
-    if (!orbit) orbit = localToWorld(clipToLocal(mouse));
+    const world = pick([x, y]);
+    if (!anchor)
+      anchor = {
+        screen: [x, y],
+        world,
+      };
 
-    const vector = vec3.create();
     camera = vec3.add(
       vector,
       camera,
-      vec3.scale(vector, vec3.sub(vector, camera, orbit), event.deltaY * 0.001)
+      vec3.scale(vector, vec3.sub(vector, camera, world), event.deltaY * 0.001)
     );
 
-    clearOrbit();
+    clearAnchor();
   });
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
@@ -426,6 +443,29 @@ const start = () => {
     } else return [xyz];
   };
 
+  const recenter = (anchor: Anchor) => {
+    const { screen, world } = anchor;
+
+    const [x, y] = screenToClip(screen);
+    const [ax, ay, az] = clipToLocal([x, y, 100, 1]);
+    const [bx, by, bz] = clipToLocal([x, y, -100, 1]);
+    const distance = vec3.distance(mercator(camera), mercator(world));
+
+    const [t1] = quadratic(
+      (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
+      ax * (bx - ax) + ay * (by - ay) + az * (bz - az),
+      ax * ax + ay * ay + az * az - distance * distance
+    );
+
+    const local: vec3 = [
+      ax + t1 * (bx - ax),
+      ay + t1 * (by - ay),
+      az + t1 * (bz - az),
+    ];
+
+    camera = geodetic(vec3.sub(vector, mercator(world), local));
+  };
+
   const render = ({
     depth,
     width,
@@ -458,30 +498,7 @@ const start = () => {
     mat4.rotateX(modelView, modelView, pitch);
     mat4.rotateZ(modelView, modelView, bearing);
 
-    if (orbit && mouse && !depth) {
-      const [ax, ay, az] = clipToLocal([mouse[0], mouse[1], 100, 1] as vec4);
-      const [bx, by, bz] = clipToLocal([mouse[0], mouse[1], -100, 1] as vec4);
-      const l = vec3.distance(mercator(camera), mercator(orbit));
-
-      const quadratic = (a: number, b: number, c: number) => {
-        const q = Math.sqrt(b * b - 4 * a * c);
-        return [(-b - q) / (2 * a), (-b + q) / (2 * a)];
-      };
-
-      const [t1, t2] = quadratic(
-        (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
-        ax * (bx - ax) + ay * (by - ay) + az * (bz - az),
-        ax * ax + ay * ay + az * az - l * l
-      );
-
-      const mouse3: vec3 = [
-        ax + t1 * (bx - ax),
-        ay + t1 * (by - ay),
-        az + t1 * (bz - az),
-      ];
-
-      camera = geodetic(vec3.sub(vec3.create(), mercator(orbit), mouse3));
-    }
+    if (anchor && !depth) recenter(anchor);
 
     allPixels = [];
     const tiles = divide([0, 0, 0], [width, height]);
@@ -575,7 +592,14 @@ const start = () => {
   };
 
   const buffer = new Uint8Array(4);
+
   const screenToClip = ([screenX, screenY]: vec2) => {
+    const x = (2 * screenX) / window.innerWidth - 1;
+    const y = -((2 * screenY) / window.innerHeight - 1);
+    return [x, y, 0, 1] as vec4;
+  };
+
+  const pick = ([screenX, screenY]: vec2) => {
     const scale = 0.5;
     const { innerWidth, innerHeight } = window;
     const width = Math.floor(innerWidth * scale);
@@ -597,13 +621,11 @@ const start = () => {
     );
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    const x = (2 * screenX) / window.innerWidth - 1;
-    const y = -((2 * screenY) / window.innerHeight - 1);
-
     const [r, g] = buffer;
     const depth = (r * 256 + g) / (256 * 256 - 1);
     const z = 2 * depth - 1;
-    return [x, y, z, 1] as vec4;
+    const [x, y] = screenToClip([screenX, screenY]);
+    return localToWorld(clipToLocal([x, y, z, 1]));
   };
 
   const clipToScreen: (v: vec4) => vec2 = ([x, y, , w]) =>
