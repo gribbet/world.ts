@@ -10,21 +10,21 @@ import vertexSource from "./vertex.glsl";
 
 /**
  * TODO:
- * - explicit anchor
- * - cancel load
- * - smooth transition
- * - elevation tile -1
- * - mercator elevation
- * - offset
- * - width/height
- * - subdivide const
+ * explicit anchor
+ * cancel load
+ * smooth transition
+ * elevation tile -1
+ * mercator elevation
+ * offset
+ * width/height
+ * subdivide const
  */
 
 const n = 16;
-const one = 1073741824; // 2^30
 
 glMatrix.setMatrixArrayType(Array);
 
+const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
   [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
 
@@ -122,7 +122,10 @@ const start = () => {
         };
       } else if (buttons === 2) {
         bearing -= (movementX / window.innerHeight) * Math.PI;
-        pitch -= (movementY / window.innerWidth) * Math.PI;
+        pitch = Math.min(
+          0.5 * Math.PI,
+          Math.max(0, pitch - (movementY / window.innerWidth) * Math.PI)
+        );
       }
     }
   );
