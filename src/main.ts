@@ -7,6 +7,7 @@ import vertexSource from "./vertex.glsl";
 
 /**
  * TODO:
+ * - explicit anchor
  * - cancel load
  * - smooth transition
  * - elevation tile -1
