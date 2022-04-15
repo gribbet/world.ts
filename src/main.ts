@@ -18,6 +18,7 @@ import vertexSource from "./vertex.glsl";
  * offset
  * width/height
  * subdivide const
+ * function to const
  */
 
 const n = 16;
@@ -245,19 +246,21 @@ const start = () => {
   gl.clearColor(0, 0, 0, 1);
   gl.enable(gl.DEPTH_TEST);
 
-  const loadTile = ({
-    url,
-    xyz,
-    subdivide = 0,
-    onLoad,
-    onError,
-  }: {
+  interface TileTexture {
+    texture: WebGLTexture;
+    loaded: boolean;
+    error: boolean;
+    dispose: () => void;
+    cancel: () => void;
+    uncancel: () => void;
+  }
+
+  const loadTileTexture: (_: {
     url: string;
     xyz: vec3;
     subdivide?: number;
     onLoad?: () => void;
-    onError?: () => void;
-  }) => {
+  }) => TileTexture = ({ url, xyz, subdivide = 0, onLoad }) => {
     const [x0, y0, z0] = xyz;
     subdivide = Math.min(subdivide, z0);
     const k = Math.pow(2, subdivide);
@@ -265,31 +268,50 @@ const start = () => {
     const [u, v, w] = [x0 % k, y0 % k, subdivide];
 
     const texture = gl.createTexture();
-    const image = new Image();
-    image.crossOrigin = "anonymous";
-    image.onload = async () => {
-      const k = image.width * Math.pow(2, -w);
-      const cropped = await createImageBitmap(image, k * u, k * v, k, k);
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        cropped
-      );
-      onLoad?.();
-    };
-    image.onerror = (error) => {
-      console.log("Tile load error", error);
-      onError?.();
-    };
-    image.src = url
+    if (!texture) throw new Error("Texture creation failed");
+
+    url = url
       .replace("{x}", `${x}`)
       .replace("{y}", `${y}`)
       .replace("{z}", `${z}`);
-    return texture!;
+
+    const imageLoad = loadImage({
+      url,
+      onLoad: async () => {
+        const { image } = imageLoad;
+        const k = image.width * Math.pow(2, -w);
+        const cropped = await createImageBitmap(image, k * u, k * v, k, k);
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          cropped
+        );
+        onLoad?.();
+      },
+    });
+
+    const dispose = () => {
+      gl.deleteTexture(texture);
+    };
+
+    const { cancel, uncancel } = imageLoad;
+
+    return {
+      texture,
+      get loaded() {
+        return imageLoad.loaded;
+      },
+      get error() {
+        return imageLoad.error;
+      },
+      dispose,
+      cancel,
+      uncancel,
+    };
   };
 
   interface Tile {
@@ -297,10 +319,12 @@ const start = () => {
     terrain: WebGLTexture;
     loaded: boolean;
     dispose: () => void;
+    cancel: () => void;
+    uncancel: () => void;
   }
 
   let tiles = new LruCache<string, Tile>({
-    max: 500,
+    max: 1000,
     dispose: (tile) => {
       tile.dispose();
     },
@@ -309,51 +333,70 @@ const start = () => {
     const [x, y, z] = xyz;
     const key = `${z}-${x}-${y}`;
     const cached = tiles.get(key);
-    if (cached) return cached;
+    if (cached) {
+      cached.uncancel();
+      return cached;
+    }
 
-    let imageryLoaded = false;
-    let terrainLoaded = false;
-    const imagery = loadTile({
+    const imagery = loadTileTexture({
       url: imageryUrl,
       xyz,
       onLoad: () => {
-        imageryLoaded = true;
-        gl.bindTexture(gl.TEXTURE_2D, imagery);
         gl.generateMipmap(gl.TEXTURE_2D);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       },
     });
-    const terrain = loadTile({
+    const terrain = loadTileTexture({
       url: terrainUrl,
       xyz,
       subdivide: 4,
       onLoad: () => {
-        terrainLoaded = true;
-        gl.bindTexture(gl.TEXTURE_2D, terrain);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       },
-      onError: () => {
-        terrainLoaded = true;
-      },
     });
 
+    const dispose = () => {
+      imagery.dispose();
+      terrain.dispose();
+    };
+
+    const cancel = () => {
+      imagery.cancel();
+      terrain.cancel();
+    };
+
+    const uncancel = () => {
+      imagery.uncancel();
+      terrain.uncancel();
+    };
+
     const tile: Tile = {
-      imagery,
-      terrain,
+      imagery: imagery.texture,
+      terrain: terrain.texture,
       get loaded() {
-        return imageryLoaded && terrainLoaded;
+        return imagery.loaded && (terrain.loaded || terrain.error);
       },
-      dispose: () => {
-        gl.deleteTexture(imagery);
-        gl.deleteTexture(terrain);
-      },
+      dispose,
+      cancel,
+      uncancel,
     };
 
     tiles.set(key, tile);
 
     return tile;
+  };
+
+  const cancelUnloadedTiles = (current: vec3[]) => {
+    const set = new Set([...current.map(([x, y, z]) => `${z}-${x}-${y}`)]);
+    [...tiles.entries()]
+      .filter(([key]) => !set.has(key))
+      .forEach(([, tile]) => tile.cancel());
   };
 
   const project = ([u, v]: vec2, [x, y, z]: vec3) => {
@@ -367,12 +410,13 @@ const start = () => {
     return localToClip([tx, ty, tz]);
   };
 
-  const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
+  const divide: (xyz: vec3, size: vec2) => [loaded: vec3[], visible: vec3[]] = (
+    xyz,
+    [width, height]
+  ) => {
     const [x, y, z] = xyz;
-    if (z > 22) return [xyz];
 
     const clip = corners.map((_) => project(_, xyz));
-
     if (
       clip.every(([x, , , w]) => x > w) ||
       clip.every(([x, , , w]) => x < -w) ||
@@ -382,7 +426,7 @@ const start = () => {
       clip.every(([, , z, w]) => z < -w) ||
       clip.every(([, , , w]) => w < 0)
     )
-      return [];
+      return [[xyz], []];
 
     const pixels = clip.map(clipToScreen);
     const size = Math.sqrt(
@@ -392,17 +436,20 @@ const start = () => {
         )
         .reduce((a, b) => a + b, 0) / 4
     );
-    if (size > 256 * 2) {
+    if (size > 256 && z < 22) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
         [2 * x, 2 * y + 1, z + 1],
         [2 * x + 1, 2 * y + 1, z + 1],
       ];
-      const next = divided.flatMap((_) => divide(_, [width, height]));
-      if (divided.some((_) => !getTile(_).loaded)) return [xyz];
-      return next;
-    } else return [xyz];
+      const next = divided.map((_) => divide(_, [width, height]));
+      const loaded = [xyz, ...next.flatMap(([loaded]) => loaded)];
+      const visible = next.flatMap(([, visible]) => visible);
+      if (divided.some((_) => !getTile(_).loaded)) return [loaded, [xyz]];
+
+      return [loaded, visible];
+    } else return [[xyz], [xyz]];
   };
 
   const recenter = (anchor: Anchor) => {
@@ -436,29 +483,10 @@ const start = () => {
     height: number;
     depth?: boolean;
   }) => {
+    const [loaded, visible] = divide([0, 0, 0], [width, height]);
+
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.viewport(0, 0, width, height);
-
-    const [, , z] = camera;
-    const [, , near] = mercator([0, 0, z / 100]);
-    const [, , far] = mercator([0, 0, 1000 * z]);
-    mat4.identity(projection);
-    mat4.perspective(
-      projection,
-      (45 * Math.PI) / 180,
-      width / height,
-      near,
-      far
-    );
-    mat4.scale(projection, projection, [1, -1, 1]);
-
-    mat4.identity(modelView);
-    mat4.rotateX(modelView, modelView, pitch);
-    mat4.rotateZ(modelView, modelView, bearing);
-
-    if (anchor && !depth) recenter(anchor);
-
-    const tiles = divide([0, 0, 0], [width, height]);
 
     if (depth) {
       const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
@@ -482,7 +510,7 @@ const start = () => {
       gl.uniformMatrix4fv(modelViewUniform, false, modelView);
       gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
 
-      for (const xyz of tiles) {
+      for (const xyz of visible) {
         const { terrain } = getTile(xyz);
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, terrain);
@@ -517,7 +545,7 @@ const start = () => {
       gl.uniformMatrix4fv(modelViewUniform, false, modelView);
       gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
 
-      for (const xyz of tiles) {
+      for (const xyz of visible) {
         const { imagery, terrain } = getTile(xyz);
         gl.activeTexture(gl.TEXTURE0);
         gl.bindTexture(gl.TEXTURE_2D, imagery);
@@ -528,6 +556,8 @@ const start = () => {
         gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
       }
     }
+
+    cancelUnloadedTiles(loaded);
   };
 
   const frame = () => {
@@ -536,6 +566,26 @@ const start = () => {
     const height = innerHeight * devicePixelRatio;
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
+
+    const [, , z] = camera;
+    const [, , near] = mercator([0, 0, z / 100]);
+    const [, , far] = mercator([0, 0, 100 * z]);
+    mat4.identity(projection);
+    mat4.perspective(
+      projection,
+      (45 * Math.PI) / 180,
+      width / height,
+      near,
+      far
+    );
+    mat4.scale(projection, projection, [1, -1, 1]);
+
+    mat4.identity(modelView);
+    mat4.rotateX(modelView, modelView, pitch);
+    mat4.rotateZ(modelView, modelView, bearing);
+
+    if (anchor) recenter(anchor);
+
     render({ width, height });
 
     requestAnimationFrame(frame);
@@ -604,3 +654,56 @@ const start = () => {
 };
 
 start();
+
+export interface ImageLoad {
+  image: HTMLImageElement;
+  loaded: boolean;
+  error: boolean;
+  cancel: () => void;
+  uncancel: () => void;
+}
+
+export const loadImage: (_: {
+  url: string;
+  onLoad?: () => void;
+}) => ImageLoad = ({ url, onLoad }) => {
+  let loaded = false;
+  let error = false;
+
+  const image = new Image();
+  image.crossOrigin = "anonymous";
+  image.onload = async () => {
+    loaded = true;
+    onLoad?.();
+  };
+  image.onerror = (_) => {
+    error = true;
+  };
+  image.src = url;
+
+  let canceled = false;
+  const cancel = () => {
+    if (!loaded && !canceled) {
+      image.src = "";
+      canceled = true;
+    }
+  };
+  const uncancel = () => {
+    if (!loaded && canceled) {
+      image.src = url;
+      canceled = false;
+    }
+  };
+
+  return {
+    image,
+    get loaded() {
+      return loaded;
+    },
+    get error() {
+      return error;
+    },
+    cancel,
+    uncancel,
+  };
+};
