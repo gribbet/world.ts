@@ -19,7 +19,6 @@ import vertexSource from "./vertex.glsl";
  * width/height
  * subdivide const
  * function to const
- * Move matrix from render
  */
 
 const n = 16;
@@ -464,31 +463,11 @@ const start = () => {
     height: number;
     depth?: boolean;
   }) => {
+    const [loaded, tiles] = divide([0, 0, 0], [width, height]);
+    disposeUnloadedTiles(loaded);
+
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.viewport(0, 0, width, height);
-
-    const [, , z] = camera;
-    const [, , near] = mercator([0, 0, z / 100]);
-    const [, , far] = mercator([0, 0, 1000 * z]);
-    mat4.identity(projection);
-    mat4.perspective(
-      projection,
-      (45 * Math.PI) / 180,
-      width / height,
-      near,
-      far
-    );
-    mat4.scale(projection, projection, [1, -1, 1]);
-
-    mat4.identity(modelView);
-    mat4.rotateX(modelView, modelView, pitch);
-    mat4.rotateZ(modelView, modelView, bearing);
-
-    if (anchor && !depth) recenter(anchor);
-
-    const [loaded, tiles] = divide([0, 0, 0], [width, height]);
-
-    disposeUnloadedTiles(loaded);
 
     if (depth) {
       const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
@@ -566,6 +545,26 @@ const start = () => {
     const height = innerHeight * devicePixelRatio;
     if (canvas.width !== width) canvas.width = width;
     if (canvas.height !== height) canvas.height = height;
+
+    const [, , z] = camera;
+    const [, , near] = mercator([0, 0, z / 100]);
+    const [, , far] = mercator([0, 0, 1000 * z]);
+    mat4.identity(projection);
+    mat4.perspective(
+      projection,
+      (45 * Math.PI) / 180,
+      width / height,
+      near,
+      far
+    );
+    mat4.scale(projection, projection, [1, -1, 1]);
+
+    mat4.identity(modelView);
+    mat4.rotateX(modelView, modelView, pitch);
+    mat4.rotateZ(modelView, modelView, bearing);
+
+    if (anchor) recenter(anchor);
+
     render({ width, height });
 
     requestAnimationFrame(frame);
