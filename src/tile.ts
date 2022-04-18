@@ -4,18 +4,10 @@ import { imageryUrl, terrainUrl } from "./constants";
 import { elevation } from "./elevation";
 import { geodetic, tileToMercator } from "./math";
 
-const corners: vec2[] = [
-  [0, 0],
-  [1, 0],
-  [1, 1],
-  [0, 1],
-];
-
 interface Tile {
   imagery: WebGLTexture;
   terrain: WebGLTexture;
   loaded: boolean;
-  cornerElevations?: number[];
   dispose: () => void;
 }
 
@@ -62,17 +54,6 @@ export const getTile = (gl: WebGLRenderingContext, xyz: vec3) => {
     terrain.dispose();
   };
 
-  let cornerElevations: number[] | undefined;
-  Promise.all(
-    corners
-      .map<vec3>(([u, v]) => [x + u, y + v, z])
-      .map(tileToMercator)
-      .map(geodetic)
-      .map(([lng, lat]) => elevation([lng, lat]))
-  ).then((_) => {
-    cornerElevations = _;
-  });
-
   const tile: Tile = {
     imagery: imagery.texture,
     terrain: terrain.texture,
@@ -80,11 +61,8 @@ export const getTile = (gl: WebGLRenderingContext, xyz: vec3) => {
       return (
         imagery.loaded &&
         (terrain.loaded || terrain.error) &&
-        !!cornerElevations
+        !!getTileShape(xyz)
       );
-    },
-    get cornerElevations() {
-      return cornerElevations;
     },
     dispose,
   };
@@ -167,6 +145,47 @@ const loadTileTexture: (_: {
     dispose,
     cancel,
   };
+};
+
+let tileShapes = new LruCache<string, vec3[]>({
+  max: 1000,
+});
+
+let tileShapesCalculations = new LruCache<string, Promise<vec3[]>>({
+  max: 1000,
+});
+
+export const getTileShape: (xyz: vec3) => vec3[] | undefined = ([x, y, z]) => {
+  const key = `${z}-${x}-${y}`;
+  const cached = tileShapes.get(key);
+  if (cached) return cached;
+
+  if (tileShapesCalculations.get(key)) return undefined;
+
+  const result = calculateTileShape([x, y, z]).then((_) =>
+    tileShapes.set(key, _)
+  );
+
+  return undefined;
+};
+
+const calculateTileShape: (xyz: vec3) => Promise<vec3[]> = ([x, y, z]) => {
+  return Promise.all(
+    [
+      [0, 0],
+      [1, 0],
+      [1, 1],
+      [0, 1],
+    ]
+      .map<vec3>(([u, v]) => [x + u, y + v, z])
+      .map(tileToMercator)
+      .map(geodetic)
+      .map<Promise<vec3>>(async ([lng, lat]) => [
+        lng,
+        lat,
+        await elevation([lng, lat]),
+      ])
+  );
 };
 
 export interface ImageLoad {

@@ -4,7 +4,7 @@ import { circumference } from "./constants";
 import depthSource from "./depth.glsl";
 import { geodetic, mercator, quadratic, tileToMercator } from "./math";
 import renderSource from "./render.glsl";
-import { cancelUnloadedTiles, getTile } from "./tile";
+import { cancelUnloadedTiles, getTile, getTileShape } from "./tile";
 import vertexSource from "./vertex.glsl";
 
 /**
@@ -256,15 +256,11 @@ const start = () => {
   ) => {
     const [x, y, z] = xyz;
 
-    const { cornerElevations } = getTile(gl, xyz);
+    const tileShape = getTileShape(xyz);
 
-    const clip = corners
-      .map<vec3>(([u, v]) => [x + u, y + v, z])
-      .map(tileToMercator)
-      .map(mercatorToLocal)
-      .map(([x, y, z], i) =>
-        localToClip([x, y, z + mercator([0, 0, cornerElevations?.[i] || 0])[2]])
-      );
+    if (!tileShape) return [[xyz], []];
+
+    const clip = tileShape.map(mercator).map(mercatorToLocal).map(localToClip);
 
     if (
       clip.every(([x, , , w]) => x > w) ||
