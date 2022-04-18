@@ -8,7 +8,10 @@ const cache = new LRUCache<string, Promise<number>>({
   max: 1000,
 });
 
-export async function elevation([lng, lat]: [number, number]): Promise<number> {
+export const elevation: ([lng, lat]: [number, number]) => Promise<number> = ([
+  lng,
+  lat,
+]) => {
   const p = mercator([lng, lat, 0]).map((_) => _ * Math.pow(2, z));
   const [x, y] = p.map((_) => Math.floor(_));
   const [px, py] = p.map((_) => _ % 1);
@@ -18,7 +21,7 @@ export async function elevation([lng, lat]: [number, number]): Promise<number> {
   const result = tile(x, y, z).then((_) => _.query(px, py));
   cache.set(key, result);
   return result;
-}
+};
 
 interface Tile {
   query(x: number, y: number): number;
@@ -28,16 +31,16 @@ const tileCache = new LRUCache<string, Promise<Tile>>({
   max: 10000,
 });
 
-function tile(x: number, y: number, z: number): Promise<Tile> {
+const tile = (x: number, y: number, z: number) => {
   const key = [x, y, z].join("-");
   const cached = tileCache.get(key);
   if (cached) return cached;
   const result = loadTile(x, y, z);
   tileCache.set(key, result);
   return result;
-}
+};
 
-async function loadTile(x: number, y: number, z: number): Promise<Tile> {
+const loadTile = async (x: number, y: number, z: number) => {
   try {
     const image = await new Promise<HTMLImageElement>((resolve, reject) => {
       const image = new Image();
@@ -74,4 +77,4 @@ async function loadTile(x: number, y: number, z: number): Promise<Tile> {
     console.warn("Elevation tile load failure", { x, y, z });
     return { query: () => 0 };
   }
-}
+};

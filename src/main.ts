@@ -10,14 +10,12 @@ import vertexSource from "./vertex.glsl";
 /**
  * TODO:
  * explicit anchor
- * cancel load
  * smooth transition
  * elevation tile -1
  * mercator elevation
  * offset
  * width/height
  * subdivide const
- * function to const
  */
 
 const n = 16;
