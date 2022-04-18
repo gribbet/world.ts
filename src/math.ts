@@ -19,3 +19,8 @@ export const geodetic = ([x, y, z]: vec3) =>
     (Math.atan(Math.sinh(-(y - 0.5) * (2 * Math.PI))) * 180) / Math.PI,
     z * circumference,
   ] as vec3;
+
+export const tileToMercator = ([x, y, z]: vec3) => {
+  const k = Math.pow(2, -z);
+  return [x * k, y * k, 0] as vec3;
+};
