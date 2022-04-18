@@ -63,13 +63,6 @@ const uvw = range(0, n + 1).flatMap((y) =>
   })
 );
 
-const corners: vec2[] = [
-  [0, 0],
-  [1, 0],
-  [1, 1],
-  [0, 1],
-];
-
 interface Anchor {
   screen: vec2;
   world: vec3;
@@ -94,10 +87,11 @@ const start = () => {
 
   const mouseAnchor: (screen: vec2) => Anchor = (screen) => {
     const world = pick(screen);
+    const distance = vec3.distance(mercator(world), mercator(camera));
     return {
       screen,
       world,
-      distance: vec3.distance(mercator(world), mercator(camera)),
+      distance,
     };
   };
 
