@@ -328,6 +328,8 @@ const start = () => {
   }) => {
     const [loaded, visible] = divide([0, 0, 0], [width, height]);
 
+    console.log(loaded.length, visible.length);
+
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.viewport(0, 0, width, height);
 

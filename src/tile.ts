@@ -148,11 +148,11 @@ const loadTileTexture: (_: {
 };
 
 let tileShapes = new LruCache<string, vec3[]>({
-  max: 1000,
+  max: 10000,
 });
 
 let tileShapesCalculations = new LruCache<string, Promise<vec3[]>>({
-  max: 1000,
+  max: 100,
 });
 
 export const getTileShape: (xyz: vec3) => vec3[] | undefined = ([x, y, z]) => {
@@ -162,9 +162,10 @@ export const getTileShape: (xyz: vec3) => vec3[] | undefined = ([x, y, z]) => {
 
   if (tileShapesCalculations.get(key)) return undefined;
 
-  const result = calculateTileShape([x, y, z]).then((_) =>
-    tileShapes.set(key, _)
-  );
+  calculateTileShape([x, y, z]).then((_) => {
+    tileShapes.set(key, _);
+    tileShapesCalculations.delete(key);
+  });
 
   return undefined;
 };
