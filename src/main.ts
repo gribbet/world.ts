@@ -318,6 +318,7 @@ const start = () => {
     imagery: WebGLTexture;
     terrain: WebGLTexture;
     loaded: boolean;
+    cornerElevations?: number[];
     dispose: () => void;
     cancel: () => void;
     uncancel: () => void;
@@ -376,11 +377,29 @@ const start = () => {
       terrain.uncancel();
     };
 
+    let cornerElevations: number[] | undefined;
+    Promise.all(
+      corners
+        .map<vec3>(([u, v]) => [x + u, y + v, z])
+        .map(tileToMercator)
+        .map(geodetic)
+        .map(([lng, lat]) => elevation([lng, lat]))
+    ).then((_) => {
+      cornerElevations = _;
+    });
+
     const tile: Tile = {
       imagery: imagery.texture,
       terrain: terrain.texture,
       get loaded() {
-        return imagery.loaded && (terrain.loaded || terrain.error);
+        return (
+          imagery.loaded &&
+          (terrain.loaded || terrain.error) &&
+          !!cornerElevations
+        );
+      },
+      get cornerElevations() {
+        return cornerElevations;
       },
       dispose,
       cancel,
@@ -399,15 +418,14 @@ const start = () => {
       .forEach(([, tile]) => tile.cancel());
   };
 
-  const project = ([u, v]: vec2, [x, y, z]: vec3) => {
-    const k = Math.pow(2, -z);
+  const mercatorToLocal = ([x, y, z]: vec3) => {
     const [cx, cy, cz] = mercator(camera);
-    const [lx, ly, lz] = [(x + u) * k, (y + v) * k, 0] as vec3;
-    const [lng, lat] = geodetic([lx, ly, lz]);
-    const h = elevation([lng, lat]);
-    const [, , zz] = mercator([0, 0, h || 0]);
-    const [tx, ty, tz] = [lx - cx, ly - cy, lz - cz + zz];
-    return localToClip([tx, ty, tz]);
+    return [x - cx, y - cy, z - cz] as vec3;
+  };
+
+  const tileToMercator = ([x, y, z]: vec3) => {
+    const k = Math.pow(2, -z);
+    return [x * k, y * k, 0] as vec3;
   };
 
   const divide: (xyz: vec3, size: vec2) => [loaded: vec3[], visible: vec3[]] = (
@@ -416,7 +434,16 @@ const start = () => {
   ) => {
     const [x, y, z] = xyz;
 
-    const clip = corners.map((_) => project(_, xyz));
+    const { cornerElevations } = getTile(xyz);
+
+    const clip = corners
+      .map<vec3>(([u, v]) => [x + u, y + v, z])
+      .map(tileToMercator)
+      .map(mercatorToLocal)
+      .map(([x, y, z], i) =>
+        localToClip([x, y, z + mercator([0, 0, cornerElevations?.[i] || 0])[2]])
+      );
+
     if (
       clip.every(([x, , , w]) => x > w) ||
       clip.every(([x, , , w]) => x < -w) ||
@@ -484,6 +511,8 @@ const start = () => {
     depth?: boolean;
   }) => {
     const [loaded, visible] = divide([0, 0, 0], [width, height]);
+
+    console.log(loaded.length, visible.length);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.viewport(0, 0, width, height);

@@ -4,31 +4,19 @@ import { mercator } from "./math";
 
 const z = 13;
 
-const cache = new LRUCache<number, number>({
-  max: 10000,
-});
-
-const calculateCache = new LRUCache<number, Promise<number>>({
+const cache = new LRUCache<string, Promise<number>>({
   max: 1000,
 });
 
-const key = ([lng, lat]: [number, number]) => lng * 180 + lat; // TODO: Fix key
-
-export function elevation([lng, lat]: [number, number]): number | undefined {
-  const cached = cache.get(key([lng, lat]));
-  if (cached !== undefined) return cached;
-  getElevation([lng, lat]).then((_) => cache.set(key([lng, lat]), _));
-  return undefined;
-}
-
-async function getElevation([lng, lat]: [number, number]): Promise<number> {
+export async function elevation([lng, lat]: [number, number]): Promise<number> {
   const p = mercator([lng, lat, 0]).map((_) => _ * Math.pow(2, z));
   const [x, y] = p.map((_) => Math.floor(_));
   const [px, py] = p.map((_) => _ % 1);
-  const cached = calculateCache.get(key([lng, lat]));
+  const key = `${lng}-${lat}`;
+  const cached = cache.get(key);
   if (cached) return cached;
   const result = tile(x, y, z).then((_) => _.query(px, py));
-  calculateCache.set(key([lng, lat]), result);
+  cache.set(key, result);
   return result;
 }
 
