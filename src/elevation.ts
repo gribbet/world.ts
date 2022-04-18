@@ -2,7 +2,7 @@ import * as LRUCache from "lru-cache";
 import { terrainUrl } from "./constants";
 import { mercator } from "./math";
 
-const z = 10;
+const z = 12;
 
 const cache = new LRUCache<string, Promise<number>>({
   max: 1000,
