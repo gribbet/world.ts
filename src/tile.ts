@@ -113,7 +113,9 @@ const loadTileTexture: (_: {
     onLoad: async () => {
       const { image } = imageLoad;
       const k = image.width * Math.pow(2, -w);
-      const cropped = await createImageBitmap(image, k * u, k * v, k, k);
+      const subdivided = subdivide
+        ? await createImageBitmap(image, k * u, k * v, k, k)
+        : image;
       gl.bindTexture(gl.TEXTURE_2D, texture);
       gl.texImage2D(
         gl.TEXTURE_2D,
@@ -121,7 +123,7 @@ const loadTileTexture: (_: {
         gl.RGBA,
         gl.RGBA,
         gl.UNSIGNED_BYTE,
-        cropped
+        subdivided
       );
       onLoad?.();
     },

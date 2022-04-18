@@ -2,7 +2,7 @@ import { glMatrix, mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { debounce, range } from "./common";
 import { circumference } from "./constants";
 import depthSource from "./depth.glsl";
-import { geodetic, mercator, quadratic, tileToMercator } from "./math";
+import { geodetic, mercator, quadratic } from "./math";
 import renderSource from "./render.glsl";
 import { cancelUnloadedTiles, getTile, getTileShape } from "./tile";
 import vertexSource from "./vertex.glsl";
@@ -10,17 +10,6 @@ import vertexSource from "./vertex.glsl";
 export interface World {
   destroy: () => void;
 }
-
-/**
- * TODO:
- * explicit anchor
- * smooth transition
- * elevation tile -1
- * mercator elevation
- * offset
- * width/height
- * subdivide const
- */
 
 const n = 16;
 
@@ -82,9 +71,9 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let camera: vec3 = [0, 0, circumference];
   let bearing = 0;
   let pitch = 0;
-  let anchor: Anchor | undefined;
   let width = canvas.clientWidth;
   let height = canvas.clientHeight;
+  let anchor: Anchor | undefined;
 
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
@@ -104,6 +93,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   canvas.addEventListener("mousedown", ({ x, y }) => {
     anchor = mouseAnchor([x, y]);
+    console.log(JSON.stringify(anchor));
   });
 
   canvas.addEventListener(
