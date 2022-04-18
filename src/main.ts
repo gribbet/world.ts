@@ -133,16 +133,19 @@ const start = () => {
 
   canvas.addEventListener("mouseup", clearAnchor);
 
-  canvas.addEventListener("wheel", (event) => {
-    event.preventDefault();
-    const { x, y } = event;
-    if (!anchor) anchor = mouseAnchor([x, y]);
-    anchor = {
-      ...anchor,
-      distance: anchor.distance * Math.exp(event.deltaY * 0.001),
-    };
-    clearAnchor();
-  });
+  canvas.addEventListener(
+    "wheel",
+    (event) => {
+      const { x, y } = event;
+      if (!anchor) anchor = mouseAnchor([x, y]);
+      anchor = {
+        ...anchor,
+        distance: anchor.distance * Math.exp(event.deltaY * 0.001),
+      };
+      clearAnchor();
+    },
+    { passive: true }
+  );
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) return;
