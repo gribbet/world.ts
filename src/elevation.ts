@@ -2,7 +2,7 @@ import * as LRUCache from "lru-cache";
 import { terrainUrl } from "./constants";
 import { mercator } from "./math";
 
-const z = 13;
+const z = 10;
 
 const cache = new LRUCache<string, Promise<number>>({
   max: 1000,
@@ -12,8 +12,9 @@ export const elevation: ([lng, lat]: [number, number]) => Promise<number> = ([
   lng,
   lat,
 ]) => {
-  const p = mercator([lng, lat, 0]).map((_) => _ * Math.pow(2, z));
-  const [x, y] = p.map((_) => Math.floor(_));
+  const k = Math.pow(2, z);
+  const p = mercator([lng, lat, 0]).map((_) => _ * k);
+  const [x, y] = p.map((_) => Math.floor(_ % k));
   const [px, py] = p.map((_) => _ % 1);
   const key = `${lng}-${lat}`;
   const cached = cache.get(key);
