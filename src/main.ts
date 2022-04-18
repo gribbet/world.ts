@@ -251,8 +251,6 @@ const start = () => {
     loaded: boolean;
     error: boolean;
     dispose: () => void;
-    cancel: () => void;
-    uncancel: () => void;
   }
 
   const loadTileTexture: (_: {
@@ -295,10 +293,11 @@ const start = () => {
     });
 
     const dispose = () => {
+      imageLoad.cancel();
       gl.deleteTexture(texture);
     };
 
-    const { cancel, uncancel } = imageLoad;
+    const { cancel } = imageLoad;
 
     return {
       texture,
@@ -310,7 +309,6 @@ const start = () => {
       },
       dispose,
       cancel,
-      uncancel,
     };
   };
 
@@ -320,8 +318,6 @@ const start = () => {
     loaded: boolean;
     cornerElevations?: number[];
     dispose: () => void;
-    cancel: () => void;
-    uncancel: () => void;
   }
 
   let tiles = new LruCache<string, Tile>({
@@ -334,10 +330,7 @@ const start = () => {
     const [x, y, z] = xyz;
     const key = `${z}-${x}-${y}`;
     const cached = tiles.get(key);
-    if (cached) {
-      cached.uncancel();
-      return cached;
-    }
+    if (cached) return cached;
 
     const imagery = loadTileTexture({
       url: imageryUrl,
@@ -367,16 +360,6 @@ const start = () => {
       terrain.dispose();
     };
 
-    const cancel = () => {
-      imagery.cancel();
-      terrain.cancel();
-    };
-
-    const uncancel = () => {
-      imagery.uncancel();
-      terrain.uncancel();
-    };
-
     let cornerElevations: number[] | undefined;
     Promise.all(
       corners
@@ -402,8 +385,6 @@ const start = () => {
         return cornerElevations;
       },
       dispose,
-      cancel,
-      uncancel,
     };
 
     tiles.set(key, tile);
@@ -415,7 +396,8 @@ const start = () => {
     const set = new Set([...current.map(([x, y, z]) => `${z}-${x}-${y}`)]);
     [...tiles.entries()]
       .filter(([key]) => !set.has(key))
-      .forEach(([, tile]) => tile.cancel());
+      .filter(([, tile]) => !tile.loaded)
+      .forEach(([key]) => tiles.delete(key));
   };
 
   const mercatorToLocal = ([x, y, z]: vec3) => {
@@ -511,8 +493,6 @@ const start = () => {
     depth?: boolean;
   }) => {
     const [loaded, visible] = divide([0, 0, 0], [width, height]);
-
-    console.log(loaded.length, visible.length);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.viewport(0, 0, width, height);
@@ -689,7 +669,6 @@ export interface ImageLoad {
   loaded: boolean;
   error: boolean;
   cancel: () => void;
-  uncancel: () => void;
 }
 
 export const loadImage: (_: {
@@ -710,18 +689,8 @@ export const loadImage: (_: {
   };
   image.src = url;
 
-  let canceled = false;
   const cancel = () => {
-    if (!loaded && !canceled) {
-      image.src = "";
-      canceled = true;
-    }
-  };
-  const uncancel = () => {
-    if (!loaded && canceled) {
-      image.src = url;
-      canceled = false;
-    }
+    if (!loaded) image.src = "";
   };
 
   return {
@@ -733,6 +702,5 @@ export const loadImage: (_: {
       return error;
     },
     cancel,
-    uncancel,
   };
 };
