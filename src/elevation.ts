@@ -66,10 +66,8 @@ const loadTile = async (x: number, y: number, z: number) => {
     const { data } = context.getImageData(0, 0, width, height);
 
     const query = (x: number, y: number) => {
-      let index = (Math.floor(x * width) + Math.floor(y * height) * width) * 4;
-      const r = data[index++];
-      const g = data[index++];
-      const b = data[index++];
+      const { data } = context.getImageData(x * width, y * height, 1, 1);
+      const [r, g, b] = data;
       return (r * 65536 + g * 256 + b) / 10 - 10000;
     };
 
