@@ -10,27 +10,57 @@ export interface Tiles {
 }
 
 export const createTiles = (gl: WebGLRenderingContext) => {
-  const imagery: (xyz: vec3) => WebGLTexture = (xyz) => {
-    const url = imageryUrl;
-    const onLoad = () => {
-      gl.generateMipmap(gl.TEXTURE_2D);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    };
-    return getTile({ url, xyz, onLoad }).texture;
-  };
+  const imagery = (xyz: vec3) =>
+    downsampled({
+      url: imageryUrl,
+      xyz,
+      onLoad: () => {
+        gl.generateMipmap(gl.TEXTURE_2D);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      },
+    });
 
-  const terrain: (xyz: vec3) => WebGLTexture = (xyz) => {
-    const url = terrainUrl;
-    const onLoad = () => {
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    };
-    return getTile({ url, xyz, onLoad }).texture;
+  const terrain = (xyz: vec3) =>
+    downsampled({
+      url: terrainUrl,
+      xyz,
+      downsample: 4,
+      onLoad: () => {
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      },
+    });
+
+  const downsampled: (_: {
+    url: string;
+    xyz: vec3;
+    downsample?: number;
+    onLoad?: () => void;
+  }) => {
+    texture: WebGLTexture;
+    downsample: number;
+  } = ({ url, xyz, downsample = 0, onLoad }) => {
+    const [x, y, z] = xyz;
+    for (; downsample <= z; downsample++) {
+      const k = Math.pow(2, downsample);
+      const { loaded, texture } = get({
+        url,
+        xyz: [Math.floor(x / k), Math.floor(y / k), z - downsample],
+        onLoad,
+      });
+      if (loaded) return { texture, downsample };
+    }
+    const { texture } = get({
+      url,
+      xyz: [0, 0, 0],
+      onLoad,
+    });
+    return { texture, downsample: z };
   };
 
   interface Tile {
@@ -46,25 +76,25 @@ export const createTiles = (gl: WebGLRenderingContext) => {
     },
   });
 
-  const getTile: (_: {
-    url: string;
-    xyz: vec3;
-    onLoad?: () => void;
-  }) => Tile = ({ url, xyz, onLoad }) => {
+  const get: (_: { url: string; xyz: vec3; onLoad?: () => void }) => Tile = ({
+    url,
+    xyz,
+    onLoad,
+  }) => {
     const key = JSON.stringify({ url, xyz });
     const cached = tiles.get(key);
     if (cached) return cached;
 
-    const tile = loadTile({ url, xyz, onLoad });
+    const tile = load({ url, xyz, onLoad });
     tiles.set(key, tile);
     return tile;
   };
 
-  const loadTile: (_: {
-    url: string;
-    xyz: vec3;
-    onLoad?: () => void;
-  }) => Tile = ({ url, xyz: [x, y, z], onLoad }) => {
+  const load: (_: { url: string; xyz: vec3; onLoad?: () => void }) => Tile = ({
+    url,
+    xyz: [x, y, z],
+    onLoad,
+  }) => {
     const texture = gl.createTexture();
     if (!texture) throw new Error("Texture creation failed");
 

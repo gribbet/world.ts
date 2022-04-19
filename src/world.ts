@@ -4,7 +4,7 @@ import { circumference } from "./constants";
 import depthSource from "./depth.glsl";
 import { geodetic, mercator, quadratic } from "./math";
 import renderSource from "./render.glsl";
-import { createTiles, getTileShape } from "./tile";
+import { createTiles, getTileShape } from "./tiles";
 import vertexSource from "./vertex.glsl";
 
 export interface World {
@@ -327,6 +327,10 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
       );
       const modelViewUniform = gl.getUniformLocation(depthProgram, "modelView");
       const terrainUniform = gl.getUniformLocation(depthProgram, "terrain");
+      const downsampleUniform = gl.getUniformLocation(
+        depthProgram,
+        "downsample"
+      );
       const xyzUniform = gl.getUniformLocation(depthProgram, "xyz");
       const cameraUniform = gl.getUniformLocation(depthProgram, "camera");
 
@@ -342,8 +346,11 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
       gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
 
       for (const xyz of visible) {
+        const { texture: terrain, downsample } = tiles.terrain(xyz);
+
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, tiles.terrain(xyz));
+        gl.bindTexture(gl.TEXTURE_2D, terrain);
+        gl.uniform1i(downsampleUniform, downsample);
         gl.uniform3iv(xyzUniform, [...xyz]);
 
         gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
@@ -360,6 +367,14 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
       );
       const imageryUniform = gl.getUniformLocation(renderProgram, "imagery");
       const terrainUniform = gl.getUniformLocation(renderProgram, "terrain");
+      const downsampleImageryUniform = gl.getUniformLocation(
+        renderProgram,
+        "downsampleImagery"
+      );
+      const downsampleTerrainUniform = gl.getUniformLocation(
+        renderProgram,
+        "downsampleTerrain"
+      );
       const xyzUniform = gl.getUniformLocation(renderProgram, "xyz");
       const cameraUniform = gl.getUniformLocation(renderProgram, "camera");
 
@@ -376,10 +391,17 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
       gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
 
       for (const xyz of visible) {
+        const { texture: imagery, downsample: downsampleImagery } =
+          tiles.imagery(xyz);
+        const { texture: terrain, downsample: downsampleTerrain } =
+          tiles.terrain(xyz);
+
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, tiles.imagery(xyz));
+        gl.bindTexture(gl.TEXTURE_2D, imagery);
         gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, tiles.terrain(xyz));
+        gl.bindTexture(gl.TEXTURE_2D, terrain);
+        gl.uniform1i(downsampleImageryUniform, downsampleImagery);
+        gl.uniform1i(downsampleTerrainUniform, downsampleTerrain);
         gl.uniform3iv(xyzUniform, [...xyz]);
 
         gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
