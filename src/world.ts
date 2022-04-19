@@ -4,7 +4,7 @@ import { circumference } from "./constants";
 import depthSource from "./depth.glsl";
 import { geodetic, mercator, quadratic } from "./math";
 import renderSource from "./render.glsl";
-import { cancelUnloadedTiles, getTile, getTileShape } from "./tile";
+import { createTiles, getTileShape } from "./tile";
 import vertexSource from "./vertex.glsl";
 
 export interface World {
@@ -93,7 +93,6 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   canvas.addEventListener("mousedown", ({ x, y }) => {
     anchor = mouseAnchor([x, y]);
-    console.log(JSON.stringify(anchor));
   });
 
   canvas.addEventListener(
@@ -136,6 +135,8 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) throw new Error("WebGL context failure");
+
+  const tiles = createTiles(gl);
 
   const loadShader = (type: number, source: string) => {
     const shader = gl.createShader(type);
@@ -242,19 +243,15 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     return [x - cx, y - cy, z - cz] as vec3;
   };
 
-  const divide: (xyz: vec3, size: vec2) => [loaded: vec3[], visible: vec3[]] = (
-    xyz,
-    [width, height]
-  ) => {
+  const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
     const [x, y, z] = xyz;
 
-    const tileShape = getTileShape(xyz);
-
-    if (!tileShape) return [[xyz], []];
-
-    const clip = tileShape.map(mercator).map(mercatorToLocal).map(localToClip);
-
+    const clip = getTileShape(xyz)
+      ?.map(mercator)
+      .map(mercatorToLocal)
+      .map(localToClip);
     if (
+      !clip ||
       clip.every(([x, , , w]) => x > w) ||
       clip.every(([x, , , w]) => x < -w) ||
       clip.every(([, y, , w]) => y > w) ||
@@ -263,7 +260,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
       clip.every(([, , z, w]) => z < -w) ||
       clip.every(([, , , w]) => w < 0)
     )
-      return [[xyz], []];
+      return [];
 
     const pixels = clip.map(clipToScreen);
     const size = Math.sqrt(
@@ -280,13 +277,10 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
         [2 * x, 2 * y + 1, z + 1],
         [2 * x + 1, 2 * y + 1, z + 1],
       ];
-      const next = divided.map((_) => divide(_, [width, height]));
-      const loaded = [xyz, ...next.flatMap(([loaded]) => loaded)];
-      const visible = next.flatMap(([, visible]) => visible);
-      if (divided.some((_) => !getTile(gl, _).loaded)) return [loaded, [xyz]];
+      if (divided.some((_) => !getTileShape(_))) return [xyz];
 
-      return [loaded, visible];
-    } else return [[xyz], [xyz]];
+      return divided.flatMap((_) => divide(_, [width, height]));
+    } else return [xyz];
   };
 
   const recenter = (anchor: Anchor) => {
@@ -320,7 +314,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     height: number;
     depth?: boolean;
   }) => {
-    const [loaded, visible] = divide([0, 0, 0], [width, height]);
+    const visible = divide([0, 0, 0], [width, height]);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.viewport(0, 0, width, height);
@@ -348,9 +342,8 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
       gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
 
       for (const xyz of visible) {
-        const { terrain } = getTile(gl, xyz);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, terrain);
+        gl.bindTexture(gl.TEXTURE_2D, tiles.terrain(xyz));
         gl.uniform3iv(xyzUniform, [...xyz]);
 
         gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
@@ -383,18 +376,15 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
       gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
 
       for (const xyz of visible) {
-        const { imagery, terrain } = getTile(gl, xyz);
         gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, imagery);
+        gl.bindTexture(gl.TEXTURE_2D, tiles.imagery(xyz));
         gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, terrain);
+        gl.bindTexture(gl.TEXTURE_2D, tiles.terrain(xyz));
         gl.uniform3iv(xyzUniform, [...xyz]);
 
         gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
       }
     }
-
-    cancelUnloadedTiles(loaded);
   };
 
   const frame = () => {

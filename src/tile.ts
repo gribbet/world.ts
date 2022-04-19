@@ -1,150 +1,140 @@
-import { vec2, vec3 } from "gl-matrix";
+import { vec3 } from "gl-matrix";
 import * as LruCache from "lru-cache";
 import { imageryUrl, terrainUrl } from "./constants";
 import { elevation } from "./elevation";
 import { geodetic, tileToMercator } from "./math";
 
-interface Tile {
-  imagery: WebGLTexture;
-  terrain: WebGLTexture;
-  loaded: boolean;
-  dispose: () => void;
+export interface Tiles {
+  imagery: (xyz: vec3) => WebGLTexture;
+  terrain: (xyz: vec3) => WebGLTexture;
 }
 
-let tiles = new LruCache<string, Tile>({
-  max: 1000,
-  dispose: (tile) => {
-    tile.dispose();
-  },
-});
-
-export const getTile = (gl: WebGLRenderingContext, xyz: vec3) => {
-  const [x, y, z] = xyz;
-  const key = `${z}-${x}-${y}`;
-  const cached = tiles.get(key);
-  if (cached) return cached;
-
-  const imagery = loadTileTexture({
-    gl,
-    url: imageryUrl,
-    xyz,
-    onLoad: () => {
+export const createTiles = (gl: WebGLRenderingContext) => {
+  const imagery: (xyz: vec3) => WebGLTexture = (xyz) => {
+    const url = imageryUrl;
+    const onLoad = () => {
       gl.generateMipmap(gl.TEXTURE_2D);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-    },
-  });
-  const terrain = loadTileTexture({
-    gl,
-    url: terrainUrl,
-    xyz,
-    subdivide: 4,
-    onLoad: () => {
+    };
+    return getTile({ url, xyz, onLoad }).texture;
+  };
+
+  const terrain: (xyz: vec3) => WebGLTexture = (xyz) => {
+    const url = terrainUrl;
+    const onLoad = () => {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    };
+    return getTile({ url, xyz, onLoad }).texture;
+  };
+
+  interface Tile {
+    texture: WebGLTexture;
+    loaded: boolean;
+    dispose: () => void;
+  }
+
+  const tiles = new LruCache<string, Tile>({
+    max: 1000,
+    dispose: (tile) => {
+      tile.dispose();
     },
   });
 
-  const dispose = () => {
-    imagery.dispose();
-    terrain.dispose();
+  const getTile: (_: {
+    url: string;
+    xyz: vec3;
+    onLoad?: () => void;
+  }) => Tile = ({ url, xyz, onLoad }) => {
+    const key = JSON.stringify({ url, xyz });
+    const cached = tiles.get(key);
+    if (cached) return cached;
+
+    const tile = loadTile({ url, xyz, onLoad });
+    tiles.set(key, tile);
+    return tile;
   };
 
-  const tile: Tile = {
-    imagery: imagery.texture,
-    terrain: terrain.texture,
-    get loaded() {
-      return (
-        imagery.loaded &&
-        (terrain.loaded || terrain.error) &&
-        !!getTileShape(xyz)
-      );
-    },
-    dispose,
+  const loadTile: (_: {
+    url: string;
+    xyz: vec3;
+    onLoad?: () => void;
+  }) => Tile = ({ url, xyz: [x, y, z], onLoad }) => {
+    const texture = gl.createTexture();
+    if (!texture) throw new Error("Texture creation failed");
+
+    url = url
+      .replace("{x}", `${x}`)
+      .replace("{y}", `${y}`)
+      .replace("{z}", `${z}`);
+
+    const imageLoad = loadImage({
+      url,
+      onLoad: (image) => {
+        gl.bindTexture(gl.TEXTURE_2D, texture);
+        gl.texImage2D(
+          gl.TEXTURE_2D,
+          0,
+          gl.RGBA,
+          gl.RGBA,
+          gl.UNSIGNED_BYTE,
+          image
+        );
+        onLoad?.();
+      },
+    });
+
+    const dispose = () => {
+      imageLoad.cancel();
+      gl.deleteTexture(texture);
+    };
+
+    return {
+      texture,
+      get loaded() {
+        return imageLoad.loaded;
+      },
+      dispose,
+    };
   };
 
-  tiles.set(key, tile);
-
-  return tile;
+  return { imagery, terrain };
 };
 
-export const cancelUnloadedTiles = (current: vec3[]) => {
-  const set = new Set([...current.map(([x, y, z]) => `${z}-${x}-${y}`)]);
-  [...tiles.entries()]
-    .filter(([key]) => !set.has(key))
-    .filter(([, tile]) => !tile.loaded)
-    .forEach(([key]) => tiles.delete(key));
-};
-
-interface TileTexture {
-  texture: WebGLTexture;
+export interface ImageLoad {
+  image: HTMLImageElement;
   loaded: boolean;
-  error: boolean;
-  dispose: () => void;
+  cancel: () => void;
 }
 
-const loadTileTexture: (_: {
-  gl: WebGLRenderingContext;
+export const loadImage: (_: {
   url: string;
-  xyz: vec3;
-  subdivide?: number;
-  onLoad?: () => void;
-}) => TileTexture = ({ gl, url, xyz, subdivide = 0, onLoad }) => {
-  const [x0, y0, z0] = xyz;
-  subdivide = Math.min(subdivide, z0);
-  const k = Math.pow(2, subdivide);
-  const [x, y, z] = [Math.floor(x0 / k), Math.floor(y0 / k), z0 - subdivide];
-  const [u, v, w] = [x0 % k, y0 % k, subdivide];
+  onLoad?: (image: HTMLImageElement) => void;
+}) => ImageLoad = ({ url, onLoad }) => {
+  let loaded = false;
 
-  const texture = gl.createTexture();
-  if (!texture) throw new Error("Texture creation failed");
+  const image = new Image();
+  image.crossOrigin = "anonymous";
+  image.onload = async () => {
+    loaded = true;
+    onLoad?.(image);
+  };
+  image.src = url;
 
-  url = url
-    .replace("{x}", `${x}`)
-    .replace("{y}", `${y}`)
-    .replace("{z}", `${z}`);
-
-  const imageLoad = loadImage({
-    url,
-    onLoad: async () => {
-      const { image } = imageLoad;
-      const k = image.width * Math.pow(2, -w);
-      const subdivided = subdivide
-        ? await createImageBitmap(image, k * u, k * v, k, k)
-        : image;
-      gl.bindTexture(gl.TEXTURE_2D, texture);
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        subdivided
-      );
-      onLoad?.();
-    },
-  });
-
-  const dispose = () => {
-    imageLoad.cancel();
-    gl.deleteTexture(texture);
+  const cancel = () => {
+    if (!loaded) image.src = "";
   };
 
-  const { cancel } = imageLoad;
-
   return {
-    texture,
+    image,
     get loaded() {
-      return imageLoad.loaded;
+      return loaded;
     },
-    get error() {
-      return imageLoad.error;
-    },
-    dispose,
     cancel,
   };
 };
@@ -189,45 +179,4 @@ const calculateTileShape: (xyz: vec3) => Promise<vec3[]> = ([x, y, z]) => {
         await elevation([lng, lat]),
       ])
   );
-};
-
-export interface ImageLoad {
-  image: HTMLImageElement;
-  loaded: boolean;
-  error: boolean;
-  cancel: () => void;
-}
-
-export const loadImage: (_: {
-  url: string;
-  onLoad?: () => void;
-}) => ImageLoad = ({ url, onLoad }) => {
-  let loaded = false;
-  let error = false;
-
-  const image = new Image();
-  image.crossOrigin = "anonymous";
-  image.onload = async () => {
-    loaded = true;
-    onLoad?.();
-  };
-  image.onerror = (_) => {
-    error = true;
-  };
-  image.src = url;
-
-  const cancel = () => {
-    if (!loaded) image.src = "";
-  };
-
-  return {
-    image,
-    get loaded() {
-      return loaded;
-    },
-    get error() {
-      return error;
-    },
-    cancel,
-  };
 };
