@@ -319,94 +319,99 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.viewport(0, 0, width, height);
 
-    if (depth) {
-      const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
-      const projectionUniform = gl.getUniformLocation(
-        depthProgram,
-        "projection"
-      );
-      const modelViewUniform = gl.getUniformLocation(depthProgram, "modelView");
-      const terrainUniform = gl.getUniformLocation(depthProgram, "terrain");
-      const downsampleUniform = gl.getUniformLocation(
-        depthProgram,
-        "downsample"
-      );
-      const xyzUniform = gl.getUniformLocation(depthProgram, "xyz");
-      const cameraUniform = gl.getUniformLocation(depthProgram, "camera");
+    tiles.cancelUnused(() => {
+      if (depth) {
+        const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
+        const projectionUniform = gl.getUniformLocation(
+          depthProgram,
+          "projection"
+        );
+        const modelViewUniform = gl.getUniformLocation(
+          depthProgram,
+          "modelView"
+        );
+        const terrainUniform = gl.getUniformLocation(depthProgram, "terrain");
+        const downsampleUniform = gl.getUniformLocation(
+          depthProgram,
+          "downsample"
+        );
+        const xyzUniform = gl.getUniformLocation(depthProgram, "xyz");
+        const cameraUniform = gl.getUniformLocation(depthProgram, "camera");
 
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-      gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
-      gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
-      gl.enableVertexAttribArray(uvwAttribute);
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
+        gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(uvwAttribute);
 
-      gl.useProgram(depthProgram);
-      gl.uniform1i(terrainUniform, 0);
-      gl.uniformMatrix4fv(projectionUniform, false, projection);
-      gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-      gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
+        gl.useProgram(depthProgram);
+        gl.uniform1i(terrainUniform, 0);
+        gl.uniformMatrix4fv(projectionUniform, false, projection);
+        gl.uniformMatrix4fv(modelViewUniform, false, modelView);
+        gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
 
-      for (const xyz of visible) {
-        const { texture: terrain, downsample } = tiles.terrain(xyz);
+        for (const xyz of visible) {
+          const { texture: terrain, downsample } = tiles.terrain(xyz);
 
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, terrain);
-        gl.uniform1i(downsampleUniform, downsample);
-        gl.uniform3iv(xyzUniform, [...xyz]);
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, terrain);
+          gl.uniform1i(downsampleUniform, downsample);
+          gl.uniform3iv(xyzUniform, [...xyz]);
 
-        gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+          gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+        }
+      } else {
+        const uvwAttribute = gl.getAttribLocation(renderProgram, "uvw");
+        const projectionUniform = gl.getUniformLocation(
+          renderProgram,
+          "projection"
+        );
+        const modelViewUniform = gl.getUniformLocation(
+          renderProgram,
+          "modelView"
+        );
+        const imageryUniform = gl.getUniformLocation(renderProgram, "imagery");
+        const terrainUniform = gl.getUniformLocation(renderProgram, "terrain");
+        const downsampleImageryUniform = gl.getUniformLocation(
+          renderProgram,
+          "downsampleImagery"
+        );
+        const downsampleTerrainUniform = gl.getUniformLocation(
+          renderProgram,
+          "downsampleTerrain"
+        );
+        const xyzUniform = gl.getUniformLocation(renderProgram, "xyz");
+        const cameraUniform = gl.getUniformLocation(renderProgram, "camera");
+
+        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+        gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
+        gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
+        gl.enableVertexAttribArray(uvwAttribute);
+
+        gl.useProgram(renderProgram);
+        gl.uniform1i(imageryUniform, 0);
+        gl.uniform1i(terrainUniform, 1);
+        gl.uniformMatrix4fv(projectionUniform, false, projection);
+        gl.uniformMatrix4fv(modelViewUniform, false, modelView);
+        gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
+
+        for (const xyz of visible) {
+          const { texture: imagery, downsample: downsampleImagery } =
+            tiles.imagery(xyz);
+          const { texture: terrain, downsample: downsampleTerrain } =
+            tiles.terrain(xyz);
+
+          gl.activeTexture(gl.TEXTURE0);
+          gl.bindTexture(gl.TEXTURE_2D, imagery);
+          gl.activeTexture(gl.TEXTURE1);
+          gl.bindTexture(gl.TEXTURE_2D, terrain);
+          gl.uniform1i(downsampleImageryUniform, downsampleImagery);
+          gl.uniform1i(downsampleTerrainUniform, downsampleTerrain);
+          gl.uniform3iv(xyzUniform, [...xyz]);
+
+          gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+        }
       }
-    } else {
-      const uvwAttribute = gl.getAttribLocation(renderProgram, "uvw");
-      const projectionUniform = gl.getUniformLocation(
-        renderProgram,
-        "projection"
-      );
-      const modelViewUniform = gl.getUniformLocation(
-        renderProgram,
-        "modelView"
-      );
-      const imageryUniform = gl.getUniformLocation(renderProgram, "imagery");
-      const terrainUniform = gl.getUniformLocation(renderProgram, "terrain");
-      const downsampleImageryUniform = gl.getUniformLocation(
-        renderProgram,
-        "downsampleImagery"
-      );
-      const downsampleTerrainUniform = gl.getUniformLocation(
-        renderProgram,
-        "downsampleTerrain"
-      );
-      const xyzUniform = gl.getUniformLocation(renderProgram, "xyz");
-      const cameraUniform = gl.getUniformLocation(renderProgram, "camera");
-
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-      gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
-      gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
-      gl.enableVertexAttribArray(uvwAttribute);
-
-      gl.useProgram(renderProgram);
-      gl.uniform1i(imageryUniform, 0);
-      gl.uniform1i(terrainUniform, 1);
-      gl.uniformMatrix4fv(projectionUniform, false, projection);
-      gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-      gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
-
-      for (const xyz of visible) {
-        const { texture: imagery, downsample: downsampleImagery } =
-          tiles.imagery(xyz);
-        const { texture: terrain, downsample: downsampleTerrain } =
-          tiles.terrain(xyz);
-
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, imagery);
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, terrain);
-        gl.uniform1i(downsampleImageryUniform, downsampleImagery);
-        gl.uniform1i(downsampleTerrainUniform, downsampleTerrain);
-        gl.uniform3iv(xyzUniform, [...xyz]);
-
-        gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
-      }
-    }
+    });
   };
 
   const frame = () => {

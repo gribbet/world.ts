@@ -5,11 +5,12 @@ import { elevation } from "./elevation";
 import { geodetic, tileToMercator } from "./math";
 
 export interface Tiles {
-  imagery: (xyz: vec3) => WebGLTexture;
-  terrain: (xyz: vec3) => WebGLTexture;
+  imagery: (xyz: vec3) => { texture: WebGLTexture; downsample: number };
+  terrain: (xyz: vec3) => { texture: WebGLTexture; downsample: number };
+  cancelUnused: (f: () => void) => void;
 }
 
-export const createTiles = (gl: WebGLRenderingContext) => {
+export const createTiles: (gl: WebGLRenderingContext) => Tiles = (gl) => {
   const imagery = (xyz: vec3) =>
     downsampled({
       url: imageryUrl,
@@ -76,12 +77,14 @@ export const createTiles = (gl: WebGLRenderingContext) => {
     },
   });
 
+  const used = new Set<string>();
   const get: (_: { url: string; xyz: vec3; onLoad?: () => void }) => Tile = ({
     url,
     xyz,
     onLoad,
   }) => {
     const key = JSON.stringify({ url, xyz });
+    used.add(key);
     const cached = tiles.get(key);
     if (cached) return cached;
 
@@ -133,7 +136,16 @@ export const createTiles = (gl: WebGLRenderingContext) => {
     };
   };
 
-  return { imagery, terrain };
+  const cancelUnused = (f: () => void) => {
+    used.clear();
+    f();
+    [...tiles.entries()]
+      .filter(([_]) => !used.has(_))
+      .filter(([, _]) => !_.loaded)
+      .forEach(([_]) => tiles.delete(_));
+  };
+
+  return { imagery, terrain, cancelUnused };
 };
 
 export interface ImageLoad {
@@ -157,7 +169,10 @@ export const loadImage: (_: {
   image.src = url;
 
   const cancel = () => {
-    if (!loaded) image.src = "";
+    if (!loaded) {
+      console.log("Cancel");
+      image.src = "";
+    }
   };
 
   return {
