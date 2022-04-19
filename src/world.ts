@@ -30,6 +30,7 @@ const indices = range(0, n).flatMap((y) =>
   ])
 );
 
+const skirt = 0.1;
 const uvw = range(0, n + 1).flatMap((y) =>
   range(0, n + 1).flatMap((x) => {
     let u = (x - 1) / (n - 2);
@@ -37,19 +38,19 @@ const uvw = range(0, n + 1).flatMap((y) =>
     let w = 0;
     if (x === 0) {
       u = 0;
-      w = -0.1;
+      w = -skirt;
     }
     if (x === n) {
       u = 1;
-      w = -0.1;
+      w = -skirt;
     }
     if (y === 0) {
       v = 0;
-      w = -0.1;
+      w = -skirt;
     }
     if (y === n) {
       v = 1;
-      w = -0.1;
+      w = -skirt;
     }
 
     return [u, v, w];
