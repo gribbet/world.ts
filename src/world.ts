@@ -14,6 +14,8 @@ export interface World {
 
 const n = 16;
 
+const pickScale = 0.25;
+
 glMatrix.setMatrixArrayType(Array);
 
 const one = 1073741824; // 2^30
@@ -68,8 +70,8 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let camera: vec3 = [0, 0, circumference];
   let bearing = 0;
   let pitch = 0;
-  let width = canvas.clientWidth;
-  let height = canvas.clientHeight;
+  let width = 0;
+  let height = 0;
   let anchor: Anchor | undefined;
 
   const projection = mat4.create();
@@ -128,15 +130,6 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   });
 
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
-
-  const resizer = new ResizeObserver(([{ contentRect: size }]) => {
-    width = size.width;
-    height = size.height;
-    canvas.width = width;
-    canvas.height = height;
-    gl.viewport(0, 0, width, height);
-  });
-  resizer.observe(canvas);
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) throw new Error("WebGL context failure");
@@ -202,26 +195,10 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-  gl.texImage2D(
-    gl.TEXTURE_2D,
-    0,
-    gl.RGBA,
-    width * devicePixelRatio,
-    height * devicePixelRatio,
-    0,
-    gl.RGBA,
-    gl.UNSIGNED_BYTE,
-    null
-  );
 
   const depthBuffer = gl.createRenderbuffer();
   gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
-  gl.renderbufferStorage(
-    gl.RENDERBUFFER,
-    gl.DEPTH_COMPONENT16,
-    width * devicePixelRatio,
-    height * devicePixelRatio
-  );
+  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
 
   const framebuffer = gl.createFramebuffer();
   gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
@@ -242,6 +219,43 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   gl.clearColor(0, 0, 0, 1);
   gl.enable(gl.DEPTH_TEST);
+
+  const resize = (_width: number, _height: number) => {
+    width = _width;
+    height = _height;
+    canvas.width = width * devicePixelRatio;
+    canvas.height = height * devicePixelRatio;
+
+    gl.bindTexture(gl.TEXTURE_2D, targetTexture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      width * pickScale,
+      height * pickScale,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      null
+    );
+    gl.bindTexture(gl.TEXTURE_2D, null);
+
+    gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
+    gl.renderbufferStorage(
+      gl.RENDERBUFFER,
+      gl.DEPTH_COMPONENT16,
+      width * pickScale,
+      height * pickScale
+    );
+    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+  };
+
+  resize(canvas.clientWidth, canvas.clientHeight);
+
+  const resizer = new ResizeObserver(([{ contentRect: size }]) =>
+    resize(size.width, size.height)
+  );
+  resizer.observe(canvas);
 
   const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
     const [x, y, z] = xyz;
@@ -317,6 +331,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     const visible = divide([0, 0, 0], [width, height]);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.viewport(0, 0, width, height);
 
     tiles.cancelUnused(() => {
       if (depth) {
@@ -443,16 +458,15 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   const buffer = new Uint8Array(4);
   const pick = ([screenX, screenY]: vec2) => {
-    const scale = 0.5;
     gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
     render({
-      width: Math.floor(width * scale),
-      height: Math.floor(height * scale),
+      width: Math.floor(width * pickScale),
+      height: Math.floor(height * pickScale),
       depth: true,
     });
     gl.readPixels(
-      screenX * scale,
-      (height - screenY) * scale,
+      screenX * pickScale,
+      (height - screenY) * pickScale,
       1,
       1,
       gl.RGBA,
