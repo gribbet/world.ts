@@ -1,5 +1,6 @@
 import * as LRUCache from "lru-cache";
 import { terrainUrl } from "./constants";
+import { loadImage } from "./image-load";
 import { mercator } from "./math";
 
 const z = 12;
@@ -43,15 +44,12 @@ const tile = (x: number, y: number, z: number) => {
 
 const loadTile = async (x: number, y: number, z: number) => {
   try {
-    const image = await new Promise<HTMLImageElement>((resolve, reject) => {
-      const image = new Image();
-      image.crossOrigin = "anonymous";
-      image.onload = () => resolve(image);
-      image.onerror = reject;
-      image.src = terrainUrl
+    const image = await new Promise<HTMLImageElement>((onLoad, onError) => {
+      const url = terrainUrl
         .replace("{x}", x.toString())
         .replace("{y}", y.toString())
         .replace("{z}", z.toString());
+      loadImage({ url, onLoad, onError });
     });
     const { width, height } = image;
 
@@ -62,8 +60,6 @@ const loadTile = async (x: number, y: number, z: number) => {
     if (!context) throw new Error("Context failure");
 
     context.drawImage(image, 0, 0, width, height);
-
-    const { data } = context.getImageData(0, 0, width, height);
 
     const query = (x: number, y: number) => {
       const { data } = context.getImageData(x * width, y * height, 1, 1);

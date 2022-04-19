@@ -6,7 +6,6 @@ import { world } from "./world";
  * smooth transition
  * elevation tile -1
  * mercator elevation
- * offset
  * subdivide const
  */
 

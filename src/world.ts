@@ -4,7 +4,8 @@ import { circumference } from "./constants";
 import depthSource from "./depth.glsl";
 import { geodetic, mercator, quadratic } from "./math";
 import renderSource from "./render.glsl";
-import { createTiles, getTileShape } from "./tiles";
+import { tileShape } from "./tile-shape";
+import { createTiles } from "./tiles";
 import vertexSource from "./vertex.glsl";
 
 export interface World {
@@ -63,11 +64,6 @@ interface Anchor {
   distance: number;
 }
 
-const projection = mat4.create();
-const modelView = mat4.create();
-const matrix = mat4.create();
-const vector = vec3.create();
-
 export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let camera: vec3 = [0, 0, circumference];
   let bearing = 0;
@@ -76,7 +72,10 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let height = canvas.clientHeight;
   let anchor: Anchor | undefined;
 
-  canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+  const projection = mat4.create();
+  const modelView = mat4.create();
+  const matrix = mat4.create();
+  const vector = vec3.create();
 
   const mouseAnchor: (screen: vec2) => Anchor = (screen) => {
     const world = pick(screen);
@@ -128,9 +127,14 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     clearAnchor();
   });
 
+  canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+
   const resizer = new ResizeObserver(([{ contentRect: size }]) => {
     width = size.width;
     height = size.height;
+    canvas.width = width;
+    canvas.height = height;
+    gl.viewport(0, 0, width, height);
   });
   resizer.observe(canvas);
 
@@ -239,15 +243,10 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   gl.clearColor(0, 0, 0, 1);
   gl.enable(gl.DEPTH_TEST);
 
-  const mercatorToLocal = ([x, y, z]: vec3) => {
-    const [cx, cy, cz] = mercator(camera);
-    return [x - cx, y - cy, z - cz] as vec3;
-  };
-
   const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
     const [x, y, z] = xyz;
 
-    const clip = getTileShape(xyz)
+    const clip = tileShape(xyz)
       ?.map(mercator)
       .map(mercatorToLocal)
       .map(localToClip);
@@ -278,7 +277,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
         [2 * x, 2 * y + 1, z + 1],
         [2 * x + 1, 2 * y + 1, z + 1],
       ];
-      if (divided.some((_) => !getTileShape(_))) return [xyz];
+      if (divided.some((_) => !tileShape(_))) return [xyz];
 
       return divided.flatMap((_) => divide(_, [width, height]));
     } else return [xyz];
@@ -318,7 +317,6 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     const visible = divide([0, 0, 0], [width, height]);
 
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.viewport(0, 0, width, height);
 
     tiles.cancelUnused(() => {
       if (depth) {
@@ -416,12 +414,6 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   };
 
   const frame = () => {
-    const { devicePixelRatio } = window;
-    const canvasWidth = width * devicePixelRatio;
-    const canvasHeight = height * devicePixelRatio;
-    if (canvas.width !== canvasWidth) canvas.width = canvasWidth;
-    if (canvas.height !== canvasHeight) canvas.height = canvasHeight;
-
     const [, , z] = camera;
     const [, , near] = mercator([0, 0, z / 100]);
     const [, , far] = mercator([0, 0, 100 * z]);
@@ -441,7 +433,10 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
     if (anchor) recenter(anchor);
 
-    render({ width: canvasWidth, height: canvasHeight });
+    render({
+      width: width * devicePixelRatio,
+      height: height * devicePixelRatio,
+    });
 
     requestAnimationFrame(frame);
   };
@@ -499,12 +494,17 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     return geodetic([x + cx, y + cy, z + cz]);
   };
 
-  requestAnimationFrame(frame);
+  const mercatorToLocal = ([x, y, z]: vec3) => {
+    const [cx, cy, cz] = mercator(camera);
+    return [x - cx, y - cy, z - cz] as vec3;
+  };
 
   const destroy = () => {
     resizer.unobserve(canvas);
     // TODO: Destroy
   };
+
+  requestAnimationFrame(frame);
 
   return {
     destroy,

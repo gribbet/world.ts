@@ -1,8 +1,7 @@
 import { vec3 } from "gl-matrix";
 import * as LruCache from "lru-cache";
 import { imageryUrl, terrainUrl } from "./constants";
-import { elevation } from "./elevation";
-import { geodetic, tileToMercator } from "./math";
+import { loadImage } from "./image-load";
 
 export interface Tiles {
   imagery: (xyz: vec3) => { texture: WebGLTexture; downsample: number };
@@ -146,82 +145,4 @@ export const createTiles: (gl: WebGLRenderingContext) => Tiles = (gl) => {
   };
 
   return { imagery, terrain, cancelUnused };
-};
-
-export interface ImageLoad {
-  image: HTMLImageElement;
-  loaded: boolean;
-  cancel: () => void;
-}
-
-export const loadImage: (_: {
-  url: string;
-  onLoad?: (image: HTMLImageElement) => void;
-}) => ImageLoad = ({ url, onLoad }) => {
-  let loaded = false;
-
-  const image = new Image();
-  image.crossOrigin = "anonymous";
-  image.onload = async () => {
-    loaded = true;
-    onLoad?.(image);
-  };
-  image.src = url;
-
-  const cancel = () => {
-    if (!loaded) {
-      console.log("Cancel");
-      image.src = "";
-    }
-  };
-
-  return {
-    image,
-    get loaded() {
-      return loaded;
-    },
-    cancel,
-  };
-};
-
-let tileShapes = new LruCache<string, vec3[]>({
-  max: 10000,
-});
-
-let tileShapesCalculations = new LruCache<string, Promise<vec3[]>>({
-  max: 100,
-});
-
-export const getTileShape: (xyz: vec3) => vec3[] | undefined = ([x, y, z]) => {
-  const key = `${z}-${x}-${y}`;
-  const cached = tileShapes.get(key);
-  if (cached) return cached;
-
-  if (tileShapesCalculations.get(key)) return undefined;
-
-  calculateTileShape([x, y, z]).then((_) => {
-    tileShapes.set(key, _);
-    tileShapesCalculations.delete(key);
-  });
-
-  return undefined;
-};
-
-const calculateTileShape: (xyz: vec3) => Promise<vec3[]> = ([x, y, z]) => {
-  return Promise.all(
-    [
-      [0, 0],
-      [1, 0],
-      [1, 1],
-      [0, 1],
-    ]
-      .map<vec3>(([u, v]) => [x + u, y + v, z])
-      .map(tileToMercator)
-      .map(geodetic)
-      .map<Promise<vec3>>(async ([lng, lat]) => [
-        lng,
-        lat,
-        await elevation([lng, lat]),
-      ])
-  );
 };
