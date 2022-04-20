@@ -5,7 +5,7 @@ import depthSource from "./depth.glsl";
 import { geodetic, mercator, quadratic } from "./math";
 import renderSource from "./render.glsl";
 import { tileShape } from "./tile-shape";
-import { createTiles } from "./tiles";
+import { createTiles, Tiles } from "./tiles";
 import vertexSource from "./vertex.glsl";
 
 export interface World {
@@ -60,26 +60,36 @@ const uvw = range(0, n + 1).flatMap((y) =>
   })
 );
 
+const matrix = mat4.create();
+const vector = vec3.create();
+
 interface Anchor {
   screen: vec2;
   world: vec3;
   distance: number;
 }
 
+interface Camera {
+  bearing: number;
+  pitch: number;
+  anchor: Anchor | undefined;
+}
+
 export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
-  let camera: vec3 = [0, 0, circumference];
   let bearing = 0;
   let pitch = 0;
-  let width = 0;
-  let height = 0;
   let anchor: Anchor | undefined;
 
-  const projection = mat4.create();
-  const modelView = mat4.create();
-  const matrix = mat4.create();
-  const vector = vec3.create();
+  let view: View = {
+    projection: mat4.create(),
+    modelView: mat4.create(),
+    camera: [0, 0, circumference],
+    width: 0,
+    height: 0,
+  };
 
   const mouseAnchor: (screen: vec2) => Anchor = (screen) => {
+    const { camera } = view;
     const world = pick(screen);
     const distance = vec3.distance(mercator(world), mercator(camera));
     return {
@@ -107,6 +117,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
           screen: [x, y],
         };
       } else if (buttons === 2) {
+        const { width, height } = view;
         bearing -= (movementX / width) * Math.PI;
         pitch = Math.min(
           0.5 * Math.PI,
@@ -135,60 +146,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   if (!gl) throw new Error("WebGL context failure");
 
   const tiles = createTiles(gl);
-
-  const loadShader = (type: number, source: string) => {
-    const shader = gl.createShader(type);
-    if (!shader) return;
-    gl.shaderSource(shader, source);
-    gl.compileShader(shader);
-    if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-      console.log("Compilation failed", gl.getShaderInfoLog(shader));
-      gl.deleteShader(shader);
-      return;
-    }
-
-    return shader;
-  };
-
-  const vertexShader = loadShader(gl.VERTEX_SHADER, vertexSource);
-  const renderShader = loadShader(gl.FRAGMENT_SHADER, renderSource);
-  const depthShader = loadShader(gl.FRAGMENT_SHADER, depthSource);
-  if (!vertexShader || !renderShader || !depthShader)
-    throw new Error("Shader failure");
-
-  const renderProgram = gl.createProgram();
-  if (!renderProgram) throw new Error("Program creation failed");
-  gl.attachShader(renderProgram, vertexShader);
-  gl.attachShader(renderProgram, renderShader);
-  gl.linkProgram(renderProgram);
-
-  if (!gl.getProgramParameter(renderProgram, gl.LINK_STATUS)) {
-    console.error("Link failure", gl.getProgramInfoLog(renderProgram));
-    throw new Error("Link failure");
-  }
-
-  const depthProgram = gl.createProgram();
-  if (!depthProgram) throw new Error("Program creation failed");
-  gl.attachShader(depthProgram, vertexShader);
-  gl.attachShader(depthProgram, depthShader);
-  gl.linkProgram(depthProgram);
-
-  if (!gl.getProgramParameter(depthProgram, gl.LINK_STATUS)) {
-    console.error("Link failure", gl.getProgramInfoLog(depthProgram));
-    throw new Error("Link failure");
-  }
-
-  const indexBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-  gl.bufferData(
-    gl.ELEMENT_ARRAY_BUFFER,
-    new Uint16Array(indices),
-    gl.STATIC_DRAW
-  );
-
-  const uvwBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvw), gl.STATIC_DRAW);
+  const tileLayer = createTileLayer({ gl, tiles });
 
   const targetTexture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, targetTexture);
@@ -220,9 +178,9 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   gl.clearColor(0, 0, 0, 1);
   gl.enable(gl.DEPTH_TEST);
 
-  const resize = (_width: number, _height: number) => {
-    width = _width;
-    height = _height;
+  const resize = (width: number, height: number) => {
+    view.width = width;
+    view.height = height;
     canvas.width = width * devicePixelRatio;
     canvas.height = height * devicePixelRatio;
 
@@ -252,17 +210,141 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   resize(canvas.clientWidth, canvas.clientHeight);
 
-  const resizer = new ResizeObserver(([{ contentRect: size }]) =>
-    resize(size.width, size.height)
-  );
+  const resizer = new ResizeObserver(([{ contentRect }]) => {
+    const { width, height } = contentRect;
+    resize(width, height);
+  });
   resizer.observe(canvas);
+
+  const render = () => {
+    const width = view.width * devicePixelRatio;
+    const height = view.height * devicePixelRatio;
+
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.viewport(0, 0, width, height);
+
+    tileLayer.render({
+      ...view,
+      width,
+      height,
+    });
+  };
+
+  const depth = () => {
+    const width = view.width * pickScale;
+    const height = view.height * pickScale;
+
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.viewport(0, 0, width, height);
+
+    tileLayer.depth({
+      ...view,
+      width,
+      height,
+    });
+  };
+
+  const setupMatrices = () => {
+    const { projection, modelView, camera, width, height } = view;
+
+    const [, , z] = camera;
+    const [, , near] = mercator([0, 0, z / 100]);
+    const [, , far] = mercator([0, 0, 100 * z]);
+    mat4.identity(projection);
+    mat4.perspective(
+      projection,
+      (45 * Math.PI) / 180,
+      width / height,
+      near,
+      far
+    );
+    mat4.scale(projection, projection, [1, -1, 1]);
+
+    mat4.identity(modelView);
+    mat4.rotateX(modelView, modelView, pitch);
+    mat4.rotateZ(modelView, modelView, bearing);
+  };
+
+  const frame = () => {
+    setupMatrices();
+
+    if (anchor) recenter(anchor);
+
+    render();
+
+    requestAnimationFrame(frame);
+  };
+
+  const recenter = (anchor: Anchor) => {
+    const { screen, world, distance } = anchor;
+    const { screenToClip, clipToLocal } = viewport(view);
+
+    const [x, y] = screenToClip(screen);
+    const [ax, ay, az] = clipToLocal([x, y, -100, 1]);
+    const [bx, by, bz] = clipToLocal([x, y, 100, 1]);
+
+    const [t1] = quadratic(
+      (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
+      ax * (bx - ax) + ay * (by - ay) + az * (bz - az),
+      ax * ax + ay * ay + az * az - distance * distance
+    );
+
+    const local: vec3 = [
+      ax + t1 * (bx - ax),
+      ay + t1 * (by - ay),
+      az + t1 * (bz - az),
+    ];
+
+    view.camera = geodetic(vec3.sub(vector, mercator(world), local));
+  };
+
+  const buffer = new Uint8Array(4);
+  const pick = ([screenX, screenY]: vec2) => {
+    const { screenToClip, clipToLocal, localToWorld } = viewport(view);
+    const { height } = view;
+
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    depth();
+    gl.readPixels(
+      screenX * pickScale,
+      (height - screenY) * pickScale,
+      1,
+      1,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      buffer
+    );
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+    const [r, g] = buffer;
+    const zo = (r * 256 + g) / (256 * 256 - 1);
+    const z = 2 * zo - 1;
+    const [x, y] = screenToClip([screenX, screenY]);
+    return localToWorld(clipToLocal([x, y, z, 1]));
+  };
+
+  const destroy = () => {
+    resizer.unobserve(canvas);
+    // TODO: Destroy
+  };
+
+  requestAnimationFrame(frame);
+
+  return {
+    destroy,
+  };
+};
+
+const calculateVisibleTiles = (view: View) => {
+  const { width, height } = view;
+  const { worldToLocal, localToClip, clipToScreen } = viewport(view);
 
   const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
     const [x, y, z] = xyz;
 
     const clip = tileShape(xyz)
       ?.map(mercator)
-      .map(mercatorToLocal)
+      .map(worldToLocal)
       .map(localToClip);
     if (
       !clip ||
@@ -278,7 +360,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
     const pixels = clip.map(clipToScreen);
     const size = Math.sqrt(
-      [0, 1, 2, 3]
+      range(0, 4)
         .map((i) =>
           vec2.squaredDistance(pixels[i], pixels[(i + 1) % pixels.length])
         )
@@ -297,191 +379,33 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     } else return [xyz];
   };
 
-  const recenter = (anchor: Anchor) => {
-    const { screen, world, distance } = anchor;
+  return divide([0, 0, 0], [width, height]);
+};
 
-    const [x, y] = screenToClip(screen);
-    const [ax, ay, az] = clipToLocal([x, y, -100, 1]);
-    const [bx, by, bz] = clipToLocal([x, y, 100, 1]);
+interface View {
+  projection: mat4;
+  modelView: mat4;
+  camera: vec3;
+  width: number;
+  height: number;
+}
 
-    const [t1] = quadratic(
-      (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
-      ax * (bx - ax) + ay * (by - ay) + az * (bz - az),
-      ax * ax + ay * ay + az * az - distance * distance
-    );
+interface Viewport {
+  screenToClip: (_: vec2) => vec4;
+  clipToScreen: (_: vec4) => vec2;
+  clipToLocal: (_: vec4) => vec3;
+  localToClip: (_: vec3) => vec4;
+  localToWorld: (_: vec3) => vec3;
+  worldToLocal: (_: vec3) => vec3;
+}
 
-    const local: vec3 = [
-      ax + t1 * (bx - ax),
-      ay + t1 * (by - ay),
-      az + t1 * (bz - az),
-    ];
-
-    camera = geodetic(vec3.sub(vector, mercator(world), local));
-  };
-
-  const render = ({
-    depth,
-    width,
-    height,
-  }: {
-    width: number;
-    height: number;
-    depth?: boolean;
-  }) => {
-    const visible = divide([0, 0, 0], [width, height]);
-
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.viewport(0, 0, width, height);
-
-    tiles.cancelUnused(() => {
-      if (depth) {
-        const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
-        const projectionUniform = gl.getUniformLocation(
-          depthProgram,
-          "projection"
-        );
-        const modelViewUniform = gl.getUniformLocation(
-          depthProgram,
-          "modelView"
-        );
-        const terrainUniform = gl.getUniformLocation(depthProgram, "terrain");
-        const downsampleUniform = gl.getUniformLocation(
-          depthProgram,
-          "downsample"
-        );
-        const xyzUniform = gl.getUniformLocation(depthProgram, "xyz");
-        const cameraUniform = gl.getUniformLocation(depthProgram, "camera");
-
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-        gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
-        gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(uvwAttribute);
-
-        gl.useProgram(depthProgram);
-        gl.uniform1i(terrainUniform, 0);
-        gl.uniformMatrix4fv(projectionUniform, false, projection);
-        gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-        gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
-
-        for (const xyz of visible) {
-          const { texture: terrain, downsample } = tiles.terrain(xyz);
-
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, terrain);
-          gl.uniform1i(downsampleUniform, downsample);
-          gl.uniform3iv(xyzUniform, [...xyz]);
-
-          gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
-        }
-      } else {
-        const uvwAttribute = gl.getAttribLocation(renderProgram, "uvw");
-        const projectionUniform = gl.getUniformLocation(
-          renderProgram,
-          "projection"
-        );
-        const modelViewUniform = gl.getUniformLocation(
-          renderProgram,
-          "modelView"
-        );
-        const imageryUniform = gl.getUniformLocation(renderProgram, "imagery");
-        const terrainUniform = gl.getUniformLocation(renderProgram, "terrain");
-        const downsampleImageryUniform = gl.getUniformLocation(
-          renderProgram,
-          "downsampleImagery"
-        );
-        const downsampleTerrainUniform = gl.getUniformLocation(
-          renderProgram,
-          "downsampleTerrain"
-        );
-        const xyzUniform = gl.getUniformLocation(renderProgram, "xyz");
-        const cameraUniform = gl.getUniformLocation(renderProgram, "camera");
-
-        gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-        gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
-        gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
-        gl.enableVertexAttribArray(uvwAttribute);
-
-        gl.useProgram(renderProgram);
-        gl.uniform1i(imageryUniform, 0);
-        gl.uniform1i(terrainUniform, 1);
-        gl.uniformMatrix4fv(projectionUniform, false, projection);
-        gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-        gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
-
-        for (const xyz of visible) {
-          const { texture: imagery, downsample: downsampleImagery } =
-            tiles.imagery(xyz);
-          const { texture: terrain, downsample: downsampleTerrain } =
-            tiles.terrain(xyz);
-
-          gl.activeTexture(gl.TEXTURE0);
-          gl.bindTexture(gl.TEXTURE_2D, imagery);
-          gl.activeTexture(gl.TEXTURE1);
-          gl.bindTexture(gl.TEXTURE_2D, terrain);
-          gl.uniform1i(downsampleImageryUniform, downsampleImagery);
-          gl.uniform1i(downsampleTerrainUniform, downsampleTerrain);
-          gl.uniform3iv(xyzUniform, [...xyz]);
-
-          gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
-        }
-      }
-    });
-  };
-
-  const frame = () => {
-    const [, , z] = camera;
-    const [, , near] = mercator([0, 0, z / 100]);
-    const [, , far] = mercator([0, 0, 100 * z]);
-    mat4.identity(projection);
-    mat4.perspective(
-      projection,
-      (45 * Math.PI) / 180,
-      width / height,
-      near,
-      far
-    );
-    mat4.scale(projection, projection, [1, -1, 1]);
-
-    mat4.identity(modelView);
-    mat4.rotateX(modelView, modelView, pitch);
-    mat4.rotateZ(modelView, modelView, bearing);
-
-    if (anchor) recenter(anchor);
-
-    render({
-      width: width * devicePixelRatio,
-      height: height * devicePixelRatio,
-    });
-
-    requestAnimationFrame(frame);
-  };
-
-  const buffer = new Uint8Array(4);
-  const pick = ([screenX, screenY]: vec2) => {
-    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-    render({
-      width: Math.floor(width * pickScale),
-      height: Math.floor(height * pickScale),
-      depth: true,
-    });
-    gl.readPixels(
-      screenX * pickScale,
-      (height - screenY) * pickScale,
-      1,
-      1,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      buffer
-    );
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-    const [r, g] = buffer;
-    const depth = (r * 256 + g) / (256 * 256 - 1);
-    const z = 2 * depth - 1;
-    const [x, y] = screenToClip([screenX, screenY]);
-    return localToWorld(clipToLocal([x, y, z, 1]));
-  };
-
+const viewport: (view: View) => Viewport = ({
+  projection,
+  modelView,
+  camera,
+  width,
+  height,
+}) => {
   const screenToClip = ([screenX, screenY]: vec2) => {
     const x = (2 * screenX) / width - 1;
     const y = -((2 * screenY) / height - 1);
@@ -508,19 +432,221 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     return geodetic([x + cx, y + cy, z + cz]);
   };
 
-  const mercatorToLocal = ([x, y, z]: vec3) => {
+  const worldToLocal = ([x, y, z]: vec3) => {
     const [cx, cy, cz] = mercator(camera);
     return [x - cx, y - cy, z - cz] as vec3;
   };
 
-  const destroy = () => {
-    resizer.unobserve(canvas);
-    // TODO: Destroy
-  };
-
-  requestAnimationFrame(frame);
-
   return {
-    destroy,
+    screenToClip,
+    clipToScreen,
+    clipToLocal,
+    localToClip,
+    localToWorld,
+    worldToLocal,
   };
+};
+
+interface Program {
+  execute: (view: View) => void;
+  destroy: () => void;
+}
+
+interface Layer {
+  render: (view: View) => void;
+  depth: (view: View) => void;
+  destroy: () => void;
+}
+
+const createTileLayer: (_: {
+  gl: WebGLRenderingContext;
+  tiles: Tiles;
+}) => Layer = ({ gl, tiles }) => {
+  const uvwBuffer = gl.createBuffer();
+  if (!uvwBuffer) throw new Error("Buffer creation failed");
+  gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvw), gl.STATIC_DRAW);
+
+  const indexBuffer = gl.createBuffer();
+  if (!indexBuffer) throw new Error("Buffer creation failed");
+  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+  gl.bufferData(
+    gl.ELEMENT_ARRAY_BUFFER,
+    new Uint16Array(indices),
+    gl.STATIC_DRAW
+  );
+
+  const renderProgram = createRenderProgram({
+    gl,
+    tiles,
+    uvwBuffer,
+    indexBuffer,
+  });
+
+  const depthProgram = createDepthProgram({
+    gl,
+    tiles,
+    uvwBuffer,
+    indexBuffer,
+  });
+
+  const render = (view: View) => renderProgram.execute(view);
+
+  const depth = (view: View) => depthProgram.execute(view);
+
+  const destroy = () => {
+    // TODO:
+  };
+
+  return { render, depth, destroy };
+};
+
+const createRenderProgram: (_: {
+  gl: WebGLRenderingContext;
+  tiles: Tiles;
+  uvwBuffer: WebGLBuffer;
+  indexBuffer: WebGLBuffer;
+}) => Program = ({ gl, tiles, uvwBuffer, indexBuffer }) => {
+  const renderProgram = gl.createProgram();
+  if (!renderProgram) throw new Error("Program creation failed");
+  gl.attachShader(renderProgram, loadShader(gl, "vertex", vertexSource));
+  gl.attachShader(renderProgram, loadShader(gl, "fragment", renderSource));
+  gl.linkProgram(renderProgram);
+  if (!gl.getProgramParameter(renderProgram, gl.LINK_STATUS)) {
+    console.error("Link failure", gl.getProgramInfoLog(renderProgram));
+    throw new Error("Link failure");
+  }
+
+  const uvwAttribute = gl.getAttribLocation(renderProgram, "uvw");
+  const projectionUniform = gl.getUniformLocation(renderProgram, "projection");
+  const modelViewUniform = gl.getUniformLocation(renderProgram, "modelView");
+  const imageryUniform = gl.getUniformLocation(renderProgram, "imagery");
+  const terrainUniform = gl.getUniformLocation(renderProgram, "terrain");
+  const downsampleImageryUniform = gl.getUniformLocation(
+    renderProgram,
+    "downsampleImagery"
+  );
+  const downsampleTerrainUniform = gl.getUniformLocation(
+    renderProgram,
+    "downsampleTerrain"
+  );
+  const xyzUniform = gl.getUniformLocation(renderProgram, "xyz");
+  const cameraUniform = gl.getUniformLocation(renderProgram, "camera");
+
+  const execute = (view: View) => {
+    const { projection, modelView, camera } = view;
+    const visible = calculateVisibleTiles(view);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
+    gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(uvwAttribute);
+
+    gl.useProgram(renderProgram);
+    gl.uniform1i(imageryUniform, 0);
+    gl.uniform1i(terrainUniform, 1);
+    gl.uniformMatrix4fv(projectionUniform, false, projection);
+    gl.uniformMatrix4fv(modelViewUniform, false, modelView);
+    gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
+
+    for (const xyz of visible) {
+      const { texture: imagery, downsample: downsampleImagery } =
+        tiles.imagery(xyz);
+      const { texture: terrain, downsample: downsampleTerrain } =
+        tiles.terrain(xyz);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, imagery);
+      gl.activeTexture(gl.TEXTURE1);
+      gl.bindTexture(gl.TEXTURE_2D, terrain);
+      gl.uniform1i(downsampleImageryUniform, downsampleImagery);
+      gl.uniform1i(downsampleTerrainUniform, downsampleTerrain);
+      gl.uniform3iv(xyzUniform, [...xyz]);
+
+      gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+    }
+  };
+
+  const destroy = () => {
+    // TODO:
+  };
+
+  return { execute, destroy };
+};
+
+const createDepthProgram: (_: {
+  gl: WebGLRenderingContext;
+  tiles: Tiles;
+  uvwBuffer: WebGLBuffer;
+  indexBuffer: WebGLBuffer;
+}) => Program = ({ gl, tiles, uvwBuffer, indexBuffer }) => {
+  const depthProgram = gl.createProgram();
+  if (!depthProgram) throw new Error("Program creation failed");
+  gl.attachShader(depthProgram, loadShader(gl, "vertex", vertexSource));
+  gl.attachShader(depthProgram, loadShader(gl, "fragment", depthSource));
+  gl.linkProgram(depthProgram);
+  if (!gl.getProgramParameter(depthProgram, gl.LINK_STATUS)) {
+    console.error("Link failure", gl.getProgramInfoLog(depthProgram));
+    throw new Error("Link failure");
+  }
+
+  const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
+  const projectionUniform = gl.getUniformLocation(depthProgram, "projection");
+  const modelViewUniform = gl.getUniformLocation(depthProgram, "modelView");
+  const terrainUniform = gl.getUniformLocation(depthProgram, "terrain");
+  const downsampleUniform = gl.getUniformLocation(depthProgram, "downsample");
+  const xyzUniform = gl.getUniformLocation(depthProgram, "xyz");
+  const cameraUniform = gl.getUniformLocation(depthProgram, "camera");
+
+  const execute = (view: View) => {
+    const { projection, modelView, camera } = view;
+    const visible = calculateVisibleTiles(view);
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
+    gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(uvwAttribute);
+
+    gl.useProgram(depthProgram);
+    gl.uniform1i(terrainUniform, 0);
+    gl.uniformMatrix4fv(projectionUniform, false, projection);
+    gl.uniformMatrix4fv(modelViewUniform, false, modelView);
+    gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
+
+    for (const xyz of visible) {
+      const { texture: terrain, downsample } = tiles.terrain(xyz);
+
+      gl.activeTexture(gl.TEXTURE0);
+      gl.bindTexture(gl.TEXTURE_2D, terrain);
+      gl.uniform1i(downsampleUniform, downsample);
+      gl.uniform3iv(xyzUniform, [...xyz]);
+
+      gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+    }
+  };
+
+  const destroy = () => {
+    // TODO:
+  };
+
+  return { execute, destroy };
+};
+
+const loadShader = (
+  gl: WebGLRenderingContext,
+  type: "vertex" | "fragment",
+  source: string
+) => {
+  const shader = gl.createShader(
+    type === "vertex" ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER
+  );
+  if (!shader) throw new Error("Shader creation failed");
+  gl.shaderSource(shader, source);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    console.error("Compilation failed", gl.getShaderInfoLog(shader));
+    throw new Error("Compilation failure");
+  }
+
+  return shader;
 };
