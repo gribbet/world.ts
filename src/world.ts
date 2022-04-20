@@ -84,6 +84,18 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     }
   };
 
+  const frame = () => {
+    setupMatrices();
+
+    if (anchor) recenter(anchor);
+
+    render();
+
+    requestAnimationFrame(frame);
+  };
+
+  requestAnimationFrame(frame);
+
   const setupMatrices = () => {
     const { projection, modelView, camera, width, height } = view;
 
@@ -103,16 +115,6 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     mat4.identity(modelView);
     mat4.rotateX(modelView, modelView, pitch);
     mat4.rotateZ(modelView, modelView, bearing);
-  };
-
-  const frame = () => {
-    setupMatrices();
-
-    if (anchor) recenter(anchor);
-
-    render();
-
-    requestAnimationFrame(frame);
   };
 
   const recenter = (anchor: Anchor) => {
@@ -155,8 +157,6 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     resizer.unobserve(canvas);
     // TODO: Destroy
   };
-
-  requestAnimationFrame(frame);
 
   const mouseAnchor: (screen: vec2) => Anchor = (screen) => {
     const { camera } = view;
