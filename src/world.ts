@@ -39,8 +39,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) throw new Error("WebGL context failure");
 
-  const tiles = createTiles(gl);
-  const tileLayer = createTileLayer({ gl, tiles });
+  const tileLayer = createTileLayer(gl);
 
   const pickBuffer = createPickBuffer(gl);
 
@@ -477,10 +476,9 @@ const uvw = range(0, n + 1).flatMap((y) =>
   })
 );
 
-const createTileLayer: (_: {
-  gl: WebGLRenderingContext;
-  tiles: Tiles;
-}) => Layer = ({ gl, tiles }) => {
+const createTileLayer: (gl: WebGLRenderingContext) => Layer = (gl) => {
+  const tiles = createTiles(gl);
+
   const uvwBuffer = gl.createBuffer();
   if (!uvwBuffer) throw new Error("Buffer creation failed");
   gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
@@ -552,41 +550,42 @@ const createRenderProgram: (_: {
   const xyzUniform = gl.getUniformLocation(program, "xyz");
   const cameraUniform = gl.getUniformLocation(program, "camera");
 
-  const execute = (view: View) => {
-    const { projection, modelView, camera } = view;
-    const visible = calculateVisibleTiles(view);
+  const execute = (view: View) =>
+    tiles.cancelUnused(() => {
+      const { projection, modelView, camera } = view;
+      const visible = calculateVisibleTiles(view);
 
-    gl.enable(gl.DEPTH_TEST);
+      gl.enable(gl.DEPTH_TEST);
 
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
-    gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(uvwAttribute);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
+      gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(uvwAttribute);
 
-    gl.useProgram(program);
-    gl.uniform1i(imageryUniform, 0);
-    gl.uniform1i(terrainUniform, 1);
-    gl.uniformMatrix4fv(projectionUniform, false, projection);
-    gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.uniform3iv(cameraUniform, [...to(camera)]);
+      gl.useProgram(program);
+      gl.uniform1i(imageryUniform, 0);
+      gl.uniform1i(terrainUniform, 1);
+      gl.uniformMatrix4fv(projectionUniform, false, projection);
+      gl.uniformMatrix4fv(modelViewUniform, false, modelView);
+      gl.uniform3iv(cameraUniform, [...to(camera)]);
 
-    for (const xyz of visible) {
-      const { texture: imagery, downsample: downsampleImagery } =
-        tiles.imagery(xyz);
-      const { texture: terrain, downsample: downsampleTerrain } =
-        tiles.terrain(xyz);
+      for (const xyz of visible) {
+        const { texture: imagery, downsample: downsampleImagery } =
+          tiles.imagery(xyz);
+        const { texture: terrain, downsample: downsampleTerrain } =
+          tiles.terrain(xyz);
 
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, imagery);
-      gl.activeTexture(gl.TEXTURE1);
-      gl.bindTexture(gl.TEXTURE_2D, terrain);
-      gl.uniform1i(downsampleImageryUniform, downsampleImagery);
-      gl.uniform1i(downsampleTerrainUniform, downsampleTerrain);
-      gl.uniform3iv(xyzUniform, [...xyz]);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, imagery);
+        gl.activeTexture(gl.TEXTURE1);
+        gl.bindTexture(gl.TEXTURE_2D, terrain);
+        gl.uniform1i(downsampleImageryUniform, downsampleImagery);
+        gl.uniform1i(downsampleTerrainUniform, downsampleTerrain);
+        gl.uniform3iv(xyzUniform, [...xyz]);
 
-      gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
-    }
-  };
+        gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+      }
+    });
 
   const destroy = () => {
     // TODO:
@@ -619,32 +618,33 @@ const createDepthProgram: (_: {
   const xyzUniform = gl.getUniformLocation(program, "xyz");
   const cameraUniform = gl.getUniformLocation(program, "camera");
 
-  const execute = (view: View) => {
-    const { projection, modelView, camera } = view;
-    const visible = calculateVisibleTiles(view);
+  const execute = (view: View) =>
+    tiles.cancelUnused(() => {
+      const { projection, modelView, camera } = view;
+      const visible = calculateVisibleTiles(view);
 
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
-    gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(uvwAttribute);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+      gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
+      gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
+      gl.enableVertexAttribArray(uvwAttribute);
 
-    gl.useProgram(program);
-    gl.uniform1i(terrainUniform, 0);
-    gl.uniformMatrix4fv(projectionUniform, false, projection);
-    gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.uniform3iv(cameraUniform, [...to(camera)]);
+      gl.useProgram(program);
+      gl.uniform1i(terrainUniform, 0);
+      gl.uniformMatrix4fv(projectionUniform, false, projection);
+      gl.uniformMatrix4fv(modelViewUniform, false, modelView);
+      gl.uniform3iv(cameraUniform, [...to(camera)]);
 
-    for (const xyz of visible) {
-      const { texture: terrain, downsample } = tiles.terrain(xyz);
+      for (const xyz of visible) {
+        const { texture: terrain, downsample } = tiles.terrain(xyz);
 
-      gl.activeTexture(gl.TEXTURE0);
-      gl.bindTexture(gl.TEXTURE_2D, terrain);
-      gl.uniform1i(downsampleUniform, downsample);
-      gl.uniform3iv(xyzUniform, [...xyz]);
+        gl.activeTexture(gl.TEXTURE0);
+        gl.bindTexture(gl.TEXTURE_2D, terrain);
+        gl.uniform1i(downsampleUniform, downsample);
+        gl.uniform3iv(xyzUniform, [...xyz]);
 
-      gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
-    }
-  };
+        gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+      }
+    });
 
   const destroy = () => {
     // TODO:
