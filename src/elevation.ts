@@ -13,15 +13,18 @@ export const elevation: ([lng, lat]: [number, number]) => Promise<number> = ([
   lng,
   lat,
 ]) => {
+  const key = `${lng}-${lat}`;
+  const cached = cache.get(key);
+  if (cached) return cached;
+
   const k = Math.pow(2, z);
   const p = mercator([lng, lat, 0]).map((_) => _ * k);
   const [x, y] = p.map((_) => Math.floor(_ % k));
   const [px, py] = p.map((_) => _ % 1);
-  const key = `${lng}-${lat}`;
-  const cached = cache.get(key);
-  if (cached) return cached;
   const result = tile(x, y, z).then((_) => _.query(px, py));
+
   cache.set(key, result);
+
   return result;
 };
 
