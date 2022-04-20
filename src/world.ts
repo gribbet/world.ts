@@ -14,51 +14,9 @@ export interface World {
 
 const n = 16;
 
-const pickScale = 0.25;
+const pickScale = 1;
 
 glMatrix.setMatrixArrayType(Array);
-
-const one = 1073741824; // 2^30
-const to = ([x, y, z]: vec3) =>
-  [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
-
-const indices = range(0, n).flatMap((y) =>
-  range(0, n).flatMap((x) => [
-    y * (n + 1) + x,
-    (y + 1) * (n + 1) + x + 1,
-    y * (n + 1) + x + 1,
-    y * (n + 1) + x,
-    (y + 1) * (n + 1) + x,
-    (y + 1) * (n + 1) + x + 1,
-  ])
-);
-
-const skirt = 0.1;
-const uvw = range(0, n + 1).flatMap((y) =>
-  range(0, n + 1).flatMap((x) => {
-    let u = (x - 1) / (n - 2);
-    let v = (y - 1) / (n - 2);
-    let w = 0;
-    if (x === 0) {
-      u = 0;
-      w = -skirt;
-    }
-    if (x === n) {
-      u = 1;
-      w = -skirt;
-    }
-    if (y === 0) {
-      v = 0;
-      w = -skirt;
-    }
-    if (y === n) {
-      v = 1;
-      w = -skirt;
-    }
-
-    return [u, v, w];
-  })
-);
 
 const matrix = mat4.create();
 const vector = vec3.create();
@@ -67,12 +25,6 @@ interface Anchor {
   screen: vec2;
   world: vec3;
   distance: number;
-}
-
-interface Camera {
-  bearing: number;
-  pitch: number;
-  anchor: Anchor | undefined;
 }
 
 export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
@@ -88,124 +40,20 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     height: 0,
   };
 
-  const mouseAnchor: (screen: vec2) => Anchor = (screen) => {
-    const { camera } = view;
-    const world = pick(screen);
-    const distance = vec3.distance(mercator(world), mercator(camera));
-    return {
-      screen,
-      world,
-      distance,
-    };
-  };
-
-  const clearAnchor = debounce(() => {
-    anchor = undefined;
-  }, 100);
-
-  canvas.addEventListener("mousedown", ({ x, y }) => {
-    anchor = mouseAnchor([x, y]);
-  });
-
-  canvas.addEventListener(
-    "mousemove",
-    ({ buttons, movementX, movementY, x, y }) => {
-      if (!anchor) return;
-      if (buttons === 1) {
-        anchor = {
-          ...anchor,
-          screen: [x, y],
-        };
-      } else if (buttons === 2) {
-        const { width, height } = view;
-        bearing -= (movementX / width) * Math.PI;
-        pitch = Math.min(
-          0.5 * Math.PI,
-          Math.max(0, pitch - (movementY / height) * Math.PI)
-        );
-      }
-    }
-  );
-
-  canvas.addEventListener("mouseup", clearAnchor);
-
-  canvas.addEventListener("wheel", (event) => {
-    event.preventDefault();
-    const { x, y } = event;
-    if (!anchor) anchor = mouseAnchor([x, y]);
-    anchor = {
-      ...anchor,
-      distance: anchor.distance * Math.exp(event.deltaY * 0.001),
-    };
-    clearAnchor();
-  });
-
-  canvas.addEventListener("contextmenu", (event) => event.preventDefault());
-
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) throw new Error("WebGL context failure");
 
   const tiles = createTiles(gl);
   const tileLayer = createTileLayer({ gl, tiles });
 
-  const targetTexture = gl.createTexture();
-  gl.bindTexture(gl.TEXTURE_2D, targetTexture);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-
-  const depthBuffer = gl.createRenderbuffer();
-  gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
-  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
-
-  const framebuffer = gl.createFramebuffer();
-  gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-  gl.framebufferTexture2D(
-    gl.FRAMEBUFFER,
-    gl.COLOR_ATTACHMENT0,
-    gl.TEXTURE_2D,
-    targetTexture,
-    0
-  );
-  gl.framebufferRenderbuffer(
-    gl.FRAMEBUFFER,
-    gl.DEPTH_ATTACHMENT,
-    gl.RENDERBUFFER,
-    depthBuffer
-  );
-  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-
-  gl.clearColor(0, 0, 0, 1);
-  gl.enable(gl.DEPTH_TEST);
+  const pickBuffer = createPickBuffer(gl);
 
   const resize = (width: number, height: number) => {
     view.width = width;
     view.height = height;
     canvas.width = width * devicePixelRatio;
     canvas.height = height * devicePixelRatio;
-
-    gl.bindTexture(gl.TEXTURE_2D, targetTexture);
-    gl.texImage2D(
-      gl.TEXTURE_2D,
-      0,
-      gl.RGBA,
-      width * pickScale,
-      height * pickScale,
-      0,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      null
-    );
-    gl.bindTexture(gl.TEXTURE_2D, null);
-
-    gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
-    gl.renderbufferStorage(
-      gl.RENDERBUFFER,
-      gl.DEPTH_COMPONENT16,
-      width * pickScale,
-      height * pickScale
-    );
-    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+    pickBuffer.resize([width * pickScale, height * pickScale]);
   };
 
   resize(canvas.clientWidth, canvas.clientHeight);
@@ -216,32 +64,28 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   });
   resizer.observe(canvas);
 
-  const render = () => {
-    const width = view.width * devicePixelRatio;
-    const height = view.height * devicePixelRatio;
+  const render = ({ depth }: { depth?: boolean } = {}) => {
+    const scale = depth ? pickScale : devicePixelRatio;
+    const width = view.width * scale;
+    const height = view.height * scale;
 
+    gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.viewport(0, 0, width, height);
 
-    tileLayer.render({
-      ...view,
-      width,
-      height,
-    });
-  };
-
-  const depth = () => {
-    const width = view.width * pickScale;
-    const height = view.height * pickScale;
-
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.viewport(0, 0, width, height);
-
-    tileLayer.depth({
-      ...view,
-      width,
-      height,
-    });
+    if (depth) {
+      tileLayer.depth({
+        ...view,
+        width,
+        height,
+      });
+    } else {
+      tileLayer.render({
+        ...view,
+        width,
+        height,
+      });
+    }
   };
 
   const setupMatrices = () => {
@@ -298,29 +142,17 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     view.camera = geodetic(vec3.sub(vector, mercator(world), local));
   };
 
-  const buffer = new Uint8Array(4);
   const pick = ([screenX, screenY]: vec2) => {
     const { screenToClip, clipToLocal, localToWorld } = viewport(view);
-    const { height } = view;
 
-    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-    depth();
-    gl.readPixels(
-      screenX * pickScale,
-      (height - screenY) * pickScale,
-      1,
-      1,
-      gl.RGBA,
-      gl.UNSIGNED_BYTE,
-      buffer
-    );
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    pickBuffer.bind();
+    render({ depth: true });
+    pickBuffer.unbind();
 
-    const [r, g] = buffer;
-    const zo = (r * 256 + g) / (256 * 256 - 1);
-    const z = 2 * zo - 1;
-    const [x, y] = screenToClip([screenX, screenY]);
-    return localToWorld(clipToLocal([x, y, z, 1]));
+    const z = pickBuffer.depth([screenX * pickScale, screenY * pickScale]);
+
+    const [x, y, , w] = screenToClip([screenX, screenY]);
+    return localToWorld(clipToLocal([x / w, y / w, z, 1]));
   };
 
   const destroy = () => {
@@ -329,6 +161,61 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   };
 
   requestAnimationFrame(frame);
+
+  const mouseAnchor: (screen: vec2) => Anchor = (screen) => {
+    const { camera } = view;
+    const world = pick(screen);
+    console.log(world);
+    const distance = vec3.distance(mercator(world), mercator(camera));
+    return {
+      screen,
+      world,
+      distance,
+    };
+  };
+
+  const clearAnchor = debounce(() => {
+    anchor = undefined;
+  }, 100);
+
+  canvas.addEventListener("mousedown", ({ x, y }) => {
+    anchor = mouseAnchor([x, y]);
+  });
+
+  canvas.addEventListener(
+    "mousemove",
+    ({ buttons, movementX, movementY, x, y }) => {
+      if (!anchor) return;
+      if (buttons === 1) {
+        anchor = {
+          ...anchor,
+          screen: [x, y],
+        };
+      } else if (buttons === 2) {
+        const { width, height } = view;
+        bearing -= (movementX / width) * Math.PI;
+        pitch = Math.min(
+          0.5 * Math.PI,
+          Math.max(0, pitch - (movementY / height) * Math.PI)
+        );
+      }
+    }
+  );
+
+  canvas.addEventListener("mouseup", clearAnchor);
+
+  canvas.addEventListener("wheel", (event) => {
+    event.preventDefault();
+    const { x, y } = event;
+    if (!anchor) anchor = mouseAnchor([x, y]);
+    anchor = {
+      ...anchor,
+      distance: anchor.distance * Math.exp(event.deltaY * 0.001),
+    };
+    clearAnchor();
+  });
+
+  canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   return {
     destroy,
@@ -380,6 +267,98 @@ const calculateVisibleTiles = (view: View) => {
   };
 
   return divide([0, 0, 0], [width, height]);
+};
+
+interface PickBuffer {
+  bind: () => void;
+  unbind: () => void;
+  resize: (size: vec2) => void;
+  depth: (pixel: vec2) => number;
+  destroy: () => void;
+}
+
+const createPickBuffer: (gl: WebGLRenderingContext) => PickBuffer = (gl) => {
+  const targetTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, targetTexture);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+  const depthBuffer = gl.createRenderbuffer();
+  gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer); // TODO:
+  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+
+  const framebuffer = gl.createFramebuffer();
+
+  const bind = () => gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+  const unbind = () => gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+
+  bind();
+  gl.framebufferTexture2D(
+    gl.FRAMEBUFFER,
+    gl.COLOR_ATTACHMENT0,
+    gl.TEXTURE_2D,
+    targetTexture,
+    0
+  );
+  gl.framebufferRenderbuffer(
+    gl.FRAMEBUFFER,
+    gl.DEPTH_ATTACHMENT,
+    gl.RENDERBUFFER,
+    depthBuffer
+  );
+  unbind();
+
+  let height: number = 0;
+  const resize = ([width, height]: vec2) => {
+    gl.bindTexture(gl.TEXTURE_2D, targetTexture);
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      width,
+      height,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      null
+    );
+    gl.bindTexture(gl.TEXTURE_2D, null);
+
+    gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
+    gl.renderbufferStorage(
+      gl.RENDERBUFFER,
+      gl.DEPTH_COMPONENT16,
+      width,
+      height
+    );
+    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+  };
+
+  const buffer = new Uint8Array(4);
+  const depth = ([x, y]: vec2) => {
+    bind();
+    gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
+    unbind();
+
+    const [r, g] = buffer;
+    const zo = (r * 256 + g) / (256 * 256 - 1);
+    const z = 2 * zo - 1;
+
+    return z;
+  };
+
+  const destroy = () => {
+    // TODO:
+  };
+
+  return {
+    bind,
+    unbind,
+    resize,
+    depth,
+    destroy,
+  };
 };
 
 interface View {
@@ -458,6 +437,48 @@ interface Layer {
   destroy: () => void;
 }
 
+const one = 1073741824; // 2^30
+const to = ([x, y, z]: vec3) =>
+  [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
+
+const indices = range(0, n).flatMap((y) =>
+  range(0, n).flatMap((x) => [
+    y * (n + 1) + x,
+    (y + 1) * (n + 1) + x + 1,
+    y * (n + 1) + x + 1,
+    y * (n + 1) + x,
+    (y + 1) * (n + 1) + x,
+    (y + 1) * (n + 1) + x + 1,
+  ])
+);
+
+const skirt = 0.1;
+const uvw = range(0, n + 1).flatMap((y) =>
+  range(0, n + 1).flatMap((x) => {
+    let u = (x - 1) / (n - 2);
+    let v = (y - 1) / (n - 2);
+    let w = 0;
+    if (x === 0) {
+      u = 0;
+      w = -skirt;
+    }
+    if (x === n) {
+      u = 1;
+      w = -skirt;
+    }
+    if (y === 0) {
+      v = 0;
+      w = -skirt;
+    }
+    if (y === n) {
+      v = 1;
+      w = -skirt;
+    }
+
+    return [u, v, w];
+  })
+);
+
 const createTileLayer: (_: {
   gl: WebGLRenderingContext;
   tiles: Tiles;
@@ -507,42 +528,44 @@ const createRenderProgram: (_: {
   uvwBuffer: WebGLBuffer;
   indexBuffer: WebGLBuffer;
 }) => Program = ({ gl, tiles, uvwBuffer, indexBuffer }) => {
-  const renderProgram = gl.createProgram();
-  if (!renderProgram) throw new Error("Program creation failed");
-  gl.attachShader(renderProgram, loadShader(gl, "vertex", vertexSource));
-  gl.attachShader(renderProgram, loadShader(gl, "fragment", renderSource));
-  gl.linkProgram(renderProgram);
-  if (!gl.getProgramParameter(renderProgram, gl.LINK_STATUS)) {
-    console.error("Link failure", gl.getProgramInfoLog(renderProgram));
+  const program = gl.createProgram();
+  if (!program) throw new Error("Program creation failed");
+  gl.attachShader(program, loadShader(gl, "vertex", vertexSource));
+  gl.attachShader(program, loadShader(gl, "fragment", renderSource));
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    console.error("Link failure", gl.getProgramInfoLog(program));
     throw new Error("Link failure");
   }
 
-  const uvwAttribute = gl.getAttribLocation(renderProgram, "uvw");
-  const projectionUniform = gl.getUniformLocation(renderProgram, "projection");
-  const modelViewUniform = gl.getUniformLocation(renderProgram, "modelView");
-  const imageryUniform = gl.getUniformLocation(renderProgram, "imagery");
-  const terrainUniform = gl.getUniformLocation(renderProgram, "terrain");
+  const uvwAttribute = gl.getAttribLocation(program, "uvw");
+  const projectionUniform = gl.getUniformLocation(program, "projection");
+  const modelViewUniform = gl.getUniformLocation(program, "modelView");
+  const imageryUniform = gl.getUniformLocation(program, "imagery");
+  const terrainUniform = gl.getUniformLocation(program, "terrain");
   const downsampleImageryUniform = gl.getUniformLocation(
-    renderProgram,
+    program,
     "downsampleImagery"
   );
   const downsampleTerrainUniform = gl.getUniformLocation(
-    renderProgram,
+    program,
     "downsampleTerrain"
   );
-  const xyzUniform = gl.getUniformLocation(renderProgram, "xyz");
-  const cameraUniform = gl.getUniformLocation(renderProgram, "camera");
+  const xyzUniform = gl.getUniformLocation(program, "xyz");
+  const cameraUniform = gl.getUniformLocation(program, "camera");
 
   const execute = (view: View) => {
     const { projection, modelView, camera } = view;
     const visible = calculateVisibleTiles(view);
+
+    gl.enable(gl.DEPTH_TEST);
 
     gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
     gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
     gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(uvwAttribute);
 
-    gl.useProgram(renderProgram);
+    gl.useProgram(program);
     gl.uniform1i(imageryUniform, 0);
     gl.uniform1i(terrainUniform, 1);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
@@ -580,23 +603,23 @@ const createDepthProgram: (_: {
   uvwBuffer: WebGLBuffer;
   indexBuffer: WebGLBuffer;
 }) => Program = ({ gl, tiles, uvwBuffer, indexBuffer }) => {
-  const depthProgram = gl.createProgram();
-  if (!depthProgram) throw new Error("Program creation failed");
-  gl.attachShader(depthProgram, loadShader(gl, "vertex", vertexSource));
-  gl.attachShader(depthProgram, loadShader(gl, "fragment", depthSource));
-  gl.linkProgram(depthProgram);
-  if (!gl.getProgramParameter(depthProgram, gl.LINK_STATUS)) {
-    console.error("Link failure", gl.getProgramInfoLog(depthProgram));
+  const program = gl.createProgram();
+  if (!program) throw new Error("Program creation failed");
+  gl.attachShader(program, loadShader(gl, "vertex", vertexSource));
+  gl.attachShader(program, loadShader(gl, "fragment", depthSource));
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    console.error("Link failure", gl.getProgramInfoLog(program));
     throw new Error("Link failure");
   }
 
-  const uvwAttribute = gl.getAttribLocation(depthProgram, "uvw");
-  const projectionUniform = gl.getUniformLocation(depthProgram, "projection");
-  const modelViewUniform = gl.getUniformLocation(depthProgram, "modelView");
-  const terrainUniform = gl.getUniformLocation(depthProgram, "terrain");
-  const downsampleUniform = gl.getUniformLocation(depthProgram, "downsample");
-  const xyzUniform = gl.getUniformLocation(depthProgram, "xyz");
-  const cameraUniform = gl.getUniformLocation(depthProgram, "camera");
+  const uvwAttribute = gl.getAttribLocation(program, "uvw");
+  const projectionUniform = gl.getUniformLocation(program, "projection");
+  const modelViewUniform = gl.getUniformLocation(program, "modelView");
+  const terrainUniform = gl.getUniformLocation(program, "terrain");
+  const downsampleUniform = gl.getUniformLocation(program, "downsample");
+  const xyzUniform = gl.getUniformLocation(program, "xyz");
+  const cameraUniform = gl.getUniformLocation(program, "camera");
 
   const execute = (view: View) => {
     const { projection, modelView, camera } = view;
@@ -607,7 +630,7 @@ const createDepthProgram: (_: {
     gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
     gl.enableVertexAttribArray(uvwAttribute);
 
-    gl.useProgram(depthProgram);
+    gl.useProgram(program);
     gl.uniform1i(terrainUniform, 0);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
