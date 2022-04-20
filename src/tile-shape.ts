@@ -1,18 +1,18 @@
 import { vec3 } from "gl-matrix";
 import * as LruCache from "lru-cache";
 import { elevation } from "./elevation";
-import { geodetic, tileToMercator } from "./math";
+import { geodetic, mercator, tileToMercator } from "./math";
 
-let tileShapes = new LruCache<string, vec3[]>({
+let tileShapes = new LruCache<number, vec3[]>({
   max: 10000,
 });
 
-let tileShapesCalculations = new LruCache<string, Promise<vec3[]>>({
+let tileShapesCalculations = new LruCache<number, Promise<vec3[]>>({
   max: 100,
 });
 
 export const tileShape: (xyz: vec3) => vec3[] | undefined = ([x, y, z]) => {
-  const key = `${z}-${x}-${y}`;
+  const key = Math.pow(4, z) + y * Math.pow(2, z) + x;
   const cached = tileShapes.get(key);
   if (cached) return cached;
 
@@ -37,10 +37,8 @@ const calculateTileShape: (xyz: vec3) => Promise<vec3[]> = ([x, y, z]) => {
       .map<vec3>(([u, v]) => [x + u, y + v, z])
       .map(tileToMercator)
       .map(geodetic)
-      .map<Promise<vec3>>(async ([lng, lat]) => [
-        lng,
-        lat,
-        await elevation([lng, lat]),
-      ])
+      .map<Promise<vec3>>(async ([lng, lat]) =>
+        mercator([lng, lat, await elevation([lng, lat])])
+      )
   );
 };

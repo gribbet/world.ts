@@ -224,10 +224,7 @@ const calculateVisibleTiles = (view: View) => {
   const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
     const [x, y, z] = xyz;
 
-    const clip = tileShape(xyz)
-      ?.map(mercator)
-      .map(worldToLocal)
-      .map(localToClip);
+    const clip = tileShape(xyz)?.map(worldToLocal).map(localToClip);
     if (
       !clip ||
       clip.every(([x, , , w]) => x > w) ||
@@ -242,7 +239,7 @@ const calculateVisibleTiles = (view: View) => {
 
     const pixels = clip.map(clipToScreen);
     const size = Math.sqrt(
-      range(0, 4)
+      [0, 1, 2, 3]
         .map((i) =>
           vec2.squaredDistance(pixels[i], pixels[(i + 1) % pixels.length])
         )

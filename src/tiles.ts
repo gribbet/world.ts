@@ -3,102 +3,126 @@ import * as LruCache from "lru-cache";
 import { imageryUrl, terrainUrl } from "./constants";
 import { loadImage } from "./image-load";
 
-// TODO:  Interface Tile?
+export interface DownsampledTile {
+  texture: WebGLTexture;
+  downsample: number;
+}
 
 export interface Tiles {
-  imagery: (xyz: vec3) => { texture: WebGLTexture; downsample: number };
-  terrain: (xyz: vec3) => { texture: WebGLTexture; downsample: number };
+  imagery: (xyz: vec3) => DownsampledTile;
+  terrain: (xyz: vec3) => DownsampledTile;
   cancelUnused: (f: () => void) => void;
 }
 
 export const createTiles: (gl: WebGLRenderingContext) => Tiles = (gl) => {
+  const imageryCache = createTileCache({
+    gl,
+    url: imageryUrl,
+    onLoad: () => {
+      gl.generateMipmap(gl.TEXTURE_2D);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    },
+  });
+
+  const terrainCache = createTileCache({
+    gl,
+    url: terrainUrl,
+    onLoad: () => {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    },
+  });
+
+  const imageryDownsampler = createDownsampler(imageryCache);
+
+  const terrainDownsampler = createDownsampler(terrainCache);
+
+  const empty = gl.createTexture();
+  if (!empty) throw new Error("Texture creation failed");
+
   const imagery = (xyz: vec3) =>
-    downsampled({
-      url: imageryUrl,
-      xyz,
-      onLoad: () => {
-        gl.generateMipmap(gl.TEXTURE_2D);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      },
-    });
+    imageryDownsampler.get(xyz) || { texture: empty, downsample: 0 };
 
   const terrain = (xyz: vec3) =>
-    downsampled({
-      url: terrainUrl,
-      xyz,
-      downsample: 4,
-      onLoad: () => {
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      },
-    });
+    terrainDownsampler.get(xyz) || { texture: empty, downsample: 0 };
 
-  const downsampled: (_: {
-    url: string;
+  const cancelUnused = (f: () => void) =>
+    imageryCache.cancelUnused(() => terrainCache.cancelUnused(f));
+
+  return { imagery, terrain, cancelUnused };
+};
+
+interface Downsampler {
+  get: (xyz: vec3) => DownsampledTile | undefined;
+}
+
+const createDownsampler: (cache: TileCache) => Downsampler = (cache) => {
+  const downsample: (_: {
     xyz: vec3;
     downsample?: number;
-    onLoad?: () => void;
-  }) => {
-    texture: WebGLTexture;
-    downsample: number;
-  } = ({ url, xyz, downsample = 0, onLoad }) => {
+  }) => DownsampledTile | undefined = ({ xyz, downsample = 0 }) => {
     const [x, y, z] = xyz;
     for (; downsample <= z; downsample++) {
       const k = Math.pow(2, downsample);
-      const { loaded, texture } = get({
-        url,
-        xyz: [Math.floor(x / k), Math.floor(y / k), z - downsample],
-        onLoad,
-      });
-      if (loaded) return { texture, downsample };
+      const xyz: vec3 = [Math.floor(x / k), Math.floor(y / k), z - downsample];
+      const texture = cache.get(xyz);
+      if (texture) return { texture, downsample };
     }
-    const { texture } = get({
-      url,
-      xyz: [0, 0, 0],
-      onLoad,
-    });
-    return { texture, downsample: z };
   };
 
-  interface Tile {
+  const get = (xyz: vec3) => downsample({ xyz });
+
+  return { get };
+};
+
+interface TileCache {
+  get: (xyz: vec3) => WebGLTexture | undefined;
+  cancelUnused: (f: () => void) => void;
+}
+
+const createTileCache: (_: {
+  gl: WebGLRenderingContext;
+  url: string;
+  onLoad?: () => void;
+}) => TileCache = ({ gl, url, onLoad }) => {
+  interface TileCacheEntry {
     texture: WebGLTexture;
     loaded: boolean;
     dispose: () => void;
   }
 
-  const tiles = new LruCache<string, Tile>({
+  const tiles = new LruCache<number, TileCacheEntry>({
     max: 1000,
     dispose: (tile) => {
       tile.dispose();
     },
   });
 
-  const used = new Set<string>();
-  const get: (_: { url: string; xyz: vec3; onLoad?: () => void }) => Tile = ({
-    url,
-    xyz,
-    onLoad,
-  }) => {
-    const key = JSON.stringify({ url, xyz });
+  const used = new Set<number>();
+  const get: (xyz: vec3) => WebGLTexture | undefined = (xyz) => {
+    const [x, y, z] = xyz;
+    const key = Math.pow(4, z) + y * Math.pow(2, z) + x;
     used.add(key);
     const cached = tiles.get(key);
-    if (cached) return cached;
-
-    const tile = load({ url, xyz, onLoad });
-    tiles.set(key, tile);
-    return tile;
+    if (cached) {
+      const { loaded, texture } = cached;
+      if (loaded) return texture;
+    } else {
+      const entry = load({ url, xyz });
+      tiles.set(key, entry);
+    }
   };
 
-  const load: (_: { url: string; xyz: vec3; onLoad?: () => void }) => Tile = ({
-    url,
-    xyz: [x, y, z],
-    onLoad,
-  }) => {
+  const load: (_: {
+    url: string;
+    xyz: vec3;
+    onLoad?: () => void;
+  }) => TileCacheEntry = ({ url, xyz: [x, y, z] }) => {
     const texture = gl.createTexture();
     if (!texture) throw new Error("Texture creation failed");
 
@@ -146,5 +170,5 @@ export const createTiles: (gl: WebGLRenderingContext) => Tiles = (gl) => {
       .forEach(([_]) => tiles.delete(_));
   };
 
-  return { imagery, terrain, cancelUnused };
+  return { get, cancelUnused };
 };
