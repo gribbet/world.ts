@@ -245,16 +245,19 @@ const calculateVisibleTiles = (view: View) => {
         )
         .reduce((a, b) => a + b, 0) / 4
     );
-    if (size > 256 && z < 22) {
+    if (size > 256 * 2 && z < 22) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
         [2 * x, 2 * y + 1, z + 1],
         [2 * x + 1, 2 * y + 1, z + 1],
       ];
+
+      const next = divided.flatMap((_) => divide(_, [width, height]));
+
       if (divided.some((_) => !tileShape(_))) return [xyz];
 
-      return divided.flatMap((_) => divide(_, [width, height]));
+      return next;
     } else return [xyz];
   };
 
