@@ -7,6 +7,7 @@ import { world } from "./world";
  * elevation tile -1
  * mercator elevation
  * subdivide const
+ * pick inaccuracy
  */
 
 world(document.querySelector("canvas") as HTMLCanvasElement);

@@ -8,18 +8,13 @@ import { tileShape } from "./tile-shape";
 import { createTiles, Tiles } from "./tiles";
 import vertexSource from "./vertex.glsl";
 
+glMatrix.setMatrixArrayType(Array);
+
 export interface World {
   destroy: () => void;
 }
 
-const n = 16;
-
-const pickScale = 1;
-
-glMatrix.setMatrixArrayType(Array);
-
 const matrix = mat4.create();
-const vector = vec3.create();
 
 interface Anchor {
   screen: vec2;
@@ -31,6 +26,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let bearing = 0;
   let pitch = 0;
   let anchor: Anchor | undefined;
+  const pickScale = 0.25;
 
   let view: View = {
     projection: mat4.create(),
@@ -139,7 +135,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
       az + t1 * (bz - az),
     ];
 
-    view.camera = geodetic(vec3.sub(vector, mercator(world), local));
+    view.camera = geodetic(vec3.sub(vec3.create(), mercator(world), local));
   };
 
   const pick = ([screenX, screenY]: vec2) => {
@@ -179,10 +175,6 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   canvas.addEventListener("mousedown", ({ x, y }) => {
     anchor = mouseAnchor([x, y]);
-  });
-
-  canvas.addEventListener("click", ({ x, y, shiftKey }) => {
-    if (shiftKey) pick1 = pick([x, y]);
   });
 
   canvas.addEventListener(
@@ -444,6 +436,8 @@ interface Layer {
 const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
   [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
+
+const n = 16;
 
 const indices = range(0, n).flatMap((y) =>
   range(0, n).flatMap((x) => [

@@ -3,6 +3,8 @@ import * as LruCache from "lru-cache";
 import { imageryUrl, terrainUrl } from "./constants";
 import { loadImage } from "./image-load";
 
+// TODO:  Interface Tile?
+
 export interface Tiles {
   imagery: (xyz: vec3) => { texture: WebGLTexture; downsample: number };
   terrain: (xyz: vec3) => { texture: WebGLTexture; downsample: number };
