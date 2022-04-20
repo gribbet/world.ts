@@ -31,7 +31,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let view: View = {
     projection: mat4.create(),
     modelView: mat4.create(),
-    camera: [0, 0, circumference],
+    camera: mercator([0, 0, circumference]),
     width: 0,
     height: 0,
   };
@@ -88,8 +88,8 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     const { projection, modelView, camera, width, height } = view;
 
     const [, , z] = camera;
-    const [, , near] = mercator([0, 0, z / 100]);
-    const [, , far] = mercator([0, 0, 100 * z]);
+    const near = z / 100;
+    const far = 100 * z;
     mat4.identity(projection);
     mat4.perspective(
       projection,
@@ -135,7 +135,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
       az + t1 * (bz - az),
     ];
 
-    view.camera = geodetic(vec3.sub(vec3.create(), mercator(world), local));
+    view.camera = vec3.sub(vec3.create(), mercator(world), local);
   };
 
   const pick = ([screenX, screenY]: vec2) => {
@@ -161,7 +161,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   const mouseAnchor: (screen: vec2) => Anchor = (screen) => {
     const { camera } = view;
     const world = pick(screen);
-    const distance = vec3.distance(mercator(world), mercator(camera));
+    const distance = vec3.distance(mercator(world), camera);
     return {
       screen,
       world,
@@ -403,12 +403,12 @@ const viewport: (view: View) => Viewport = ({
   };
 
   const localToWorld = ([x, y, z]: vec3) => {
-    const [cx, cy, cz] = mercator(camera);
+    const [cx, cy, cz] = camera;
     return [x + cx, y + cy, z + cz] as vec3;
   };
 
   const worldToLocal = ([x, y, z]: vec3) => {
-    const [cx, cy, cz] = mercator(camera);
+    const [cx, cy, cz] = camera;
     return [x - cx, y - cy, z - cz] as vec3;
   };
 
@@ -568,7 +568,7 @@ const createRenderProgram: (_: {
     gl.uniform1i(terrainUniform, 1);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
+    gl.uniform3iv(cameraUniform, [...to(camera)]);
 
     for (const xyz of visible) {
       const { texture: imagery, downsample: downsampleImagery } =
@@ -632,7 +632,7 @@ const createDepthProgram: (_: {
     gl.uniform1i(terrainUniform, 0);
     gl.uniformMatrix4fv(projectionUniform, false, projection);
     gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.uniform3iv(cameraUniform, [...to(mercator(camera))]);
+    gl.uniform3iv(cameraUniform, [...to(camera)]);
 
     for (const xyz of visible) {
       const { texture: terrain, downsample } = tiles.terrain(xyz);
