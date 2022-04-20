@@ -151,8 +151,8 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
     const z = pickBuffer.depth([screenX * pickScale, screenY * pickScale]);
 
-    const [x, y, , w] = screenToClip([screenX, screenY]);
-    return localToWorld(clipToLocal([x / w, y / w, z, 1]));
+    const [x, y] = screenToClip([screenX, screenY]);
+    return geodetic(localToWorld(clipToLocal([x, y, z, 1])));
   };
 
   const destroy = () => {
@@ -165,7 +165,6 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   const mouseAnchor: (screen: vec2) => Anchor = (screen) => {
     const { camera } = view;
     const world = pick(screen);
-    console.log(world);
     const distance = vec3.distance(mercator(world), mercator(camera));
     return {
       screen,
@@ -180,6 +179,10 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   canvas.addEventListener("mousedown", ({ x, y }) => {
     anchor = mouseAnchor([x, y]);
+  });
+
+  canvas.addEventListener("click", ({ x, y, shiftKey }) => {
+    if (shiftKey) pick1 = pick([x, y]);
   });
 
   canvas.addEventListener(
@@ -309,8 +312,9 @@ const createPickBuffer: (gl: WebGLRenderingContext) => PickBuffer = (gl) => {
   );
   unbind();
 
-  let height: number = 0;
-  const resize = ([width, height]: vec2) => {
+  let height = 0;
+  const resize = ([width, _height]: vec2) => {
+    height = _height;
     gl.bindTexture(gl.TEXTURE_2D, targetTexture);
     gl.texImage2D(
       gl.TEXTURE_2D,
@@ -338,7 +342,7 @@ const createPickBuffer: (gl: WebGLRenderingContext) => PickBuffer = (gl) => {
   const buffer = new Uint8Array(4);
   const depth = ([x, y]: vec2) => {
     bind();
-    gl.readPixels(x, y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
+    gl.readPixels(x, height - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
     unbind();
 
     const [r, g] = buffer;
@@ -408,7 +412,7 @@ const viewport: (view: View) => Viewport = ({
 
   const localToWorld = ([x, y, z]: vec3) => {
     const [cx, cy, cz] = mercator(camera);
-    return geodetic([x + cx, y + cy, z + cz]);
+    return [x + cx, y + cy, z + cz] as vec3;
   };
 
   const worldToLocal = ([x, y, z]: vec3) => {
