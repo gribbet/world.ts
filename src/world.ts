@@ -26,7 +26,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let bearing = 0;
   let pitch = 0;
   let anchor: Anchor | undefined;
-  const pickScale = 0.25;
+  const pickScale = 0.5;
 
   let view: View = {
     projection: mat4.create(),
@@ -142,11 +142,9 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   const pick = ([screenX, screenY]: vec2) => {
     const { screenToClip, clipToLocal, localToWorld } = viewport(view);
 
-    pickBuffer.bind();
-    render({ depth: true });
-    pickBuffer.unbind();
+    pickBuffer.use(() => render({ depth: true }));
 
-    const z = pickBuffer.depth([screenX * pickScale, screenY * pickScale]);
+    const z = pickBuffer.read([screenX * pickScale, screenY * pickScale]);
 
     const [x, y] = screenToClip([screenX, screenY]);
     return geodetic(localToWorld(clipToLocal([x, y, z, 1])));
@@ -264,17 +262,17 @@ const calculateVisibleTiles = (view: View) => {
 };
 
 interface PickBuffer {
-  bind: () => void;
-  unbind: () => void;
+  use: (f: () => void) => void;
   resize: (size: vec2) => void;
-  depth: (pixel: vec2) => number;
+  read: (pixel: vec2) => number;
   destroy: () => void;
 }
 
 const createPickBuffer: (gl: WebGLRenderingContext) => PickBuffer = (gl) => {
   const targetTexture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, targetTexture);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
@@ -284,24 +282,27 @@ const createPickBuffer: (gl: WebGLRenderingContext) => PickBuffer = (gl) => {
 
   const framebuffer = gl.createFramebuffer();
 
-  const bind = () => gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-  const unbind = () => gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  const use = (f: () => void) => {
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    f();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+  };
 
-  bind();
-  gl.framebufferTexture2D(
-    gl.FRAMEBUFFER,
-    gl.COLOR_ATTACHMENT0,
-    gl.TEXTURE_2D,
-    targetTexture,
-    0
-  );
-  gl.framebufferRenderbuffer(
-    gl.FRAMEBUFFER,
-    gl.DEPTH_ATTACHMENT,
-    gl.RENDERBUFFER,
-    depthBuffer
-  );
-  unbind();
+  use(() => {
+    gl.framebufferTexture2D(
+      gl.FRAMEBUFFER,
+      gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D,
+      targetTexture,
+      0
+    );
+    gl.framebufferRenderbuffer(
+      gl.FRAMEBUFFER,
+      gl.DEPTH_ATTACHMENT,
+      gl.RENDERBUFFER,
+      depthBuffer
+    );
+  });
 
   let height = 0;
   const resize = ([width, _height]: vec2) => {
@@ -331,10 +332,10 @@ const createPickBuffer: (gl: WebGLRenderingContext) => PickBuffer = (gl) => {
   };
 
   const buffer = new Uint8Array(4);
-  const depth = ([x, y]: vec2) => {
-    bind();
-    gl.readPixels(x, height - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
-    unbind();
+  const read = ([x, y]: vec2) => {
+    use(() =>
+      gl.readPixels(x, height - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buffer)
+    );
 
     const [r, g] = buffer;
     const zo = (r * 256 + g) / (256 * 256 - 1);
@@ -348,10 +349,9 @@ const createPickBuffer: (gl: WebGLRenderingContext) => PickBuffer = (gl) => {
   };
 
   return {
-    bind,
-    unbind,
+    use,
     resize,
-    depth,
+    read,
     destroy,
   };
 };
