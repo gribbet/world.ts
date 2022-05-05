@@ -1,6 +1,8 @@
 import { glMatrix, mat4, vec2, vec3 } from "gl-matrix";
 import { debounce } from "./common";
 import { circumference } from "./constants";
+import { Layer } from "./layer";
+import { createLineLayer } from "./line-layer";
 import { geodetic, mercator, quadratic } from "./math";
 import { createPickBuffer } from "./pick-buffer";
 import { createTileLayer } from "./tile-layer";
@@ -37,6 +39,10 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   const tileLayer = createTileLayer(gl);
 
+  const lineLayer = createLineLayer(gl);
+
+  const layers: Layer[] = [tileLayer, lineLayer];
+
   const pickBuffer = createPickBuffer(gl);
 
   const resize = (width: number, height: number) => {
@@ -65,17 +71,21 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     gl.viewport(0, 0, width, height);
 
     if (depth) {
-      tileLayer.depth({
-        ...view,
-        width,
-        height,
-      });
+      layers.forEach((_) =>
+        _.depth({
+          ...view,
+          width,
+          height,
+        })
+      );
     } else {
-      tileLayer.render({
-        ...view,
-        width,
-        height,
-      });
+      layers.forEach((_) =>
+        _.render({
+          ...view,
+          width,
+          height,
+        })
+      );
     }
   };
 
