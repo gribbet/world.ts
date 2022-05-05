@@ -46,10 +46,10 @@ export const createTiles: (gl: WebGLRenderingContext) => Tiles = (gl) => {
   if (!empty) throw new Error("Texture creation failed");
 
   const imagery = (xyz: vec3) =>
-    imageryDownsampler.get(xyz) || { texture: empty, downsample: 0 };
+    imageryDownsampler(xyz) || { texture: empty, downsample: 0 };
 
   const terrain = (xyz: vec3) =>
-    terrainDownsampler.get(xyz) || { texture: empty, downsample: 0 };
+    terrainDownsampler(xyz, 3) || { texture: empty, downsample: 0 };
 
   const cancelUnused = (f: () => void) =>
     imageryCache.cancelUnused(() => terrainCache.cancelUnused(f));
@@ -57,15 +57,14 @@ export const createTiles: (gl: WebGLRenderingContext) => Tiles = (gl) => {
   return { imagery, terrain, cancelUnused };
 };
 
-interface Downsampler {
-  get: (xyz: vec3) => DownsampledTile | undefined;
-}
+type Downsampler = (
+  xyz: vec3,
+  downsample?: number
+) => DownsampledTile | undefined;
 
-const createDownsampler: (cache: TileCache) => Downsampler = (cache) => {
-  const downsample: (_: {
-    xyz: vec3;
-    downsample?: number;
-  }) => DownsampledTile | undefined = ({ xyz, downsample = 0 }) => {
+const createDownsampler: (cache: TileCache) => Downsampler =
+  (cache) =>
+  (xyz, downsample = 0) => {
     const [x, y, z] = xyz;
     for (; downsample <= z; downsample++) {
       const k = Math.pow(2, downsample);
@@ -74,11 +73,6 @@ const createDownsampler: (cache: TileCache) => Downsampler = (cache) => {
       if (texture) return { texture, downsample };
     }
   };
-
-  const get = (xyz: vec3) => downsample({ xyz });
-
-  return { get };
-};
 
 interface TileCache {
   get: (xyz: vec3) => WebGLTexture | undefined;
