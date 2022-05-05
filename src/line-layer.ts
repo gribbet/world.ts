@@ -11,32 +11,13 @@ const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
   [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
 
-export const createLineLayer: (gl: WebGLRenderingContext) => Layer = (gl) => {
-  const n = 10000;
-  const points: vec3[] = range(0, n).map<vec3>((i) => [
-    -121 + 1 * Math.cos((i / n) * Math.PI * 2),
-    38 + 1 * Math.sin((i / n) * Math.PI * 2),
-    (i / n) * 1000,
-  ]);
+export const createLineLayer = (gl: WebGLRenderingContext) => {
+  let count = 0;
 
-  const count = points.length;
-
-  const center = mercator(points[0]);
+  let center: vec3 = [0, 0, 0];
 
   const buffer = gl.createBuffer();
   if (!buffer) throw new Error("Buffer creation failed");
-
-  gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
-  gl.bufferData(
-    gl.ARRAY_BUFFER,
-    new Float32Array(
-      points
-        .map(mercator)
-        .map((_) => vec3.sub(vec3.create(), _, center))
-        .flatMap((_) => [..._])
-    ),
-    gl.STATIC_DRAW
-  );
 
   const program = createLineProgram(gl, buffer);
 
@@ -57,6 +38,22 @@ export const createLineLayer: (gl: WebGLRenderingContext) => Layer = (gl) => {
     render,
     depth,
     destroy,
+    set points(points: vec3[]) {
+      center = mercator(points[0]);
+      count = points.length;
+
+      gl.bindBuffer(gl.ARRAY_BUFFER, buffer);
+      gl.bufferData(
+        gl.ARRAY_BUFFER,
+        new Float32Array(
+          points
+            .map(mercator)
+            .map((_) => vec3.sub(vec3.create(), _, center))
+            .flatMap((_) => [..._])
+        ),
+        gl.STATIC_DRAW
+      );
+    },
   };
 };
 

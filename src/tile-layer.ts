@@ -53,7 +53,7 @@ const uvw = range(0, n + 1).flatMap((y) =>
   })
 );
 
-export const createTileLayer: (gl: WebGLRenderingContext) => Layer = (gl) => {
+export const createTileLayer = (gl: WebGLRenderingContext) => {
   const tiles = createTiles(gl);
 
   const uvwBuffer = gl.createBuffer();

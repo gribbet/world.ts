@@ -1,5 +1,5 @@
 import { glMatrix, mat4, vec2, vec3 } from "gl-matrix";
-import { debounce } from "./common";
+import { debounce, range } from "./common";
 import { circumference } from "./constants";
 import { Layer } from "./layer";
 import { createLineLayer } from "./line-layer";
@@ -89,10 +89,17 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     }
   };
 
-  const frame = () => {
+  const frame = (time: number) => {
     setupMatrices();
 
     if (anchor) recenter(anchor);
+
+    const n = 100;
+    const points: vec3[] = range(0, n).map<vec3>((i) => {
+      const a = ((i / n) * Math.PI * 2) / 4 + time / 10000;
+      return [-121 + 1 * Math.cos(a), 38 + 1 * Math.sin(a), 1000];
+    });
+    lineLayer.points = points;
 
     render();
 
