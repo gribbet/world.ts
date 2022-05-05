@@ -1,14 +1,9 @@
-import { glMatrix, mat4, vec2, vec3, vec4 } from "gl-matrix";
-import { debounce, range } from "./common";
+import { glMatrix, mat4, vec2, vec3 } from "gl-matrix";
+import { debounce } from "./common";
 import { circumference } from "./constants";
-import depthSource from "./depth.glsl";
 import { geodetic, mercator, quadratic } from "./math";
 import { createPickBuffer } from "./pick-buffer";
-import renderSource from "./render.glsl";
 import { createTileLayer } from "./tile-layer";
-import { tileShape } from "./tile-shape";
-import { createTiles, Tiles } from "./tiles";
-import vertexSource from "./vertex.glsl";
 import { View, viewport } from "./viewport";
 
 glMatrix.setMatrixArrayType(Array);

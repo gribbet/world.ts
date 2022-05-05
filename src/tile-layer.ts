@@ -1,22 +1,12 @@
-import { vec2, vec3 } from "gl-matrix";
+import { mat4, vec2, vec3 } from "gl-matrix";
 import { range } from "./common";
 import depthSource from "./depth.glsl";
+import { Layer } from "./layer";
 import renderSource from "./render.glsl";
 import { tileShape } from "./tile-shape";
-import { createTiles, Tiles } from "./tiles";
+import { createTiles } from "./tiles";
 import vertexSource from "./vertex.glsl";
 import { View, viewport } from "./viewport";
-
-interface Program {
-  execute: (view: View) => void;
-  destroy: () => void;
-}
-
-interface Layer {
-  render: (view: View) => void;
-  depth: (view: View) => void;
-  destroy: () => void;
-}
 
 const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
@@ -81,44 +71,83 @@ export const createTileLayer: (gl: WebGLRenderingContext) => Layer = (gl) => {
 
   const renderProgram = createRenderProgram({
     gl,
-    tiles,
     uvwBuffer,
     indexBuffer,
   });
 
   const depthProgram = createDepthProgram({
     gl,
-    tiles,
     uvwBuffer,
     indexBuffer,
   });
 
-  const render = (view: View) => renderProgram.execute(view);
+  const render = (view: View) =>
+    tiles.cancelUnused(() => {
+      const { projection, modelView, camera } = view;
+      const visible = calculateVisibleTiles(view);
 
-  const depth = (view: View) => depthProgram.execute(view);
+      for (const xyz of visible) {
+        const { texture: imagery, downsample: downsampleImagery } =
+          tiles.imagery(xyz);
+        const { texture: terrain, downsample: downsampleTerrain } =
+          tiles.terrain(xyz);
+
+        renderProgram.execute({
+          projection,
+          modelView,
+          camera,
+          xyz,
+          imagery,
+          terrain,
+          downsampleImagery,
+          downsampleTerrain,
+        });
+      }
+    });
+
+  const depth = (view: View) =>
+    tiles.cancelUnused(() => {
+      const { projection, modelView, camera } = view;
+      const visible = calculateVisibleTiles(view);
+
+      for (const xyz of visible) {
+        const { texture: terrain, downsample } = tiles.terrain(xyz);
+
+        depthProgram.execute({
+          projection,
+          modelView,
+          camera,
+          xyz,
+          terrain,
+          downsample,
+        });
+      }
+    });
 
   const destroy = () => {
-    // TODO:
+    depthProgram.destroy();
+    renderProgram.destroy();
+    gl.deleteBuffer(indexBuffer);
+    gl.deleteBuffer(uvwBuffer);
   };
 
   return { render, depth, destroy };
 };
 
-const createRenderProgram: (_: {
+const createRenderProgram = ({
+  gl,
+  uvwBuffer,
+  indexBuffer,
+}: {
   gl: WebGLRenderingContext;
-  tiles: Tiles;
   uvwBuffer: WebGLBuffer;
   indexBuffer: WebGLBuffer;
-}) => Program = ({ gl, tiles, uvwBuffer, indexBuffer }) => {
-  const program = gl.createProgram();
-  if (!program) throw new Error("Program creation failed");
-  gl.attachShader(program, loadShader(gl, "vertex", vertexSource));
-  gl.attachShader(program, loadShader(gl, "fragment", renderSource));
-  gl.linkProgram(program);
-  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
-    console.error("Link failure", gl.getProgramInfoLog(program));
-    throw new Error("Link failure");
-  }
+}) => {
+  const program = createProgram({
+    gl,
+    vertexSource,
+    fragmentSource: renderSource,
+  });
 
   const uvwAttribute = gl.getAttribLocation(program, "uvw");
   const projectionUniform = gl.getUniformLocation(program, "projection");
@@ -136,42 +165,49 @@ const createRenderProgram: (_: {
   const xyzUniform = gl.getUniformLocation(program, "xyz");
   const cameraUniform = gl.getUniformLocation(program, "camera");
 
-  const execute = (view: View) =>
-    tiles.cancelUnused(() => {
-      const { projection, modelView, camera } = view;
-      const visible = calculateVisibleTiles(view);
+  const execute = ({
+    projection,
+    modelView,
+    camera,
+    xyz,
+    imagery,
+    terrain,
+    downsampleImagery,
+    downsampleTerrain,
+  }: {
+    projection: mat4;
+    modelView: mat4;
+    camera: vec3;
+    xyz: vec3;
+    imagery: WebGLTexture;
+    terrain: WebGLTexture;
+    downsampleImagery: number;
+    downsampleTerrain: number;
+  }) => {
+    gl.enable(gl.DEPTH_TEST);
 
-      gl.enable(gl.DEPTH_TEST);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
+    gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(uvwAttribute);
 
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-      gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
-      gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
-      gl.enableVertexAttribArray(uvwAttribute);
+    gl.useProgram(program);
+    gl.uniform1i(imageryUniform, 0);
+    gl.uniform1i(terrainUniform, 1);
+    gl.uniformMatrix4fv(projectionUniform, false, projection);
+    gl.uniformMatrix4fv(modelViewUniform, false, modelView);
+    gl.uniform3iv(cameraUniform, [...to(camera)]);
 
-      gl.useProgram(program);
-      gl.uniform1i(imageryUniform, 0);
-      gl.uniform1i(terrainUniform, 1);
-      gl.uniformMatrix4fv(projectionUniform, false, projection);
-      gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-      gl.uniform3iv(cameraUniform, [...to(camera)]);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, imagery);
+    gl.activeTexture(gl.TEXTURE1);
+    gl.bindTexture(gl.TEXTURE_2D, terrain);
+    gl.uniform1i(downsampleImageryUniform, downsampleImagery);
+    gl.uniform1i(downsampleTerrainUniform, downsampleTerrain);
+    gl.uniform3iv(xyzUniform, [...xyz]);
 
-      for (const xyz of visible) {
-        const { texture: imagery, downsample: downsampleImagery } =
-          tiles.imagery(xyz);
-        const { texture: terrain, downsample: downsampleTerrain } =
-          tiles.terrain(xyz);
-
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, imagery);
-        gl.activeTexture(gl.TEXTURE1);
-        gl.bindTexture(gl.TEXTURE_2D, terrain);
-        gl.uniform1i(downsampleImageryUniform, downsampleImagery);
-        gl.uniform1i(downsampleTerrainUniform, downsampleTerrain);
-        gl.uniform3iv(xyzUniform, [...xyz]);
-
-        gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
-      }
-    });
+    gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+  };
 
   const destroy = () => {
     // TODO:
@@ -180,21 +216,55 @@ const createRenderProgram: (_: {
   return { execute, destroy };
 };
 
-const createDepthProgram: (_: {
+const createProgram = ({
+  gl,
+  vertexSource,
+  fragmentSource,
+}: {
   gl: WebGLRenderingContext;
-  tiles: Tiles;
-  uvwBuffer: WebGLBuffer;
-  indexBuffer: WebGLBuffer;
-}) => Program = ({ gl, tiles, uvwBuffer, indexBuffer }) => {
+  vertexSource: string;
+  fragmentSource: string;
+}) => {
   const program = gl.createProgram();
   if (!program) throw new Error("Program creation failed");
-  gl.attachShader(program, loadShader(gl, "vertex", vertexSource));
-  gl.attachShader(program, loadShader(gl, "fragment", depthSource));
+
+  const vertexShader = compileShader(
+    gl,
+    gl.createShader(gl.VERTEX_SHADER),
+    vertexSource
+  );
+  const fragmentShader = compileShader(
+    gl,
+    gl.createShader(gl.FRAGMENT_SHADER),
+    fragmentSource
+  );
+
+  gl.attachShader(program, vertexShader);
+  gl.attachShader(program, fragmentShader);
+
   gl.linkProgram(program);
   if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
     console.error("Link failure", gl.getProgramInfoLog(program));
     throw new Error("Link failure");
   }
+
+  return program;
+};
+
+const createDepthProgram = ({
+  gl,
+  uvwBuffer,
+  indexBuffer,
+}: {
+  gl: WebGLRenderingContext;
+  uvwBuffer: WebGLBuffer;
+  indexBuffer: WebGLBuffer;
+}) => {
+  const program = createProgram({
+    gl,
+    vertexSource,
+    fragmentSource: depthSource,
+  });
 
   const uvwAttribute = gl.getAttribLocation(program, "uvw");
   const projectionUniform = gl.getUniformLocation(program, "projection");
@@ -204,33 +274,39 @@ const createDepthProgram: (_: {
   const xyzUniform = gl.getUniformLocation(program, "xyz");
   const cameraUniform = gl.getUniformLocation(program, "camera");
 
-  const execute = (view: View) =>
-    tiles.cancelUnused(() => {
-      const { projection, modelView, camera } = view;
-      const visible = calculateVisibleTiles(view);
+  const execute = ({
+    projection,
+    modelView,
+    camera,
+    xyz,
+    terrain,
+    downsample,
+  }: {
+    projection: mat4;
+    modelView: mat4;
+    camera: vec3;
+    xyz: vec3;
+    terrain: WebGLTexture;
+    downsample: number;
+  }) => {
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
+    gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
+    gl.enableVertexAttribArray(uvwAttribute);
 
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-      gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
-      gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
-      gl.enableVertexAttribArray(uvwAttribute);
+    gl.useProgram(program);
+    gl.uniform1i(terrainUniform, 0);
+    gl.uniformMatrix4fv(projectionUniform, false, projection);
+    gl.uniformMatrix4fv(modelViewUniform, false, modelView);
+    gl.uniform3iv(cameraUniform, [...to(camera)]);
 
-      gl.useProgram(program);
-      gl.uniform1i(terrainUniform, 0);
-      gl.uniformMatrix4fv(projectionUniform, false, projection);
-      gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-      gl.uniform3iv(cameraUniform, [...to(camera)]);
+    gl.activeTexture(gl.TEXTURE0);
+    gl.bindTexture(gl.TEXTURE_2D, terrain);
+    gl.uniform1i(downsampleUniform, downsample);
+    gl.uniform3iv(xyzUniform, [...xyz]);
 
-      for (const xyz of visible) {
-        const { texture: terrain, downsample } = tiles.terrain(xyz);
-
-        gl.activeTexture(gl.TEXTURE0);
-        gl.bindTexture(gl.TEXTURE_2D, terrain);
-        gl.uniform1i(downsampleUniform, downsample);
-        gl.uniform3iv(xyzUniform, [...xyz]);
-
-        gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
-      }
-    });
+    gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+  };
 
   const destroy = () => {
     // TODO:
@@ -239,14 +315,11 @@ const createDepthProgram: (_: {
   return { execute, destroy };
 };
 
-const loadShader = (
+const compileShader = (
   gl: WebGLRenderingContext,
-  type: "vertex" | "fragment",
+  shader: WebGLShader | null,
   source: string
 ) => {
-  const shader = gl.createShader(
-    type === "vertex" ? gl.VERTEX_SHADER : gl.FRAGMENT_SHADER
-  );
   if (!shader) throw new Error("Shader creation failed");
   gl.shaderSource(shader, source);
   gl.compileShader(shader);
