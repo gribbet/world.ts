@@ -3,16 +3,16 @@ import { terrainUrl } from "./constants";
 import { loadImage } from "./image-load";
 import { mercator } from "./math";
 
-const z = 12;
+const defaultZ = 12;
 
 const cache = new LRUCache<string, Promise<number>>({
   max: 1000,
 });
 
-export const elevation: ([lng, lat]: [number, number]) => Promise<number> = ([
-  lng,
-  lat,
-]) => {
+export const elevation: (
+  [lng, lat]: [number, number],
+  z?: number
+) => Promise<number> = ([lng, lat], z = defaultZ) => {
   const key = `${lng}-${lat}`;
   const cached = cache.get(key);
   if (cached) return cached;
