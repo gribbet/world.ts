@@ -6,21 +6,23 @@ export const quadratic = (a: number, b: number, c: number) => {
   return [(-b - q) / (2 * a), (-b + q) / (2 * a)];
 };
 
-export const mercator = ([lng, lat, alt]: vec3) =>
-  [
+export const mercator = ([lng, lat, alt]: vec3, out = vec3.create()) =>
+  vec3.set(
+    out,
     lng / 360 + 0.5,
     -Math.asinh(Math.tan((lat / 180) * Math.PI)) / (2 * Math.PI) + 0.5,
-    alt / circumference,
-  ] as vec3;
+    alt / circumference
+  );
 
-export const geodetic = ([x, y, z]: vec3) =>
-  [
+export const geodetic = ([x, y, z]: vec3, out = vec3.create()) =>
+  vec3.set(
+    out,
     (x - 0.5) * 360,
     (Math.atan(Math.sinh(-(y - 0.5) * (2 * Math.PI))) * 180) / Math.PI,
-    z * circumference,
-  ] as vec3;
+    z * circumference
+  );
 
-export const tileToMercator = ([x, y, z]: vec3) => {
+export const tileToMercator = ([x, y, z]: vec3, out = vec3.create()) => {
   const k = Math.pow(2, -z);
-  return [x * k, y * k, 0] as vec3;
+  return vec3.set(out, x * k, y * k, 0);
 };

@@ -9,12 +9,12 @@ export interface View {
 }
 
 interface Viewport {
-  screenToClip: (_: vec2) => vec4;
-  clipToScreen: (_: vec4) => vec2;
-  clipToLocal: (_: vec4) => vec3;
-  localToClip: (_: vec3) => vec4;
-  localToWorld: (_: vec3) => vec3;
-  worldToLocal: (_: vec3) => vec3;
+  screenToClip: (_: vec2, out?: vec4) => vec4;
+  clipToScreen: (_: vec4, out?: vec2) => vec2;
+  clipToLocal: (_: vec4, out?: vec3) => vec3;
+  localToClip: (_: vec3, out?: vec4) => vec4;
+  localToWorld: (_: vec3, out?: vec3) => vec3;
+  worldToLocal: (_: vec3, out?: vec3) => vec3;
 }
 
 const matrix = mat4.create();
@@ -26,35 +26,35 @@ export const viewport: (view: View) => Viewport = ({
   width,
   height,
 }) => {
-  const screenToClip = ([screenX, screenY]: vec2) => {
+  const screenToClip = ([screenX, screenY]: vec2, out = vec4.create()) => {
     const x = (2 * screenX) / width - 1;
     const y = -((2 * screenY) / height - 1);
-    return [x, y, 0, 1] as vec4;
+    return vec4.set(out, x, y, 0, 1);
   };
 
-  const clipToScreen: (v: vec4) => vec2 = ([x, y, , w]) =>
-    [(x / w + 1) * width * 0.5, (1 - y / w) * height * 0.5] as vec2;
+  const clipToScreen = ([x, y, , w]: vec4, out = vec2.create()) =>
+    vec2.set(out, (x / w + 1) * width * 0.5, (1 - y / w) * height * 0.5);
 
-  const clipToLocal = (v: vec4) => {
+  const clipToLocal = (v: vec4, out = vec3.create()) => {
     const transform = mat4.multiply(matrix, projection, modelView);
     const inverse = mat4.invert(matrix, transform);
     const [x, y, z, w] = vec4.transformMat4(vec4.create(), v, inverse);
     return [x / w, y / w, z / w] as vec3;
   };
 
-  const localToClip = ([x, y, z]: vec3) => {
+  const localToClip = ([x, y, z]: vec3, out = vec4.create()) => {
     const transform = mat4.multiply(matrix, projection, modelView);
-    return vec4.transformMat4(vec4.create(), [x, y, z, 1], transform);
+    return vec4.transformMat4(out, vec4.set(out, x, y, z, 1), transform);
   };
 
-  const localToWorld = ([x, y, z]: vec3) => {
+  const localToWorld = ([x, y, z]: vec3, out = vec3.create()) => {
     const [cx, cy, cz] = camera;
-    return [x + cx, y + cy, z + cz] as vec3;
+    return vec3.set(out, x + cx, y + cy, z + cz);
   };
 
-  const worldToLocal = ([x, y, z]: vec3) => {
+  const worldToLocal = ([x, y, z]: vec3, out = vec3.create()) => {
     const [cx, cy, cz] = camera;
-    return [x - cx, y - cy, z - cz] as vec3;
+    return vec3.set(out, x - cx, y - cy, z - cz);
   };
 
   return {

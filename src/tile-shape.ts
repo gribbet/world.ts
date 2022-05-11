@@ -26,20 +26,25 @@ export const tileShape: (xyz: vec3) => vec3[] | undefined = ([x, y, z]) => {
   return undefined;
 };
 
+const corners = [
+  [0, 0],
+  [1, 0],
+  [1, 1],
+  [0, 1],
+];
 const calculateTileShape: (xyz: vec3) => Promise<vec3[]> = ([x, y, z]) => {
   const elevationZ = Math.max(0, z - 8);
   return Promise.all(
-    [
-      [0, 0],
-      [1, 0],
-      [1, 1],
-      [0, 1],
-    ]
+    corners
       .map<vec3>(([u, v]) => [x + u, y + v, z])
-      .map(tileToMercator)
-      .map(geodetic)
-      .map<Promise<vec3>>(async ([lng, lat]) =>
-        mercator([lng, lat, await elevation([lng, lat], elevationZ)])
-      )
+      .map((_) => tileToMercator(_, _))
+      .map((_) => geodetic(_, _))
+      .map<Promise<vec3>>(async (_) => {
+        const [lng, lat] = _;
+        return mercator(
+          vec3.set(_, lng, lat, await elevation([lng, lat], elevationZ)),
+          _
+        );
+      })
   );
 };

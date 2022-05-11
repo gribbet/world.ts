@@ -1,4 +1,4 @@
-import { mat4, vec2, vec3 } from "gl-matrix";
+import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { range } from "./common";
 import depthSource from "./depth.glsl";
 import { Layer } from "./layer";
@@ -281,6 +281,11 @@ const createDepthProgram = ({
   return { execute, destroy };
 };
 
+const q = [0, 1, 2, 3];
+const vec3s = q.map(vec3.create);
+const vec4s = q.map(vec4.create);
+const vec2s = q.map(vec2.create);
+
 const calculateVisibleTiles = (view: View) => {
   const { width, height } = view;
   const { worldToLocal, localToClip, clipToScreen } = viewport(view);
@@ -288,7 +293,9 @@ const calculateVisibleTiles = (view: View) => {
   const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
     const [x, y, z] = xyz;
 
-    const clip = tileShape(xyz)?.map(worldToLocal).map(localToClip);
+    const clip = tileShape(xyz)
+      ?.map((_, i) => worldToLocal(_, vec3s[i]))
+      .map((_, i) => localToClip(_, vec4s[i]));
     if (
       !clip ||
       clip.every(([x, , , w]) => x > w) ||
@@ -301,9 +308,9 @@ const calculateVisibleTiles = (view: View) => {
     )
       return [];
 
-    const pixels = clip.map(clipToScreen);
+    const pixels = clip.map((_, i) => clipToScreen(_, vec2s[i]));
     const size = Math.sqrt(
-      [0, 1, 2, 3]
+      q
         .map((i) =>
           vec2.squaredDistance(pixels[i], pixels[(i + 1) % pixels.length])
         )
