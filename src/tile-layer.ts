@@ -236,7 +236,10 @@ const createDepthProgram = ({
   const projectionUniform = gl.getUniformLocation(program, "projection");
   const modelViewUniform = gl.getUniformLocation(program, "modelView");
   const terrainUniform = gl.getUniformLocation(program, "terrain");
-  const downsampleUniform = gl.getUniformLocation(program, "downsample");
+  const downsampleTerrainUniform = gl.getUniformLocation(
+    program,
+    "downsampleTerrain"
+  );
   const xyzUniform = gl.getUniformLocation(program, "xyz");
   const cameraUniform = gl.getUniformLocation(program, "camera");
 
@@ -268,7 +271,7 @@ const createDepthProgram = ({
 
     gl.activeTexture(gl.TEXTURE0);
     gl.bindTexture(gl.TEXTURE_2D, terrain);
-    gl.uniform1i(downsampleUniform, downsample);
+    gl.uniform1i(downsampleTerrainUniform, downsample);
     gl.uniform3iv(xyzUniform, [...xyz]);
 
     gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
