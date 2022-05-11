@@ -26,6 +26,11 @@ export const viewport: (view: View) => Viewport = ({
   width,
   height,
 }) => {
+  const inverse = mat4.invert(
+    mat4.create(),
+    mat4.multiply(matrix, projection, modelView)
+  );
+
   const screenToClip = ([screenX, screenY]: vec2, out = vec4.create()) => {
     const x = (2 * screenX) / width - 1;
     const y = -((2 * screenY) / height - 1);
@@ -36,10 +41,8 @@ export const viewport: (view: View) => Viewport = ({
     vec2.set(out, (x / w + 1) * width * 0.5, (1 - y / w) * height * 0.5);
 
   const clipToLocal = (v: vec4, out = vec3.create()) => {
-    const transform = mat4.multiply(matrix, projection, modelView);
-    const inverse = mat4.invert(matrix, transform);
     const [x, y, z, w] = vec4.transformMat4(vec4.create(), v, inverse);
-    return [x / w, y / w, z / w] as vec3;
+    return vec3.set(out, x / w, y / w, z / w);
   };
 
   const localToClip = ([x, y, z]: vec3, out = vec4.create()) => {
