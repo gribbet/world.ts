@@ -18,6 +18,7 @@ interface Viewport {
 }
 
 const matrix = mat4.create();
+const vector = vec4.create();
 
 export const viewport: (view: View) => Viewport = ({
   projection,
@@ -26,10 +27,8 @@ export const viewport: (view: View) => Viewport = ({
   width,
   height,
 }) => {
-  const inverse = mat4.invert(
-    mat4.create(),
-    mat4.multiply(matrix, projection, modelView)
-  );
+  const transform = mat4.multiply(matrix, projection, modelView);
+  const inverse = mat4.invert(mat4.create(), transform);
 
   const screenToClip = ([screenX, screenY]: vec2, out = vec4.create()) => {
     const x = (2 * screenX) / width - 1;
@@ -41,24 +40,18 @@ export const viewport: (view: View) => Viewport = ({
     vec2.set(out, (x / w + 1) * width * 0.5, (1 - y / w) * height * 0.5);
 
   const clipToLocal = (v: vec4, out = vec3.create()) => {
-    const [x, y, z, w] = vec4.transformMat4(vec4.create(), v, inverse);
+    const [x, y, z, w] = vec4.transformMat4(vector, v, inverse);
     return vec3.set(out, x / w, y / w, z / w);
   };
 
-  const localToClip = ([x, y, z]: vec3, out = vec4.create()) => {
-    const transform = mat4.multiply(matrix, projection, modelView);
-    return vec4.transformMat4(out, vec4.set(out, x, y, z, 1), transform);
-  };
+  const localToClip = ([x, y, z]: vec3, out = vec4.create()) =>
+    vec4.transformMat4(out, vec4.set(out, x, y, z, 1), transform);
 
-  const localToWorld = ([x, y, z]: vec3, out = vec3.create()) => {
-    const [cx, cy, cz] = camera;
-    return vec3.set(out, x + cx, y + cy, z + cz);
-  };
+  const localToWorld = (v: vec3, out = vec3.create()) =>
+    vec3.add(out, v, camera);
 
-  const worldToLocal = ([x, y, z]: vec3, out = vec3.create()) => {
-    const [cx, cy, cz] = camera;
-    return vec3.set(out, x - cx, y - cy, z - cz);
-  };
+  const worldToLocal = (v: vec3, out = vec3.create()) =>
+    vec3.sub(out, v, camera);
 
   return {
     screenToClip,
