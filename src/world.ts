@@ -25,7 +25,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let pitch = 0;
   let anchor: Anchor | undefined;
   const pickScale = 0.5;
-  const minimumDistance = 200 / circumference;
+  const minimumDistance = 200;
 
   let view: View = {
     projection: mat4.create(),
@@ -141,7 +141,10 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     const [t1] = quadratic(
       (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
       ax * (bx - ax) + ay * (by - ay) + az * (bz - az),
-      ax * ax + ay * ay + az * az - distance * distance
+      ax * ax +
+        ay * ay +
+        az * az -
+        (distance * distance) / circumference / circumference
     );
 
     const local: vec3 = [
@@ -172,7 +175,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   const mouseAnchor: (screen: vec2) => Anchor = (screen) => {
     const { camera } = view;
     const world = pick(screen);
-    const distance = vec3.distance(mercator(world), camera);
+    const distance = vec3.distance(mercator(world), camera) * circumference;
     return {
       screen,
       world,
