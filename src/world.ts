@@ -135,8 +135,8 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     const { screenToClip, clipToLocal } = viewport(view);
 
     const [x, y] = screenToClip(screen);
-    const [ax, ay, az] = clipToLocal([x, y, -100, 1]);
-    const [bx, by, bz] = clipToLocal([x, y, 100, 1]);
+    const [ax, ay, az] = clipToLocal([x, y, -10000, 1]);
+    const [bx, by, bz] = clipToLocal([x, y, 10000, 1]);
 
     const [t1] = quadratic(
       (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
