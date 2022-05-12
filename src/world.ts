@@ -25,6 +25,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let pitch = 0;
   let anchor: Anchor | undefined;
   const pickScale = 0.5;
+  const minimumDistance = 200 / circumference;
 
   let view: View = {
     projection: mat4.create(),
@@ -215,7 +216,10 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     if (!anchor) anchor = mouseAnchor([x, y]);
     anchor = {
       ...anchor,
-      distance: anchor.distance * Math.exp(event.deltaY * 0.001),
+      distance: Math.max(
+        Math.min(anchor.distance, minimumDistance),
+        anchor.distance * Math.exp(event.deltaY * 0.001)
+      ),
     };
     clearAnchor();
   });
