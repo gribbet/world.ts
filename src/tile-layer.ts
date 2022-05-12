@@ -15,6 +15,8 @@ const to = ([x, y, z]: vec3) =>
 
 const n = 32;
 
+const maxZ = 22;
+
 const indices = range(0, n).flatMap((y) =>
   range(0, n).flatMap((x) => [
     y * (n + 1) + x,
@@ -319,7 +321,7 @@ const calculateVisibleTiles = (view: View) => {
         )
         .reduce((a, b) => a + b, 0) / 4
     );
-    if (size > 256 * 2 && z < 22) {
+    if (size > 256 * 2 && z < maxZ) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
