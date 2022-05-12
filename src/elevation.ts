@@ -17,7 +17,7 @@ export const elevation: (
   const cached = cache.get(key);
   if (cached) return cached;
 
-  const k = Math.pow(2, z);
+  const k = 2 ** z;
   const p = mercator([lng, lat, 0]).map((_) => _ * k);
   const [x, y] = p.map((_) => Math.floor(_ % k));
   const [px, py] = p.map((_) => _ % 1);

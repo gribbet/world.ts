@@ -2,7 +2,7 @@ import { world } from "./world";
 
 /**
  * TODO:
- * explicit anchor
+ * elevation to use tile cache
  * smooth transition
  * mercator elevation
  * subdivide const

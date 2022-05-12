@@ -66,7 +66,7 @@ const createDownsampler: (cache: TileCache) => Downsampler =
   (xyz, downsample = 0) => {
     const [x, y, z] = xyz;
     for (; downsample <= z; downsample++) {
-      const k = Math.pow(2, downsample);
+      const k = 2 ** downsample;
       const xyz: vec3 = [Math.floor(x / k), Math.floor(y / k), z - downsample];
       const texture = cache.get(xyz);
       if (texture) return { texture, downsample };
@@ -99,7 +99,7 @@ const createTileCache: (_: {
   const used = new Set<number>();
   const get: (xyz: vec3) => WebGLTexture | undefined = (xyz) => {
     const [x, y, z] = xyz;
-    const key = Math.pow(4, z) + y * Math.pow(2, z) + x;
+    const key = 4 ** z + y * 2 ** z + x;
     used.add(key);
     const cached = tiles.get(key);
     if (cached) {

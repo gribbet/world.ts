@@ -12,7 +12,7 @@ let tileShapesCalculations = new LruCache<number, Promise<vec3[]>>({
 });
 
 export const tileShape: (xyz: vec3) => vec3[] | undefined = ([x, y, z]) => {
-  const key = Math.pow(4, z) + y * Math.pow(2, z) + x;
+  const key = 4 ** z + y * 2 ** z + x;
   const cached = tileShapes.get(key);
   if (cached) return cached;
 

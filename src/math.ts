@@ -23,6 +23,6 @@ export const geodetic = ([x, y, z]: vec3, out = vec3.create()) =>
   );
 
 export const tileToMercator = ([x, y, z]: vec3, out = vec3.create()) => {
-  const k = Math.pow(2, -z);
+  const k = 2 ** -z;
   return vec3.set(out, x * k, y * k, 0);
 };
