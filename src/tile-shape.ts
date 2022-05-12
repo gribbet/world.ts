@@ -18,7 +18,10 @@ export const tileShape: (xyz: vec3) => vec3[] | undefined = ([x, y, z]) => {
 
   if (tileShapesCalculations.get(key)) return undefined;
 
-  calculateTileShape([x, y, z]).then((_) => {
+  const calculation = calculateTileShape([x, y, z]);
+  tileShapesCalculations.set(key, calculation);
+
+  calculation.then((_) => {
     tileShapes.set(key, _);
     tileShapesCalculations.delete(key);
   });
