@@ -4,8 +4,8 @@ export interface View {
   projection: mat4;
   modelView: mat4;
   camera: vec3;
-  width: number;
-  height: number;
+  screen: vec2;
+  scale: number;
 }
 
 interface Viewport {
@@ -24,9 +24,9 @@ export const viewport: (view: View) => Viewport = ({
   projection,
   modelView,
   camera,
-  width,
-  height,
+  screen,
 }) => {
+  const [width, height] = screen;
   const transform = mat4.multiply(matrix, projection, modelView);
   const inverse = mat4.invert(mat4.create(), transform);
 

@@ -2,7 +2,8 @@ import { glMatrix, mat4, vec2, vec3 } from "gl-matrix";
 import { debounce, range } from "./common";
 import { circumference } from "./constants";
 import { Layer } from "./layer";
-import { createLineLayer } from "./line-layer";
+import { Line } from "./line";
+import { createLineLayer, LineLayer } from "./line-layer";
 import { geodetic, mercator, quadratic } from "./math";
 import { createPickBuffer } from "./pick-buffer";
 import { createTileLayer } from "./tile-layer";
@@ -11,6 +12,7 @@ import { View, viewport } from "./viewport";
 glMatrix.setMatrixArrayType(Array);
 
 export interface World {
+  set lines(lines: Line[]);
   destroy: () => void;
 }
 
@@ -20,10 +22,14 @@ interface Anchor {
   distance: number;
 }
 
-export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
+export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let bearing = 0;
   let pitch = 0;
-  let anchor: Anchor | undefined;
+  let anchor: Anchor | undefined = {
+    screen: [400, 400],
+    world: [-121, 38, 0],
+    distance: 400000,
+  };
   const pickScale = 0.5;
   const minimumDistance = 200;
 
@@ -31,8 +37,8 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
     projection: mat4.create(),
     modelView: mat4.create(),
     camera: mercator([0, 0, circumference]),
-    width: 0,
-    height: 0,
+    screen: [0, 0],
+    scale: 1,
   };
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
@@ -40,67 +46,44 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   const tileLayer = createTileLayer(gl);
 
-  const lineLayer = createLineLayer(gl);
-
-  const layers: Layer[] = [tileLayer, lineLayer];
+  let lineLayers: LineLayer[] = [];
 
   const pickBuffer = createPickBuffer(gl);
 
-  const resize = (width: number, height: number) => {
-    view.width = width;
-    view.height = height;
+  const resize = (screen: vec2) => {
+    view.screen = screen;
+    const [width, height] = screen;
     canvas.width = width * devicePixelRatio;
     canvas.height = height * devicePixelRatio;
     pickBuffer.resize([width * pickScale, height * pickScale]);
   };
 
-  resize(canvas.clientWidth, canvas.clientHeight);
+  resize([canvas.clientWidth, canvas.clientHeight]);
 
   const resizer = new ResizeObserver(([{ contentRect }]) => {
     const { width, height } = contentRect;
-    resize(width, height);
+    resize([width, height]);
   });
   resizer.observe(canvas);
 
   const render = ({ depth }: { depth?: boolean } = {}) => {
-    const scale = depth ? pickScale : devicePixelRatio;
-    const width = view.width * scale;
-    const height = view.height * scale;
+    const scale = devicePixelRatio * (depth ? pickScale : 1);
+    const [width, height] = view.screen;
 
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-    gl.viewport(0, 0, width, height);
+    gl.viewport(0, 0, width * scale, height * scale);
 
-    if (depth) {
-      layers.forEach((_) =>
-        _.depth({
-          ...view,
-          width,
-          height,
-        })
-      );
-    } else {
-      layers.forEach((_) =>
-        _.render({
-          ...view,
-          width,
-          height,
-        })
-      );
-    }
+    const layers = [tileLayer, ...lineLayers];
+
+    if (depth) layers.forEach((_) => _.depth({ ...view, scale }));
+    else layers.forEach((_) => _.render({ ...view, scale }));
   };
 
-  const frame = (time: number) => {
+  const frame = () => {
     setupMatrices();
 
     if (anchor) recenter(anchor);
-
-    const n = 100;
-    const points: vec3[] = range(0, n).map<vec3>((i) => {
-      const a = ((i / n) * Math.PI * 2) / 4 + time / 10000;
-      return [-121 + 1 * Math.cos(a), 38 + 1 * Math.sin(a), 1000];
-    });
-    lineLayer.points = points;
 
     render();
 
@@ -110,8 +93,9 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   requestAnimationFrame(frame);
 
   const setupMatrices = () => {
-    const { projection, modelView, camera, width, height } = view;
+    const { projection, modelView, camera, screen } = view;
 
+    const [width, height] = screen;
     const [, , z] = camera;
     const near = z / 100;
     const far = 100 * z;
@@ -201,7 +185,7 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
           screen: [x, y],
         };
       } else if (buttons === 2) {
-        const { width, height } = view;
+        const [width, height] = view.screen;
         bearing -= (movementX / width) * Math.PI;
         pitch = Math.min(
           0.5 * Math.PI,
@@ -230,6 +214,14 @@ export const world: (canvas: HTMLCanvasElement) => World = (canvas) => {
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
   return {
+    set lines(lines: Line[]) {
+      lineLayers.slice(lines.length).forEach((_) => _.destroy());
+      lineLayers = lines.map((line, i) => {
+        const layer = lineLayers[i] || createLineLayer(gl);
+        layer.line = line;
+        return layer;
+      });
+    },
     destroy,
   };
 };

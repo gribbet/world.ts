@@ -292,10 +292,10 @@ const vec4s = q.map(vec4.create);
 const vec2s = q.map(vec2.create);
 
 const calculateVisibleTiles = (view: View) => {
-  const { width, height } = view;
+  const { scale } = view;
   const { worldToLocal, localToClip, clipToScreen } = viewport(view);
 
-  const divide: (xyz: vec3, size: vec2) => vec3[] = (xyz, [width, height]) => {
+  const divide: (xyz: vec3) => vec3[] = (xyz) => {
     const [x, y, z] = xyz;
 
     const clip = tileShape(xyz)
@@ -321,7 +321,7 @@ const calculateVisibleTiles = (view: View) => {
         )
         .reduce((a, b) => a + b, 0) / 4
     );
-    if (size > 256 * 2 && z < maxZ) {
+    if (size > 256 / scale && z < maxZ) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
@@ -329,7 +329,7 @@ const calculateVisibleTiles = (view: View) => {
         [2 * x + 1, 2 * y + 1, z + 1],
       ];
 
-      const next = divided.flatMap((_) => divide(_, [width, height]));
+      const next = divided.flatMap((_) => divide(_));
 
       if (divided.some((_) => !tileShape(_))) return [xyz];
 
@@ -337,5 +337,5 @@ const calculateVisibleTiles = (view: View) => {
     } else return [xyz];
   };
 
-  return divide([0, 0, 0], [width, height]);
+  return divide([0, 0, 0]);
 };
