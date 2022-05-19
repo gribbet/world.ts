@@ -68,13 +68,14 @@ export const createLineLayer: (gl: WebGLRenderingContext) => LineLayer = (
 
       const { points } = line;
 
-      center = mercator(points[0]);
       count = points.length;
 
       const [first] = points;
       const [last] = points.slice(-1);
 
       if (!first || !last) return;
+
+      center = mercator(first);
 
       const positionData = [first, ...points, last]
         .map((_) => vec3.sub(vec3.create(), mercator(_), center))
