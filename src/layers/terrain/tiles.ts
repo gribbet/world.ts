@@ -1,7 +1,7 @@
 import { vec3 } from "gl-matrix";
 import * as LruCache from "lru-cache";
-import { imageryUrl, terrainUrl } from "./constants";
-import { loadImage } from "./image-load";
+import { imageryUrl, terrainUrl } from "../../constants";
+import { loadImage } from "../../image-load";
 
 export interface DownsampledTile {
   texture: WebGLTexture;

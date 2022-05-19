@@ -1,7 +1,7 @@
 import { vec3 } from "gl-matrix";
 import * as LruCache from "lru-cache";
-import { elevation } from "./elevation";
-import { geodetic, mercator, tileToMercator } from "./math";
+import { elevation } from "../../elevation";
+import { geodetic, mercator, tileToMercator } from "../../math";
 
 let tileShapes = new LruCache<number, vec3[]>({
   max: 10000,
