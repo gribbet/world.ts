@@ -322,7 +322,7 @@ const calculateVisibleTiles = (view: View) => {
         )
         .reduce((a, b) => a + b, 0) / 4
     );
-    if (size > 256 * 2 && z < maxZ) {
+    if (size * view.scale > 256 && z < maxZ) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
