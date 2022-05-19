@@ -55,7 +55,7 @@ const uvw = range(0, n + 1).flatMap((y) =>
   })
 );
 
-export const createTileLayer = (gl: WebGLRenderingContext) => {
+export const createTileLayer: (gl: WebGLRenderingContext) => Layer = (gl) => {
   const tiles = createTiles(gl);
 
   const uvwBuffer = gl.createBuffer();
@@ -292,7 +292,6 @@ const vec4s = q.map(vec4.create);
 const vec2s = q.map(vec2.create);
 
 const calculateVisibleTiles = (view: View) => {
-  const { scale } = view;
   const { worldToLocal, localToClip, clipToScreen } = viewport(view);
 
   const divide: (xyz: vec3) => vec3[] = (xyz) => {
@@ -321,7 +320,7 @@ const calculateVisibleTiles = (view: View) => {
         )
         .reduce((a, b) => a + b, 0) / 4
     );
-    if (size > 256 / scale && z < maxZ) {
+    if (size > 256 * 2 && z < maxZ) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],
