@@ -1,13 +1,13 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
-import { range } from "./common";
+import { Layer } from "..";
+import { range } from "../../common";
+import { createProgram } from "../../program";
+import { tileShape } from "../../tile-shape";
+import { createTiles } from "../../tiles";
+import { View, viewport } from "../../viewport";
 import depthSource from "./depth.glsl";
-import { Layer } from "./layer";
-import { createProgram } from "./program";
-import renderSource from "./render.glsl";
-import { tileShape } from "./tile-shape";
-import { createTiles } from "./tiles";
+import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
-import { View, viewport } from "./viewport";
 
 const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
@@ -55,7 +55,9 @@ const uvw = range(0, n + 1).flatMap((y) =>
   })
 );
 
-export const createTileLayer: (gl: WebGLRenderingContext) => Layer = (gl) => {
+export const createTerrainLayer: (gl: WebGLRenderingContext) => Layer = (
+  gl
+) => {
   const tiles = createTiles(gl);
 
   const uvwBuffer = gl.createBuffer();
@@ -149,7 +151,7 @@ const createRenderProgram = ({
   const program = createProgram({
     gl,
     vertexSource,
-    fragmentSource: renderSource,
+    fragmentSource,
   });
 
   const uvwAttribute = gl.getAttribLocation(program, "uvw");

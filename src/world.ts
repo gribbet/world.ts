@@ -1,12 +1,10 @@
 import { glMatrix, mat4, vec2, vec3 } from "gl-matrix";
-import { debounce, range } from "./common";
+import { debounce } from "./common";
 import { circumference } from "./constants";
-import { Layer } from "./layer";
+import { createLineLayer, createTerrainLayer, LineLayer } from "./layers";
 import { Line } from "./line";
-import { createLineLayer, LineLayer } from "./line-layer";
 import { geodetic, mercator, quadratic } from "./math";
 import { createPickBuffer } from "./pick-buffer";
-import { createTileLayer } from "./tile-layer";
 import { View, viewport } from "./viewport";
 
 glMatrix.setMatrixArrayType(Array);
@@ -44,7 +42,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) throw new Error("WebGL context failure");
 
-  const tileLayer = createTileLayer(gl);
+  const terrainLayer = createTerrainLayer(gl);
 
   let lineLayers: LineLayer[] = [];
 
@@ -74,7 +72,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.viewport(0, 0, width * scale, height * scale);
 
-    const layers = [tileLayer, ...lineLayers];
+    const layers = [terrainLayer, ...lineLayers];
 
     if (depth) layers.forEach((_) => _.depth({ ...view, scale }));
     else layers.forEach((_) => _.render({ ...view, scale }));

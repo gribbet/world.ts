@@ -1,12 +1,12 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
-import { range } from "./common";
-import { Layer } from "./layer";
-import { Line } from "./line";
-import fragmentSource from "./line-fragment.glsl";
-import vertexSource from "./line-vertex.glsl";
-import { mercator } from "./math";
-import { createProgram } from "./program";
-import { View } from "./viewport";
+import { range } from "../../common";
+import { Layer } from "../";
+import { Line } from "../../line";
+import fragmentSource from "./fragment.glsl";
+import vertexSource from "./vertex.glsl";
+import { mercator } from "../../math";
+import { createProgram } from "../../program";
+import { View } from "../../viewport";
 
 const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
