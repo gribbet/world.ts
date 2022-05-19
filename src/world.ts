@@ -53,7 +53,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     const [width, height] = screen;
     canvas.width = width * devicePixelRatio;
     canvas.height = height * devicePixelRatio;
-    pickBuffer.resize([width * pickScale, height * pickScale]);
+    pickBuffer.resize([canvas.width * pickScale, canvas.height * pickScale]);
   };
 
   resize([canvas.clientWidth, canvas.clientHeight]);
@@ -143,7 +143,10 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
     pickBuffer.use(() => render({ depth: true }));
 
-    const z = pickBuffer.read([screenX * pickScale, screenY * pickScale]);
+    const z = pickBuffer.read([
+      screenX * devicePixelRatio * pickScale,
+      screenY * devicePixelRatio * pickScale,
+    ]);
 
     const [x, y] = screenToClip([screenX, screenY]);
     return geodetic(localToWorld(clipToLocal([x, y, z, 1])));
