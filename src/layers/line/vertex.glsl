@@ -45,7 +45,7 @@ void main(void) {
         vec2 bp = vec2(-b.y, b.x);
         offset = 0.5 * corner.y * (corner.x * (bp - ap) + ap + bp);
     } else {
-        float distance = 1. / dot(direction, a);
+        float distance = clamp(1. / dot(direction, a), 0., 10.);
         offset = normal * distance * corner.y;
     }
 
