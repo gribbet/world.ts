@@ -3,8 +3,10 @@ uniform mat4 modelView;
 uniform ivec3 camera;
 uniform ivec3 center;
 uniform vec2 screen;
-uniform float thickness;
 uniform vec4 color;
+uniform float width;
+uniform float minWidthPixels;
+uniform float maxWidthPixels;
 
 attribute vec3 previous;
 attribute vec3 current;
@@ -49,7 +51,8 @@ void main(void) {
         offset = normal * distance * corner.y;
     }
 
-    gl_Position = projectedCurrent + thickness * vec4(offset / screen * projectedCurrent.w, 0., 0.);
+    vec2 widthPixels = clamp(width * screen / projectedCurrent.w, minWidthPixels, maxWidthPixels);
+    gl_Position = projectedCurrent + vec4(widthPixels * offset / screen * projectedCurrent.w, 0., 0.);
 
     colorOut = color;
 }

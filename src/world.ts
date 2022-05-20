@@ -212,31 +212,16 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
-  const addLine = (_line: Partial<Line>) => {
-    const layer = createLineLayer(gl);
-    const line: Line = {
+  const addLine = (line: Partial<Line>) => {
+    const layer = createLineLayer(gl, {
       points: [],
       color: [1, 1, 1, 1],
-      thickness: 1,
-      ..._line,
-    };
+      width: 1,
+      ...line,
+    });
     layers.push(layer);
 
-    return {
-      set points(points: vec3[]) {
-        layer.line = { ...line, points };
-      },
-      set color(color: vec4) {
-        layer.line = { ...line, color };
-      },
-      set thickness(thickness: number) {
-        layer.line = { ...line, thickness };
-      },
-      remove: () => {
-        layers = layers.filter((_) => _ !== layer);
-        layer.destroy();
-      },
-    };
+    return layer;
   };
 
   return {

@@ -7,25 +7,23 @@ import vertexSource from "./vertex.glsl";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import { View } from "../../viewport";
+import { circumference } from "../../constants";
 
 const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
   [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
 
-export interface LineLayer extends Layer {
-  set line(line: Line);
+export interface LineLayer extends Layer, Line {
   destroy: () => void;
 }
 
-export const createLineLayer: (gl: WebGLRenderingContext) => LineLayer = (
-  gl
-) => {
+export const createLineLayer: (
+  gl: WebGLRenderingContext,
+  line: Line
+) => LineLayer = (gl, { color, width, minWidthPixels, maxWidthPixels }) => {
   let count = 0;
 
   let center: vec3 = [0, 0, 0];
-
-  let thickness = 1;
-  let color: vec4 = [1, 1, 1, 1];
 
   const positionBuffer = gl.createBuffer();
   if (!positionBuffer) throw new Error("Buffer creation failed");
@@ -50,72 +48,89 @@ export const createLineLayer: (gl: WebGLRenderingContext) => LineLayer = (
       screen,
       center,
       count,
-      thickness,
       color,
+      width,
+      minWidthPixels,
+      maxWidthPixels,
     });
 
-  const depth = () => {};
+  const depth = () => {
+    // TODO:
+  };
 
-  const destroy = () => {};
+  const destroy = () => {
+    // TODO:
+  };
+
+  const updatePoints = (points: vec3[]) => {
+    count = points.length;
+
+    const [first] = points;
+    const [last] = points.slice(-1);
+
+    if (!first || !last) return;
+
+    center = mercator(first);
+
+    const positionData = [first, ...points, last]
+      .map((_) => vec3.sub(vec3.create(), mercator(_), center))
+      .flatMap((_) => [..._, ..._, ..._, ..._]);
+    const indexData = range(0, count * 2).flatMap((i) => {
+      const [a, b, c, d] = range(i * 2, i * 2 + 4);
+      return [
+        [a, b, c],
+        [a, c, d],
+      ].flat();
+    });
+    const cornerData = range(0, count + 1).flatMap(() =>
+      [
+        [-1, -1],
+        [-1, 1],
+        [1, 1],
+        [1, -1],
+      ].flat()
+    );
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array(positionData),
+      gl.DYNAMIC_DRAW
+    );
+
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
+    gl.bufferData(
+      gl.ELEMENT_ARRAY_BUFFER,
+      new Uint16Array(indexData),
+      gl.DYNAMIC_DRAW
+    );
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, cornerBuffer);
+    gl.bufferData(
+      gl.ARRAY_BUFFER,
+      new Float32Array(cornerData),
+      gl.DYNAMIC_DRAW
+    );
+  };
 
   return {
     render,
     depth,
     destroy,
-    set line(line: Line) {
-      color = line.color;
-      thickness = line.thickness;
-
-      const { points } = line;
-
-      count = points.length;
-
-      const [first] = points;
-      const [last] = points.slice(-1);
-
-      if (!first || !last) return;
-
-      center = mercator(first);
-
-      const positionData = [first, ...points, last]
-        .map((_) => vec3.sub(vec3.create(), mercator(_), center))
-        .flatMap((_) => [..._, ..._, ..._, ..._]);
-      const indexData = range(0, count * 2).flatMap((i) => {
-        const [a, b, c, d] = range(i * 2, i * 2 + 4);
-        return [
-          [a, b, c],
-          [a, c, d],
-        ].flat();
-      });
-      const cornerData = range(0, count + 1).flatMap(() =>
-        [
-          [-1, -1],
-          [-1, 1],
-          [1, 1],
-          [1, -1],
-        ].flat()
-      );
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array(positionData),
-        gl.DYNAMIC_DRAW
-      );
-
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-      gl.bufferData(
-        gl.ELEMENT_ARRAY_BUFFER,
-        new Uint16Array(indexData),
-        gl.DYNAMIC_DRAW
-      );
-
-      gl.bindBuffer(gl.ARRAY_BUFFER, cornerBuffer);
-      gl.bufferData(
-        gl.ARRAY_BUFFER,
-        new Float32Array(cornerData),
-        gl.DYNAMIC_DRAW
-      );
+    set points(points: vec3[]) {
+      updatePoints(points);
+    },
+    set color(_color: vec4) {
+      color = _color;
+    },
+    set width(_width: number) {
+      width = _width;
+    },
+    set minWidthPixels(_minWidthPixels: number) {
+      minWidthPixels = _minWidthPixels;
+    },
+    set maxWidthPixels(_maxWidthPixels: number) {
+      maxWidthPixels = _maxWidthPixels;
     },
   };
 };
@@ -143,8 +158,16 @@ const createLineProgram = (
   const cameraUniform = gl.getUniformLocation(program, "camera");
   const centerUniform = gl.getUniformLocation(program, "center");
   const screenUniform = gl.getUniformLocation(program, "screen");
-  const thicknessUniform = gl.getUniformLocation(program, "thickness");
   const colorUniform = gl.getUniformLocation(program, "color");
+  const widthUniform = gl.getUniformLocation(program, "width");
+  const maxWidthPixelsUniform = gl.getUniformLocation(
+    program,
+    "maxWidthPixels"
+  );
+  const minWidthPixelsUniform = gl.getUniformLocation(
+    program,
+    "minWidthPixels"
+  );
 
   const execute = ({
     projection,
@@ -153,8 +176,10 @@ const createLineProgram = (
     screen,
     center,
     count,
-    thickness,
     color,
+    width,
+    minWidthPixels,
+    maxWidthPixels,
   }: {
     projection: mat4;
     modelView: mat4;
@@ -162,9 +187,13 @@ const createLineProgram = (
     center: vec3;
     screen: vec2;
     count: number;
-    thickness: number;
     color: vec4;
+    width: number;
+    minWidthPixels?: number;
+    maxWidthPixels?: number;
   }) => {
+    if (count == 0) return;
+
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
@@ -174,8 +203,10 @@ const createLineProgram = (
     gl.uniform3iv(cameraUniform, [...to(camera)]);
     gl.uniform3iv(centerUniform, [...to(center)]);
     gl.uniform2fv(screenUniform, screen);
-    gl.uniform1f(thicknessUniform, thickness);
-    gl.uniform4fv(colorUniform, [...color]);
+    gl.uniform4fv(colorUniform, color);
+    gl.uniform1f(widthUniform, width / circumference);
+    gl.uniform1f(minWidthPixelsUniform, minWidthPixels || 0);
+    gl.uniform1f(maxWidthPixelsUniform, maxWidthPixels || Number.MAX_VALUE);
 
     const FLOAT_BYTES = Float32Array.BYTES_PER_ELEMENT;
 
