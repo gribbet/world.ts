@@ -1,7 +1,12 @@
-import { glMatrix, mat4, vec2, vec3 } from "gl-matrix";
+import { glMatrix, mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { debounce } from "./common";
 import { circumference } from "./constants";
-import { createLineLayer, createTerrainLayer, LineLayer } from "./layers";
+import {
+  createLineLayer,
+  createTerrainLayer,
+  Layer,
+  LineLayer,
+} from "./layers";
 import { Line } from "./line";
 import { geodetic, mercator, quadratic } from "./math";
 import { createPickBuffer } from "./pick-buffer";
@@ -10,7 +15,8 @@ import { View, viewport } from "./viewport";
 glMatrix.setMatrixArrayType(Array);
 
 export interface World {
-  set lines(lines: Line[]);
+  set anchor(anchor: Anchor);
+  addLine: (line: Partial<Line>) => Line;
   destroy: () => void;
 }
 
@@ -23,11 +29,7 @@ interface Anchor {
 export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let bearing = 0;
   let pitch = 0;
-  let anchor: Anchor | undefined = {
-    screen: [400, 400],
-    world: [-121, 38, 0],
-    distance: 400000,
-  };
+  let anchor: Anchor | undefined;
   const pickScale = 0.5;
   const minimumDistance = 200;
 
@@ -42,9 +44,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
   if (!gl) throw new Error("WebGL context failure");
 
-  const terrainLayer = createTerrainLayer(gl);
-
-  let lineLayers: LineLayer[] = [];
+  let layers: Layer[] = [createTerrainLayer(gl)];
 
   const pickBuffer = createPickBuffer(gl);
 
@@ -71,8 +71,6 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     gl.clearColor(0, 0, 0, 1);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.viewport(0, 0, width * scale, height * scale);
-
-    const layers = [terrainLayer, ...lineLayers];
 
     if (depth) layers.forEach((_) => _.depth({ ...view, scale }));
     else layers.forEach((_) => _.render({ ...view, scale }));
@@ -214,15 +212,38 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
+  const addLine = (_line: Partial<Line>) => {
+    const layer = createLineLayer(gl);
+    const line: Line = {
+      points: [],
+      color: [1, 1, 1, 1],
+      thickness: 1,
+      ..._line,
+    };
+    layers.push(layer);
+
+    return {
+      set points(points: vec3[]) {
+        layer.line = { ...line, points };
+      },
+      set color(color: vec4) {
+        layer.line = { ...line, color };
+      },
+      set thickness(thickness: number) {
+        layer.line = { ...line, thickness };
+      },
+      remove: () => {
+        layers = layers.filter((_) => _ !== layer);
+        layer.destroy();
+      },
+    };
+  };
+
   return {
-    set lines(lines: Line[]) {
-      lineLayers.slice(lines.length).forEach((_) => _.destroy());
-      lineLayers = lines.map((line, i) => {
-        const layer = lineLayers[i] || createLineLayer(gl);
-        layer.line = line;
-        return layer;
-      });
+    set anchor(_anchor: Anchor) {
+      anchor = _anchor;
     },
+    addLine,
     destroy,
   };
 };
