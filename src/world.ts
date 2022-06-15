@@ -64,16 +64,24 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   });
   resizer.observe(canvas);
 
-  const render = ({ depth }: { depth?: boolean } = {}) => {
-    const scale = devicePixelRatio * (depth ? pickScale : 1);
+  const render = () => {
+    const scale = devicePixelRatio;
     const [width, height] = view.screen;
-
-    gl.clearColor(0, 0, 0, 1);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
     gl.viewport(0, 0, width * scale, height * scale);
 
-    if (depth) layers.forEach((_) => _.depth({ ...view, scale }));
-    else layers.forEach((_) => _.render({ ...view, scale }));
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    layers.forEach((_) => _.render({ ...view, scale }));
+  };
+
+  const depth = () => {
+    const scale = pickScale * devicePixelRatio;
+    const [width, height] = view.screen;
+    gl.viewport(0, 0, width * scale, height * scale);
+
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+    layers.forEach((_) => _.depth({ ...view, scale }));
   };
 
   const frame = () => {
@@ -139,7 +147,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   const pick = ([screenX, screenY]: vec2) => {
     const { screenToClip, clipToLocal, localToWorld } = viewport(view);
 
-    pickBuffer.use(() => render({ depth: true }));
+    pickBuffer.use(depth);
 
     const z = pickBuffer.read([
       screenX * devicePixelRatio * pickScale,
