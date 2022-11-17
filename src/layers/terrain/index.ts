@@ -1,13 +1,14 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { Layer } from "..";
 import { range } from "../../common";
-import { createBuffer, createProgram } from "../../program";
+import { createProgram } from "../../program";
 import { tileShape } from "./tile-shape";
 import { createTiles } from "./tiles";
 import { View, Viewport, createViewport } from "../../viewport";
 import depthSource from "./depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
+import { createBuffer } from "../../buffer";
 
 const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
