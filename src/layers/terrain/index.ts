@@ -1,10 +1,10 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { Layer } from "..";
 import { range } from "../../common";
-import { createProgram } from "../../program";
+import { createBuffer, createProgram } from "../../program";
 import { tileShape } from "./tile-shape";
 import { createTiles } from "./tiles";
-import { View, Viewport, viewport } from "../../viewport";
+import { View, Viewport, createViewport } from "../../viewport";
 import depthSource from "./depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
@@ -30,7 +30,7 @@ const indices = range(0, n).flatMap((y) =>
 
 const skirt = 0.1;
 const uvw = range(0, n + 1).flatMap((y) =>
-  range(0, n + 1).flatMap((x) => {
+  range(0, n + 1).map((x) => {
     let u = (x - 1) / (n - 2);
     let v = (y - 1) / (n - 2);
     let w = 0;
@@ -51,7 +51,7 @@ const uvw = range(0, n + 1).flatMap((y) =>
       w = -skirt;
     }
 
-    return [u, v, w];
+    return [u, v, w] as vec3;
   })
 );
 
@@ -60,31 +60,9 @@ export const createTerrainLayer: (gl: WebGLRenderingContext) => Layer = (
 ) => {
   const tiles = createTiles(gl);
 
-  const uvwBuffer = gl.createBuffer();
-  if (!uvwBuffer) throw new Error("Buffer creation failed");
-  gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(uvw), gl.STATIC_DRAW);
+  const renderProgram = createRenderProgram(gl);
 
-  const indexBuffer = gl.createBuffer();
-  if (!indexBuffer) throw new Error("Buffer creation failed");
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-  gl.bufferData(
-    gl.ELEMENT_ARRAY_BUFFER,
-    new Uint16Array(indices),
-    gl.STATIC_DRAW
-  );
-
-  const renderProgram = createRenderProgram({
-    gl,
-    uvwBuffer,
-    indexBuffer,
-  });
-
-  const depthProgram = createDepthProgram({
-    gl,
-    uvwBuffer,
-    indexBuffer,
-  });
+  const depthProgram = createDepthProgram(gl);
 
   const render = ({ view, projection, modelView }: Viewport) =>
     tiles.cancelUnused(() => {
@@ -100,7 +78,7 @@ export const createTerrainLayer: (gl: WebGLRenderingContext) => Layer = (
         renderProgram.execute({
           projection,
           modelView,
-          camera,
+          camera: to(camera),
           xyz,
           imagery,
           terrain,
@@ -121,7 +99,7 @@ export const createTerrainLayer: (gl: WebGLRenderingContext) => Layer = (
         depthProgram.execute({
           projection,
           modelView,
-          camera,
+          camera: to(camera),
           xyz,
           terrain,
           downsample,
@@ -132,43 +110,35 @@ export const createTerrainLayer: (gl: WebGLRenderingContext) => Layer = (
   const destroy = () => {
     depthProgram.destroy();
     renderProgram.destroy();
-    gl.deleteBuffer(indexBuffer);
-    gl.deleteBuffer(uvwBuffer);
+    tiles.destroy();
   };
 
   return { render, depth, destroy };
 };
 
-const createRenderProgram = ({
-  gl,
-  uvwBuffer,
-  indexBuffer,
-}: {
-  gl: WebGLRenderingContext;
-  uvwBuffer: WebGLBuffer;
-  indexBuffer: WebGLBuffer;
-}) => {
+const createRenderProgram = (gl: WebGLRenderingContext) => {
   const program = createProgram({
     gl,
     vertexSource,
     fragmentSource,
   });
 
-  const uvwAttribute = gl.getAttribLocation(program, "uvw");
-  const projectionUniform = gl.getUniformLocation(program, "projection");
-  const modelViewUniform = gl.getUniformLocation(program, "modelView");
-  const imageryUniform = gl.getUniformLocation(program, "imagery");
-  const terrainUniform = gl.getUniformLocation(program, "terrain");
-  const downsampleImageryUniform = gl.getUniformLocation(
-    program,
-    "downsampleImagery"
-  );
-  const downsampleTerrainUniform = gl.getUniformLocation(
-    program,
-    "downsampleTerrain"
-  );
-  const xyzUniform = gl.getUniformLocation(program, "xyz");
-  const cameraUniform = gl.getUniformLocation(program, "camera");
+  const uvwBuffer = createBuffer({ gl, type: "f32", target: "array" });
+  uvwBuffer.set(uvw.flatMap(([x, y, z]) => [x, y, z]));
+
+  const indicesBuffer = createBuffer({ gl, type: "u16", target: "element" });
+  indicesBuffer.set(indices);
+
+  program.attribute("uvw", uvwBuffer);
+
+  const projectionUniform = program.uniformMatrix4f("projection");
+  const modelViewUniform = program.uniformMatrix4f("model_view");
+  const imageryUniform = program.uniform1i("imagery");
+  const terrainUniform = program.uniform1i("terrain");
+  const downsampleImageryUniform = program.uniform1i("downsample_imagery");
+  const downsampleTerrainUniform = program.uniform1i("downsample_terrain");
+  const xyzUniform = program.uniform3i("xyz");
+  const cameraUniform = program.uniform3i("camera");
 
   const execute = ({
     projection,
@@ -191,61 +161,57 @@ const createRenderProgram = ({
   }) => {
     gl.enable(gl.DEPTH_TEST);
 
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
-    gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(uvwAttribute);
+    program.use();
 
-    gl.useProgram(program);
-    gl.uniform1i(imageryUniform, 0);
-    gl.uniform1i(terrainUniform, 1);
-    gl.uniformMatrix4fv(projectionUniform, false, projection);
-    gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.uniform3iv(cameraUniform, [...to(camera)]);
+    projectionUniform.set(projection);
+    modelViewUniform.set(modelView);
+    xyzUniform.set(xyz);
+    cameraUniform.set(camera);
+    downsampleImageryUniform.set(downsampleImagery);
+    downsampleTerrainUniform.set(downsampleTerrain);
 
     gl.activeTexture(gl.TEXTURE0);
+    imageryUniform.set(0);
     gl.bindTexture(gl.TEXTURE_2D, imagery);
-    gl.activeTexture(gl.TEXTURE1);
-    gl.bindTexture(gl.TEXTURE_2D, terrain);
-    gl.uniform1i(downsampleImageryUniform, downsampleImagery);
-    gl.uniform1i(downsampleTerrainUniform, downsampleTerrain);
-    gl.uniform3iv(xyzUniform, [...xyz]);
 
+    gl.activeTexture(gl.TEXTURE1);
+    terrainUniform.set(1);
+    gl.bindTexture(gl.TEXTURE_2D, terrain);
+
+    indicesBuffer.use();
     gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
   };
 
   const destroy = () => {
-    // TODO:
+    uvwBuffer.destroy();
+    indicesBuffer.destroy();
+    program.destroy();
   };
 
   return { execute, destroy };
 };
 
-const createDepthProgram = ({
-  gl,
-  uvwBuffer,
-  indexBuffer,
-}: {
-  gl: WebGLRenderingContext;
-  uvwBuffer: WebGLBuffer;
-  indexBuffer: WebGLBuffer;
-}) => {
+const createDepthProgram = (gl: WebGLRenderingContext) => {
   const program = createProgram({
     gl,
     vertexSource,
     fragmentSource: depthSource,
   });
 
-  const uvwAttribute = gl.getAttribLocation(program, "uvw");
-  const projectionUniform = gl.getUniformLocation(program, "projection");
-  const modelViewUniform = gl.getUniformLocation(program, "modelView");
-  const terrainUniform = gl.getUniformLocation(program, "terrain");
-  const downsampleTerrainUniform = gl.getUniformLocation(
-    program,
-    "downsampleTerrain"
-  );
-  const xyzUniform = gl.getUniformLocation(program, "xyz");
-  const cameraUniform = gl.getUniformLocation(program, "camera");
+  const uvwBuffer = createBuffer({ gl, type: "f32", target: "array" });
+  uvwBuffer.set(uvw.flatMap(([x, y, z]) => [x, y, z]));
+
+  const indicesBuffer = createBuffer({ gl, type: "u16", target: "element" });
+  indicesBuffer.set(indices);
+
+  program.attribute("uvw", uvwBuffer);
+
+  const projectionUniform = program.uniformMatrix4f("projection");
+  const modelViewUniform = program.uniformMatrix4f("model_view");
+  const terrainUniform = program.uniform1i("terrain");
+  const downsampleTerrainUniform = program.uniform1i("downsample_terrain");
+  const xyzUniform = program.uniform3i("xyz");
+  const cameraUniform = program.uniform3i("camera");
 
   const execute = ({
     projection,
@@ -262,27 +228,28 @@ const createDepthProgram = ({
     terrain: WebGLTexture;
     downsample: number;
   }) => {
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    gl.bindBuffer(gl.ARRAY_BUFFER, uvwBuffer);
-    gl.vertexAttribPointer(uvwAttribute, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(uvwAttribute);
+    gl.enable(gl.DEPTH_TEST);
 
-    gl.useProgram(program);
-    gl.uniform1i(terrainUniform, 0);
-    gl.uniformMatrix4fv(projectionUniform, false, projection);
-    gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.uniform3iv(cameraUniform, [...to(camera)]);
+    program.use();
 
-    gl.activeTexture(gl.TEXTURE0);
+    projectionUniform.set(projection);
+    modelViewUniform.set(modelView);
+    xyzUniform.set(xyz);
+    cameraUniform.set(camera);
+    downsampleTerrainUniform.set(downsample);
+
+    gl.activeTexture(gl.TEXTURE1);
+    terrainUniform.set(1);
     gl.bindTexture(gl.TEXTURE_2D, terrain);
-    gl.uniform1i(downsampleTerrainUniform, downsample);
-    gl.uniform3iv(xyzUniform, [...xyz]);
 
+    indicesBuffer.use();
     gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
   };
 
   const destroy = () => {
-    // TODO:
+    uvwBuffer.destroy();
+    indicesBuffer.destroy();
+    program.destroy();
   };
 
   return { execute, destroy };
@@ -294,7 +261,7 @@ const vec4s = q.map(vec4.create);
 const vec2s = q.map(vec2.create);
 
 const calculateVisibleTiles = (view: View) => {
-  const { worldToLocal, localToClip, clipToScreen } = viewport(view);
+  const { worldToLocal, localToClip, clipToScreen } = createViewport(view);
 
   const divide: (xyz: vec3) => vec3[] = (xyz) => {
     const [x, y, z] = xyz;

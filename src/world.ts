@@ -10,7 +10,7 @@ import {
 import { Line } from "./line";
 import { geodetic, mercator, quadratic } from "./math";
 import { createPickBuffer } from "./pick-buffer";
-import { View, viewport } from "./viewport";
+import { View, createViewport } from "./viewport";
 
 glMatrix.setMatrixArrayType(Array);
 
@@ -38,7 +38,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     pitch: 0,
   };
 
-  const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
+  const gl = canvas.getContext("webgl2") as WebGL2RenderingContext;
   if (!gl) throw new Error("WebGL context failure");
 
   let layers: Layer[] = [createTerrainLayer(gl)];
@@ -69,7 +69,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     gl.viewport(0, 0, width, height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    return viewport({ ...view, screen });
+    return createViewport({ ...view, screen });
   };
 
   const render = () => {
@@ -94,7 +94,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   const recenter = (anchor: Anchor) => {
     const { screen, world, distance } = anchor;
-    const { screenToClip, clipToLocal } = viewport(view);
+    const { screenToClip, clipToLocal } = createViewport(view);
 
     const [x, y] = screenToClip(screen);
     const [ax, ay, az] = clipToLocal([x, y, -10000, 1]);
@@ -119,7 +119,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   };
 
   const pick = ([screenX, screenY]: vec2) => {
-    const { screenToClip, clipToLocal, localToWorld } = viewport(view);
+    const { screenToClip, clipToLocal, localToWorld } = createViewport(view);
 
     pickBuffer.use(depth);
 

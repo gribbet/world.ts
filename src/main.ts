@@ -22,20 +22,20 @@ world.anchor = {
   distance: 40000,
 };
 
-const line = world.addLine({
+/*const line = world.addLine({
   color: [1, 0.9, 0.9, 0.5],
   width: 1000,
   minWidthPixels: 1,
   maxWidthPixels: 20,
-});
+});*/
 
 const frame = (time: number) => {
-  const n = 300;
+  /*const n = 300;
   const points: vec3[] = range(0, n + 1).map<vec3>((i) => {
     const a = ((i / n) * Math.PI * 2) / 10 + time / 100000;
     return [-121 + 1 * Math.cos(a * 5), 38 + 1 * Math.sin(a), 400];
   });
-  line.points = points;
+  line.points = points;*/
   requestAnimationFrame(frame);
 };
 

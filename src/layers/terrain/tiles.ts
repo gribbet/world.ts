@@ -12,6 +12,7 @@ export interface Tiles {
   imagery: (xyz: vec3) => DownsampledTile;
   terrain: (xyz: vec3) => DownsampledTile;
   cancelUnused: (f: () => void) => void;
+  destroy: () => void;
 }
 
 export const createTiles: (gl: WebGLRenderingContext) => Tiles = (gl) => {
@@ -53,7 +54,12 @@ export const createTiles: (gl: WebGLRenderingContext) => Tiles = (gl) => {
   const cancelUnused = (f: () => void) =>
     imageryCache.cancelUnused(() => terrainCache.cancelUnused(f));
 
-  return { imagery, terrain, cancelUnused };
+  const destroy = () => {
+    imageryCache.destroy();
+    terrainCache.destroy();
+  };
+
+  return { imagery, terrain, cancelUnused, destroy };
 };
 
 type Downsampler = (
@@ -76,6 +82,7 @@ const createDownsampler: (cache: TileCache) => Downsampler =
 interface TileCache {
   get: (xyz: vec3) => WebGLTexture | undefined;
   cancelUnused: (f: () => void) => void;
+  destroy: () => void;
 }
 
 const createTileCache: (_: {
@@ -86,13 +93,13 @@ const createTileCache: (_: {
   interface TileCacheEntry {
     texture: WebGLTexture;
     loaded: boolean;
-    dispose: () => void;
+    destroy: () => void;
   }
 
   const tiles = new LruCache<number, TileCacheEntry>({
     max: 1000,
     dispose: (tile) => {
-      tile.dispose();
+      tile.destroy();
     },
   });
 
@@ -140,7 +147,7 @@ const createTileCache: (_: {
       },
     });
 
-    const dispose = () => {
+    const destroy = () => {
       imageLoad.cancel();
       gl.deleteTexture(texture);
     };
@@ -150,7 +157,7 @@ const createTileCache: (_: {
       get loaded() {
         return imageLoad.loaded;
       },
-      dispose,
+      destroy,
     };
   };
 
@@ -163,5 +170,7 @@ const createTileCache: (_: {
       .forEach(([_]) => tiles.delete(_));
   };
 
-  return { get, cancelUnused };
+  const destroy = () => tiles.clear();
+
+  return { get, cancelUnused, destroy };
 };

@@ -22,7 +22,7 @@ export interface Viewport {
 const matrix = mat4.create();
 const vector = vec4.create();
 
-export const viewport: (view: View) => Viewport = (view) => {
+export const createViewport: (view: View) => Viewport = (view) => {
   const {
     camera,
     screen: [width, height],
