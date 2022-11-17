@@ -1,5 +1,4 @@
 export interface ImageLoad {
-  image: HTMLImageElement;
   loaded: boolean;
   cancel: () => void;
 }
@@ -25,7 +24,6 @@ export const loadImage: (_: {
   };
 
   return {
-    image,
     get loaded() {
       return loaded;
     },
