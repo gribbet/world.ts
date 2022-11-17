@@ -60,7 +60,6 @@ export const createPickBuffer: (gl: WebGLRenderingContext) => PickBuffer = (
       gl.UNSIGNED_BYTE,
       null
     );
-    gl.bindTexture(gl.TEXTURE_2D, null);
 
     gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
     gl.renderbufferStorage(
@@ -69,7 +68,6 @@ export const createPickBuffer: (gl: WebGLRenderingContext) => PickBuffer = (
       width,
       height
     );
-    gl.bindRenderbuffer(gl.RENDERBUFFER, null);
   };
 
   const buffer = new Uint8Array(4);
