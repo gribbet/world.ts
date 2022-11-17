@@ -5,7 +5,7 @@ export interface Buffer {
 }
 
 export const createBuffer: (_: {
-  gl: WebGLRenderingContext;
+  gl: WebGL2RenderingContext;
   type: "f32" | "u16";
   target: "array" | "element";
 }) => Buffer = ({ gl, type, target }) => {

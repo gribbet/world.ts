@@ -21,7 +21,7 @@ export interface Attribute<T> {
 }
 
 export const createProgram: (_: {
-  gl: WebGLRenderingContext;
+  gl: WebGL2RenderingContext;
   vertexSource: string;
   fragmentSource: string;
 }) => Program = ({ gl, vertexSource, fragmentSource }) => {
@@ -140,7 +140,7 @@ export const createProgram: (_: {
 };
 
 const compileShader = (
-  gl: WebGLRenderingContext,
+  gl: WebGL2RenderingContext,
   shader: WebGLShader | null,
   source: string
 ) => {

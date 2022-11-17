@@ -7,7 +7,7 @@ export interface PickBuffer {
   destroy: () => void;
 }
 
-export const createPickBuffer: (gl: WebGLRenderingContext) => PickBuffer = (
+export const createPickBuffer: (gl: WebGL2RenderingContext) => PickBuffer = (
   gl
 ) => {
   const targetTexture = gl.createTexture();

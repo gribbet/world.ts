@@ -9,6 +9,7 @@ import depthSource from "./depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 import { createBuffer } from "../../buffer";
+import { Texture } from "./texture";
 
 const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
@@ -56,7 +57,7 @@ const uvw = range(0, n + 1).flatMap((y) =>
   })
 );
 
-export const createTerrainLayer: (gl: WebGLRenderingContext) => Layer = (
+export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
   gl
 ) => {
   const tiles = createTiles(gl);
@@ -117,7 +118,7 @@ export const createTerrainLayer: (gl: WebGLRenderingContext) => Layer = (
   return { render, depth, destroy };
 };
 
-const createRenderProgram = (gl: WebGLRenderingContext) => {
+const createRenderProgram = (gl: WebGL2RenderingContext) => {
   const program = createProgram({
     gl,
     vertexSource,
@@ -155,8 +156,8 @@ const createRenderProgram = (gl: WebGLRenderingContext) => {
     modelView: mat4;
     camera: vec3;
     xyz: vec3;
-    imagery: WebGLTexture;
-    terrain: WebGLTexture;
+    imagery: Texture;
+    terrain: Texture;
     downsampleImagery: number;
     downsampleTerrain: number;
   }) => {
@@ -173,11 +174,11 @@ const createRenderProgram = (gl: WebGLRenderingContext) => {
 
     gl.activeTexture(gl.TEXTURE0);
     imageryUniform.set(0);
-    gl.bindTexture(gl.TEXTURE_2D, imagery);
+    imagery.use();
 
     gl.activeTexture(gl.TEXTURE1);
     terrainUniform.set(1);
-    gl.bindTexture(gl.TEXTURE_2D, terrain);
+    terrain.use();
 
     indicesBuffer.use();
     gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
@@ -192,7 +193,7 @@ const createRenderProgram = (gl: WebGLRenderingContext) => {
   return { execute, destroy };
 };
 
-const createDepthProgram = (gl: WebGLRenderingContext) => {
+const createDepthProgram = (gl: WebGL2RenderingContext) => {
   const program = createProgram({
     gl,
     vertexSource,
@@ -226,7 +227,7 @@ const createDepthProgram = (gl: WebGLRenderingContext) => {
     modelView: mat4;
     camera: vec3;
     xyz: vec3;
-    terrain: WebGLTexture;
+    terrain: Texture;
     downsample: number;
   }) => {
     gl.enable(gl.DEPTH_TEST);
@@ -241,7 +242,7 @@ const createDepthProgram = (gl: WebGLRenderingContext) => {
 
     gl.activeTexture(gl.TEXTURE1);
     terrainUniform.set(1);
-    gl.bindTexture(gl.TEXTURE_2D, terrain);
+    terrain.use();
 
     indicesBuffer.use();
     gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);

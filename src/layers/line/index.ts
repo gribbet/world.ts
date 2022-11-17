@@ -18,7 +18,7 @@ export interface LineLayer extends Layer, Line {
 }
 
 export const createLineLayer: (
-  gl: WebGLRenderingContext,
+  gl: WebGL2RenderingContext,
   line: Line
 ) => LineLayer = (gl, { color, width, minWidthPixels, maxWidthPixels }) => {
   let count = 0;
@@ -140,7 +140,7 @@ export const createLineLayer: (
 };
 
 const createLineProgram = (
-  gl: WebGLRenderingContext,
+  gl: WebGL2RenderingContext,
   {
     positionBuffer,
     indexBuffer,
