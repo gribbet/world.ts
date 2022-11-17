@@ -1,7 +1,7 @@
 import { vec2 } from "gl-matrix";
 
 export interface PickBuffer {
-  use: (f: () => void) => void;
+  use: () => void;
   resize: (size: vec2) => void;
   read: (pixel: vec2) => number;
   destroy: () => void;
@@ -17,33 +17,28 @@ export const createPickBuffer: (gl: WebGL2RenderingContext) => PickBuffer = (
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
 
-  const depthBuffer = gl.createRenderbuffer();
-  gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer); // TODO:
-  gl.bindRenderbuffer(gl.RENDERBUFFER, null);
+  const renderbuffer = gl.createRenderbuffer();
+  gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
 
   const framebuffer = gl.createFramebuffer();
 
-  const use = (f: () => void) => {
-    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
-    f();
-    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
-  };
+  const use = () => gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
 
-  use(() => {
-    gl.framebufferTexture2D(
-      gl.FRAMEBUFFER,
-      gl.COLOR_ATTACHMENT0,
-      gl.TEXTURE_2D,
-      targetTexture,
-      0
-    );
-    gl.framebufferRenderbuffer(
-      gl.FRAMEBUFFER,
-      gl.DEPTH_ATTACHMENT,
-      gl.RENDERBUFFER,
-      depthBuffer
-    );
-  });
+  use();
+  gl.framebufferTexture2D(
+    gl.FRAMEBUFFER,
+    gl.COLOR_ATTACHMENT0,
+    gl.TEXTURE_2D,
+    targetTexture,
+    0
+  );
+  gl.framebufferRenderbuffer(
+    gl.FRAMEBUFFER,
+    gl.DEPTH_ATTACHMENT,
+    gl.RENDERBUFFER,
+    renderbuffer
+  );
+  gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
   let height = 0;
   const resize = ([width, _height]: vec2) => {
@@ -61,7 +56,7 @@ export const createPickBuffer: (gl: WebGL2RenderingContext) => PickBuffer = (
       null
     );
 
-    gl.bindRenderbuffer(gl.RENDERBUFFER, depthBuffer);
+    gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
     gl.renderbufferStorage(
       gl.RENDERBUFFER,
       gl.DEPTH_COMPONENT16,
@@ -72,9 +67,9 @@ export const createPickBuffer: (gl: WebGL2RenderingContext) => PickBuffer = (
 
   const buffer = new Uint8Array(4);
   const read = ([x, y]: vec2) => {
-    use(() =>
-      gl.readPixels(x, height - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buffer)
-    );
+    use();
+    gl.readPixels(x, height - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
     const [r, g] = buffer;
     const zo = (r * 256 + g) / (256 * 256 - 1);
@@ -84,7 +79,9 @@ export const createPickBuffer: (gl: WebGL2RenderingContext) => PickBuffer = (
   };
 
   const destroy = () => {
-    // TODO:
+    gl.deleteTexture(targetTexture);
+    gl.deleteFramebuffer(framebuffer);
+    gl.deleteRenderbuffer(renderbuffer);
   };
 
   return {
