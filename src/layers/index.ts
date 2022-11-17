@@ -1,10 +1,10 @@
-import { View } from "../viewport";
+import { View, Viewport } from "../viewport";
 
 export * from "./line";
 export * from "./terrain";
 
 export interface Layer {
-  render: (view: View) => void;
-  depth: (view: View) => void;
+  render: (view: Viewport) => void;
+  depth: (view: Viewport) => void;
   destroy: () => void;
 }

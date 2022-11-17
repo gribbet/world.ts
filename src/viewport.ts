@@ -1,14 +1,16 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
 export interface View {
-  projection: mat4;
-  modelView: mat4;
   camera: vec3;
   screen: vec2;
-  scale: number;
+  bearing: number;
+  pitch: number;
 }
 
-interface Viewport {
+export interface Viewport {
+  view: View;
+  projection: mat4;
+  modelView: mat4;
   screenToClip: (_: vec2, out?: vec4) => vec4;
   clipToScreen: (_: vec4, out?: vec2) => vec2;
   clipToLocal: (_: vec4, out?: vec3) => vec3;
@@ -20,13 +22,27 @@ interface Viewport {
 const matrix = mat4.create();
 const vector = vec4.create();
 
-export const viewport: (view: View) => Viewport = ({
-  projection,
-  modelView,
-  camera,
-  screen,
-}) => {
-  const [width, height] = screen;
+export const viewport: (view: View) => Viewport = (view) => {
+  const {
+    camera,
+    screen: [width, height],
+    pitch,
+    bearing,
+  } = view;
+  const [, , z] = camera;
+  const near = z / 100;
+  const far = z * 100;
+
+  const projection = mat4.create();
+  mat4.identity(projection);
+  mat4.perspective(projection, (45 * Math.PI) / 180, width / height, near, far);
+  mat4.scale(projection, projection, [1, -1, 1]);
+
+  const modelView = mat4.create();
+  mat4.identity(modelView);
+  mat4.rotateX(modelView, modelView, pitch);
+  mat4.rotateZ(modelView, modelView, bearing);
+
   const transform = mat4.multiply(matrix, projection, modelView);
   const inverse = mat4.invert(mat4.create(), transform);
 
@@ -54,6 +70,9 @@ export const viewport: (view: View) => Viewport = ({
     vec3.sub(out, v, camera);
 
   return {
+    view,
+    projection,
+    modelView,
     screenToClip,
     clipToScreen,
     clipToLocal,

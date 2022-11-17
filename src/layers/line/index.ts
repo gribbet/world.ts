@@ -1,13 +1,13 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
-import { range } from "../../common";
 import { Layer } from "../";
+import { range } from "../../common";
+import { circumference } from "../../constants";
 import { Line } from "../../line";
-import fragmentSource from "./fragment.glsl";
-import vertexSource from "./vertex.glsl";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
-import { View } from "../../viewport";
-import { circumference } from "../../constants";
+import { Viewport } from "../../viewport";
+import fragmentSource from "./fragment.glsl";
+import vertexSource from "./vertex.glsl";
 
 const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
@@ -40,7 +40,11 @@ export const createLineLayer: (
     cornerBuffer,
   });
 
-  const render = ({ projection, modelView, camera, screen }: View) =>
+  const render = ({
+    projection,
+    modelView,
+    view: { camera, screen },
+  }: Viewport) =>
     program.execute({
       projection,
       modelView,

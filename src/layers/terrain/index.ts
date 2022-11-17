@@ -4,7 +4,7 @@ import { range } from "../../common";
 import { createProgram } from "../../program";
 import { tileShape } from "./tile-shape";
 import { createTiles } from "./tiles";
-import { View, viewport } from "../../viewport";
+import { View, Viewport, viewport } from "../../viewport";
 import depthSource from "./depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
@@ -15,7 +15,7 @@ const to = ([x, y, z]: vec3) =>
 
 const n = 32;
 
-const maxZ = 22;
+const maxZ = 20;
 
 const indices = range(0, n).flatMap((y) =>
   range(0, n).flatMap((x) => [
@@ -86,9 +86,9 @@ export const createTerrainLayer: (gl: WebGLRenderingContext) => Layer = (
     indexBuffer,
   });
 
-  const render = (view: View) =>
+  const render = ({ view, projection, modelView }: Viewport) =>
     tiles.cancelUnused(() => {
-      const { projection, modelView, camera } = view;
+      const { camera } = view;
       const visible = calculateVisibleTiles(view);
 
       for (const xyz of visible) {
@@ -110,9 +110,9 @@ export const createTerrainLayer: (gl: WebGLRenderingContext) => Layer = (
       }
     });
 
-  const depth = (view: View) =>
+  const depth = ({ view, projection, modelView }: Viewport) =>
     tiles.cancelUnused(() => {
-      const { projection, modelView, camera } = view;
+      const { camera } = view;
       const visible = calculateVisibleTiles(view);
 
       for (const xyz of visible) {
@@ -322,7 +322,8 @@ const calculateVisibleTiles = (view: View) => {
         )
         .reduce((a, b) => a + b, 0) / 4
     );
-    if (size * view.scale > 256 && z < maxZ) {
+
+    if (size > 256 && z < maxZ) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],

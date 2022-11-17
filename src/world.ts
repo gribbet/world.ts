@@ -27,18 +27,15 @@ interface Anchor {
 }
 
 export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
-  let bearing = 0;
-  let pitch = 0;
   let anchor: Anchor | undefined;
   const pickScale = 0.5;
   const minimumDistance = 200;
 
   let view: View = {
-    projection: mat4.create(),
-    modelView: mat4.create(),
-    camera: mercator([0, 0, circumference]),
+    camera: [0.18364142064305536, 0.3759435476297003, 7.430314677337515e-5],
     screen: [0, 0],
-    scale: 1,
+    bearing: 0,
+    pitch: 0,
   };
 
   const gl = canvas.getContext("webgl") as WebGL2RenderingContext;
@@ -64,29 +61,28 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   });
   resizer.observe(canvas);
 
-  const render = () => {
-    const scale = devicePixelRatio;
-    const [width, height] = view.screen;
-    gl.viewport(0, 0, width * scale, height * scale);
+  const scaleViewport = (scale: number) => {
+    let [width, height] = view.screen;
+    [width, height] = [width * scale, height * scale];
+    let screen: vec2 = [width, height];
 
+    gl.viewport(0, 0, width, height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
-    layers.forEach((_) => _.render({ ...view, scale }));
+    return viewport({ ...view, screen });
+  };
+
+  const render = () => {
+    let viewport = scaleViewport(devicePixelRatio);
+    layers.forEach((_) => _.render(viewport));
   };
 
   const depth = () => {
-    const scale = pickScale * devicePixelRatio;
-    const [width, height] = view.screen;
-    gl.viewport(0, 0, width * scale, height * scale);
-
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
-
-    layers.forEach((_) => _.depth({ ...view, scale }));
+    let viewport = scaleViewport(pickScale * devicePixelRatio);
+    layers.forEach((_) => _.depth(viewport));
   };
 
   const frame = () => {
-    setupMatrices();
-
     if (anchor) recenter(anchor);
 
     render();
@@ -95,28 +91,6 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   };
 
   requestAnimationFrame(frame);
-
-  const setupMatrices = () => {
-    const { projection, modelView, camera, screen } = view;
-
-    const [width, height] = screen;
-    const [, , z] = camera;
-    const near = z / 100;
-    const far = 100 * z;
-    mat4.identity(projection);
-    mat4.perspective(
-      projection,
-      (45 * Math.PI) / 180,
-      width / height,
-      near,
-      far
-    );
-    mat4.scale(projection, projection, [1, -1, 1]);
-
-    mat4.identity(modelView);
-    mat4.rotateX(modelView, modelView, pitch);
-    mat4.rotateZ(modelView, modelView, bearing);
-  };
 
   const recenter = (anchor: Anchor) => {
     const { screen, world, distance } = anchor;
@@ -193,10 +167,10 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
         };
       } else if (buttons === 2) {
         const [width, height] = view.screen;
-        bearing -= (movementX / width) * Math.PI;
-        pitch = Math.min(
+        view.bearing -= (movementX / width) * Math.PI;
+        view.pitch = Math.min(
           0.5 * Math.PI,
-          Math.max(0, pitch - (movementY / height) * Math.PI)
+          Math.max(0, view.pitch - (movementY / height) * Math.PI)
         );
       }
     }
