@@ -15,9 +15,9 @@ const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
   [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
 
-const n = 32;
+const n = 16;
 
-const maxZ = 20;
+const maxZ = 22;
 
 const indices = range(0, n).flatMap((y) =>
   range(0, n).flatMap((x) => [
