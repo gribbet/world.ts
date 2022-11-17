@@ -2,6 +2,7 @@ import { vec3 } from "gl-matrix";
 import * as LruCache from "lru-cache";
 import { imageryUrl, terrainUrl } from "../../constants";
 import { loadImage } from "../../image-load";
+import { createImageTexture, ImageTexture } from "./image-texture";
 import { createTexture, Texture } from "./texture";
 
 export interface DownsampledTile {
@@ -19,7 +20,7 @@ export interface Tiles {
 export const createTiles: (gl: WebGL2RenderingContext) => Tiles = (gl) => {
   const imageryCache = createTileCache({
     gl,
-    url: imageryUrl,
+    urlPattern: imageryUrl,
     onLoad: () => {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
@@ -30,7 +31,7 @@ export const createTiles: (gl: WebGL2RenderingContext) => Tiles = (gl) => {
 
   const terrainCache = createTileCache({
     gl,
-    url: terrainUrl,
+    urlPattern: terrainUrl,
     onLoad: () => {
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
@@ -87,78 +88,32 @@ interface TileCache {
 
 const createTileCache: (_: {
   gl: WebGL2RenderingContext;
-  url: string;
+  urlPattern: string;
   onLoad?: () => void;
-}) => TileCache = ({ gl, url, onLoad }) => {
-  interface TileCacheEntry {
-    texture: Texture;
-    loaded: boolean;
-    destroy: () => void;
-  }
-
-  const tiles = new LruCache<number, TileCacheEntry>({
+}) => TileCache = ({ gl, urlPattern, onLoad }) => {
+  const tiles = new LruCache<string, ImageTexture>({
     max: 1000,
     dispose: (tile) => {
       tile.destroy();
     },
   });
 
-  const used = new Set<number>();
-  const get: (xyz: vec3) => Texture | undefined = (xyz) => {
+  const used = new Set<string>();
+  const get: (xyz: vec3) => ImageTexture | undefined = (xyz) => {
     const [x, y, z] = xyz;
-    const key = 4 ** z + y * 2 ** z + x;
-    used.add(key);
-    const cached = tiles.get(key);
-    if (cached) {
-      const { loaded, texture } = cached;
-      if (loaded) return texture;
-    } else {
-      const entry = load({ url, xyz });
-      tiles.set(key, entry);
-    }
-  };
-
-  const load: (_: {
-    url: string;
-    xyz: vec3;
-    onLoad?: () => void;
-  }) => TileCacheEntry = ({ url, xyz: [x, y, z] }) => {
-    const texture = createTexture(gl);
-    if (!texture) throw new Error("Texture creation failed");
-
-    url = url
+    const url = urlPattern
       .replace("{x}", `${x}`)
       .replace("{y}", `${y}`)
       .replace("{z}", `${z}`);
-
-    const imageLoad = loadImage({
-      url,
-      onLoad: (image) => {
-        texture.use();
-        gl.texImage2D(
-          gl.TEXTURE_2D,
-          0,
-          gl.RGBA,
-          gl.RGBA,
-          gl.UNSIGNED_BYTE,
-          image
-        );
-        onLoad?.();
-      },
-    });
-
-    const destroy = () => {
-      imageLoad.cancel();
-      texture.destroy();
-    };
-
-    return {
-      texture,
-      get loaded() {
-        return imageLoad.loaded;
-      },
-      destroy,
-    };
+    used.add(url);
+    const cached = tiles.get(url);
+    if (cached) {
+      const { loaded } = cached;
+      if (loaded) return cached;
+    } else {
+      const texture = createImageTexture({ gl, url, onLoad });
+      tiles.set(url, texture);
+    }
   };
 
   const cancelUnused = (f: () => void) => {
