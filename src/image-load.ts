@@ -1,27 +1,36 @@
+const worker = new Worker(
+  new URL("data-url:./image-load-worker.ts", import.meta.url),
+  {
+    type: "module",
+  }
+);
+
 export interface ImageLoad {
   loaded: boolean;
   cancel: () => void;
 }
 
-export const loadImage: (_: {
+export const createImageLoad: (_: {
   url: string;
-  onLoad?: (image: HTMLImageElement) => void;
-  onError?: (error: string) => void;
-}) => ImageLoad = ({ url, onLoad, onError }) => {
+  onLoad: (image: ImageBitmap) => void;
+}) => ImageLoad = ({ url, onLoad }) => {
   let loaded = false;
 
-  const image = new Image();
-  image.crossOrigin = "anonymous";
-  image.onload = async () => {
+  const handler = ({ data }: MessageEvent) => {
+    if (canceled || url !== data.url) return;
+    worker.removeEventListener("message", handler);
     loaded = true;
-    onLoad?.(image);
+    onLoad(data.image);
   };
-  image.onerror = (error) => onError?.(error.toString());
-  image.src = url;
+  worker.addEventListener("message", handler);
 
+  let canceled = false;
   const cancel = () => {
-    if (!loaded) image.src = "";
+    canceled = true;
+    worker.postMessage(["cancel", url]);
   };
+
+  worker.postMessage(["load", url]);
 
   return {
     get loaded() {

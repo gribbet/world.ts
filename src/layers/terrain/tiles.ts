@@ -1,7 +1,7 @@
 import { vec3 } from "gl-matrix";
 import * as LruCache from "lru-cache";
 import { imageryUrl, terrainUrl } from "../../constants";
-import { loadImage } from "../../image-load";
+import { createImageLoad } from "../../image-load";
 import { createImageTexture, ImageTexture } from "./image-texture";
 import { createTexture, Texture } from "./texture";
 

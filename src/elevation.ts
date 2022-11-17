@@ -1,6 +1,6 @@
 import * as LRUCache from "lru-cache";
 import { terrainUrl } from "./constants";
-import { loadImage } from "./image-load";
+import { createImageLoad } from "./image-load";
 import { mercator } from "./math";
 
 const defaultZ = 12;
@@ -47,12 +47,12 @@ const tile = (x: number, y: number, z: number) => {
 
 const loadTile = async (x: number, y: number, z: number) => {
   try {
-    const image = await new Promise<HTMLImageElement>((onLoad, onError) => {
+    const image = await new Promise<ImageBitmap>((onLoad) => {
       const url = terrainUrl
         .replace("{x}", x.toString())
         .replace("{y}", y.toString())
         .replace("{z}", z.toString());
-      loadImage({ url, onLoad, onError });
+      createImageLoad({ url, onLoad });
     });
     const { width, height } = image;
 

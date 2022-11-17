@@ -121,7 +121,8 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   const pick = ([screenX, screenY]: vec2) => {
     const { screenToClip, clipToLocal, localToWorld } = createViewport(view);
 
-    pickBuffer.use(depth);
+    pickBuffer.use();
+    depth();
 
     const z = pickBuffer.read([
       screenX * devicePixelRatio * pickScale,

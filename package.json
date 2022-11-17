@@ -7,7 +7,9 @@
     "build": "parcel build --public-url ./ src/index.html"
   },
   "devDependencies": {
+    "@parcel/optimizer-data-url": "2.3.2",
     "@parcel/transformer-glsl": "2.3.2",
+    "@parcel/transformer-inline-string": "2.3.2",
     "@types/lru-cache": "^7.5.0",
     "parcel": "^2.3.2",
     "process": "^0.11.10",

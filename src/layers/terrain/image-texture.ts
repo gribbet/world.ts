@@ -1,4 +1,4 @@
-import { loadImage } from "../../image-load";
+import { createImageLoad } from "../../image-load";
 import { createTexture } from "./texture";
 
 export interface ImageTexture {
@@ -14,7 +14,7 @@ export const createImageTexture: (_: {
 }) => ImageTexture = ({ gl, url, onLoad }) => {
   const texture = createTexture(gl);
 
-  const imageLoad = loadImage({
+  const imageLoad = createImageLoad({
     url,
     onLoad: (image) => {
       texture.use();

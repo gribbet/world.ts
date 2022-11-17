@@ -221,6 +221,16 @@
     cssnano "^5.0.15"
     postcss "^8.4.5"
 
+"@parcel/optimizer-data-url@2.3.2":
+  version "2.3.2"
+  resolved "https://registry.yarnpkg.com/@parcel/optimizer-data-url/-/optimizer-data-url-2.3.2.tgz#22c2951eb6bda7d7b589c28283d99f9d21dae568"
+  integrity sha512-q3Y1J3acGPf8yyAhEG+59qey7liB04T/U4i7nmvggDdDVG9S8aYgIeAjsPUKi/9fBoHLn4l8K/sJq3M7FFdcnw==
+  dependencies:
+    "@parcel/plugin" "2.3.2"
+    "@parcel/utils" "2.3.2"
+    isbinaryfile "^4.0.2"
+    mime "^2.4.4"
+
 "@parcel/optimizer-htmlnano@2.3.2":
   version "2.3.2"
   resolved "https://registry.yarnpkg.com/@parcel/optimizer-htmlnano/-/optimizer-htmlnano-2.3.2.tgz#4086736866621182f5dd1a8abe78e9f5764e1a28"
@@ -463,6 +473,13 @@
     "@parcel/plugin" "2.3.2"
     "@parcel/workers" "2.3.2"
     nullthrows "^1.1.1"
+
+"@parcel/transformer-inline-string@2.3.2":
+  version "2.3.2"
+  resolved "https://registry.yarnpkg.com/@parcel/transformer-inline-string/-/transformer-inline-string-2.3.2.tgz#bec5d376d00b5c41abf11c8cf8e3d917036c0646"
+  integrity sha512-nitgU+YHnJpJjdUEyRqXD3DjIAstcdHDwwKgloTfpt7EDe2VspVuWhA054kH75Kn/Tvn4s0G4VGCTpDw5KxzSw==
+  dependencies:
+    "@parcel/plugin" "2.3.2"
 
 "@parcel/transformer-js@2.3.2":
   version "2.3.2"
@@ -1143,6 +1160,11 @@ isarray@0.0.1:
   resolved "https://registry.yarnpkg.com/isarray/-/isarray-0.0.1.tgz#8a18acfca9a8f4177e09abfc6038939b05d1eedf"
   integrity sha1-ihis/Kmo9Bd+Cav8YDiTmwXR7t8=
 
+isbinaryfile@^4.0.2:
+  version "4.0.10"
+  resolved "https://registry.yarnpkg.com/isbinaryfile/-/isbinaryfile-4.0.10.tgz#0c5b5e30c2557a2f06febd37b7322946aaee42b3"
+  integrity sha512-iHrqe5shvBUcFbmZq9zOQHBoeOhZJu6RQGrDpBgenUm/Am+F3JM2MgQj+rK3Z601fzrL5gLZWtAPH2OBaSVcyw==
+
 js-tokens@^4.0.0:
   version "4.0.0"
   resolved "https://registry.yarnpkg.com/js-tokens/-/js-tokens-4.0.0.tgz#19203fb59991df98e3a287050d4647cdeaf32499"
@@ -1212,6 +1234,11 @@ mdn-data@2.0.14:
   version "2.0.14"
   resolved "https://registry.yarnpkg.com/mdn-data/-/mdn-data-2.0.14.tgz#7113fc4281917d63ce29b43446f701e68c25ba50"
   integrity sha512-dn6wd0uw5GsdswPFfsgMp5NSB0/aDe6fK94YJV/AJDYXL6HVLWBsxeq7js7Ad+mU2K9LAlwpk6kN2D5mwCPVow==
+
+mime@^2.4.4:
+  version "2.6.0"
+  resolved "https://registry.yarnpkg.com/mime/-/mime-2.6.0.tgz#a2a682a95cd4d0cb1d6257e28f83da7e35800367"
+  integrity sha512-USPkMeET31rOMiarsBNIHZKLGgvKc/LrjofAnBlOttf5ajRvqiRA8QsenbcooctK6d6Ts6aqZXBA+XbkKthiQg==
 
 minimist@^1.2.5:
   version "1.2.5"
