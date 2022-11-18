@@ -9,7 +9,7 @@ export interface ImageLoad {
 
 export const createImageLoad: (_: {
   url: string;
-  onLoad: (image: ImageBitmap) => void;
+  onLoad: (image: ImageBitmap | undefined) => void;
 }) => ImageLoad = ({ url, onLoad }) => {
   let loaded = false;
 

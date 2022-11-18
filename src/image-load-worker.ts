@@ -12,6 +12,10 @@ addEventListener("message", async (event) => {
   addEventListener("message", handler);
   try {
     const response = await fetch(url, { mode: "cors", signal });
+    if (!response.ok) {
+      postMessage({ url, image: undefined });
+      return;
+    }
     const blob = await response.blob();
     const image = await createImageBitmap(blob);
     postMessage({ url, image });

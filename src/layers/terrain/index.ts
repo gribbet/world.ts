@@ -15,7 +15,7 @@ const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
   [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
 
-const n = 16;
+const n = 34;
 
 const maxZ = 22;
 
@@ -30,7 +30,7 @@ const indices = range(0, n).flatMap((y) =>
   ])
 );
 
-const skirt = 0.1;
+const skirt = 0.5;
 const uvw = range(0, n + 1).flatMap((y) =>
   range(0, n + 1).map((x) => {
     let u = (x - 1) / (n - 2);

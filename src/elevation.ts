@@ -47,13 +47,19 @@ const tile = (x: number, y: number, z: number) => {
 
 const loadTile = async (x: number, y: number, z: number) => {
   try {
-    const image = await new Promise<ImageBitmap>((onLoad) => {
+    const image = await new Promise<ImageBitmap | undefined>((onLoad) => {
       const url = terrainUrl
         .replace("{x}", x.toString())
         .replace("{y}", y.toString())
         .replace("{z}", z.toString());
       createImageLoad({ url, onLoad });
     });
+
+    if (!image) {
+      const query = () => 0;
+      return { query };
+    }
+
     const { width, height } = image;
 
     const canvas = document.createElement("canvas");

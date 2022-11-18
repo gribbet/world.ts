@@ -25,7 +25,7 @@ world.anchor = {
 const line = world.addLine({
   color: [1, 0.9, 0.9, 0.5],
   width: 1000,
-  minWidthPixels: 1,
+  minWidthPixels: 4,
   maxWidthPixels: 20,
 });
 

@@ -36,7 +36,7 @@ const corners = [
   [0, 1],
 ];
 const calculateTileShape: (xyz: vec3) => Promise<vec3[]> = ([x, y, z]) => {
-  const elevationZ = Math.max(0, z - 5);
+  const elevationZ = Math.max(0, z - 6);
   return Promise.all(
     corners
       .map<vec3>(([u, v]) => [x + u, y + v, z])
