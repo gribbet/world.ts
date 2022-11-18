@@ -1,14 +1,27 @@
-import { mat4, vec3 } from "gl-matrix";
+import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { Buffer } from "./buffer";
 
 export interface Program {
   use: () => void;
   uniform1f: (name: string) => Uniform<number>;
   uniform1i: (name: string) => Uniform<number>;
+  uniform2f: (name: string) => Uniform<vec2>;
+  uniform2i: (name: string) => Uniform<vec2>;
   uniform3f: (name: string) => Uniform<vec3>;
   uniform3i: (name: string) => Uniform<vec3>;
+  uniform4f: (name: string) => Uniform<vec4>;
+  uniform4i: (name: string) => Uniform<vec4>;
   uniformMatrix4f: (name: string) => Uniform<mat4>;
-  attribute: (name: string, buffer: Buffer) => void;
+  attribute3f: (
+    name: string,
+    buffer: Buffer,
+    _?: { stride?: number; offset?: number }
+  ) => Attribute;
+  attribute2f: (
+    name: string,
+    buffer: Buffer,
+    _?: { stride?: number; offset?: number }
+  ) => Attribute;
   destroy: () => void;
 }
 
@@ -16,8 +29,8 @@ export interface Uniform<T> {
   set: (value: T) => void;
 }
 
-export interface Attribute<T> {
-  set: (value: T[]) => void;
+export interface Attribute {
+  use: () => void;
 }
 
 export const createProgram: (_: {
@@ -50,76 +63,95 @@ export const createProgram: (_: {
 
   const use = () => gl.useProgram(program);
 
-  const uniform = (name: string) => {
+  const uniform = <T extends number | vec2 | vec3 | vec4 | mat4>(
+    name: string,
+    f: (location: WebGLUniformLocation, value: T) => void
+  ) => {
     const location = gl.getUniformLocation(program, name);
     if (!location) throw new Error(`Missing uniform: ${name}`);
-    return location;
-  };
-
-  const uniform1f = (name: string) => {
-    const location = uniform(name);
-    let cached: number | undefined;
-    const set = (value: number) => {
+    let cached: T | undefined;
+    const set = (value: T) => {
       if (value === cached) return;
-      gl.uniform1f(location, value);
+      f(location, value);
       cached = value;
     };
     return { set };
   };
 
-  const uniform1i = (name: string) => {
-    const location = uniform(name);
-    let cached: number | undefined;
-    const set = (value: number) => {
-      if (value === cached) return;
-      gl.uniform1i(location, value);
-      cached = value;
-    };
-    return { set };
-  };
+  const uniform1f = (name: string) =>
+    uniform<number>(name, (location, x) => gl.uniform1f(location, x));
+  const uniform1i = (name: string) =>
+    uniform<number>(name, (location, x) => gl.uniform1i(location, x));
+  const uniform2f = (name: string) =>
+    uniform<vec2>(name, (location, [x, y]) => gl.uniform2f(location, x, y));
+  const uniform2i = (name: string) =>
+    uniform<vec2>(name, (location, [x, y]) => gl.uniform2i(location, x, y));
+  const uniform3f = (name: string) =>
+    uniform<vec3>(name, (location, [x, y, z]) =>
+      gl.uniform3f(location, x, y, z)
+    );
+  const uniform3i = (name: string) =>
+    uniform<vec3>(name, (location, [x, y, z]) =>
+      gl.uniform3i(location, x, y, z)
+    );
+  const uniform4f = (name: string) =>
+    uniform<vec4>(name, (location, [x, y, z, w]) =>
+      gl.uniform4f(location, x, y, z, w)
+    );
+  const uniform4i = (name: string) =>
+    uniform<vec4>(name, (location, [x, y, z, w]) =>
+      gl.uniform4i(location, x, y, z, w)
+    );
+  const uniformMatrix4f = (name: string) =>
+    uniform<mat4>(name, (location, value) =>
+      gl.uniformMatrix4fv(location, false, value)
+    );
 
-  const uniform3f = (name: string) => {
-    const location = uniform(name);
-    let cached: vec3 | undefined;
-    const set = (value: vec3) => {
-      if (value === cached) return;
-      const [x, y, z] = value;
-      gl.uniform3f(location, x, y, z);
-      cached = value;
-    };
-    return { set };
-  };
-
-  const uniform3i = (name: string) => {
-    const location = uniform(name);
-    let cached: vec3 | undefined;
-    const set = (value: vec3) => {
-      if (value === cached) return;
-      const [x, y, z] = value;
-      gl.uniform3i(location, x, y, z);
-      cached = value;
-    };
-    return { set };
-  };
-
-  const uniformMatrix4f = (name: string) => {
-    const location = uniform(name);
-    let cached: mat4 | undefined;
-    const set = (value: mat4) => {
-      if (value === cached) return;
-      gl.uniformMatrix4fv(location, false, value);
-      cached = value;
-    };
-    return { set };
-  };
-
-  const attribute = (name: string, buffer: Buffer) => {
+  const attribute = ({
+    name,
+    buffer,
+    size,
+    type,
+    stride,
+    offset,
+  }: {
+    name: string;
+    buffer: Buffer;
+    size: number;
+    type: "f32" | "u16";
+    stride?: number;
+    offset?: number;
+  }) => {
     const location = gl.getAttribLocation(program, name);
-    if (location === -1) throw new Error(`Missing attribute: ${location}`);
-    buffer.use();
-    gl.vertexAttribPointer(location, 3, gl.FLOAT, false, 0, 0);
-    gl.enableVertexAttribArray(location);
+    if (location === -1) throw new Error(`Missing attribute: ${name}`);
+
+    const use = () => {
+      buffer.use();
+      gl.enableVertexAttribArray(location);
+      gl.vertexAttribPointer(
+        location,
+        size,
+        type === "f32" ? gl.FLOAT : type === "u16" ? gl.UNSIGNED_SHORT : 0,
+        false,
+        stride || 0,
+        offset || 0
+      );
+    };
+
+    return { use };
   };
+
+  const attribute2f = (
+    name: string,
+    buffer: Buffer,
+    options: { stride?: number; offset?: number } = {}
+  ) => attribute({ name, buffer, size: 2, type: "f32", ...options });
+
+  const attribute3f = (
+    name: string,
+    buffer: Buffer,
+    options: { stride?: number; offset?: number } = {}
+  ) => attribute({ name, buffer, size: 3, type: "f32", ...options });
 
   const destroy = () => {
     gl.deleteProgram(program);
@@ -131,10 +163,15 @@ export const createProgram: (_: {
     use,
     uniform1f,
     uniform1i,
+    uniform2f,
+    uniform2i,
     uniform3f,
     uniform3i,
+    uniform4f,
+    uniform4i,
     uniformMatrix4f,
-    attribute,
+    attribute2f,
+    attribute3f,
     destroy,
   };
 };

@@ -128,10 +128,10 @@ const createRenderProgram = (gl: WebGL2RenderingContext) => {
   const uvwBuffer = createBuffer({ gl, type: "f32", target: "array" });
   uvwBuffer.set(uvw.flatMap(([x, y, z]) => [x, y, z]));
 
-  const indicesBuffer = createBuffer({ gl, type: "u16", target: "element" });
-  indicesBuffer.set(indices);
+  const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
+  indexBuffer.set(indices);
 
-  program.attribute("uvw", uvwBuffer);
+  const uvwAttribute = program.attribute3f("uvw", uvwBuffer);
 
   const projectionUniform = program.uniformMatrix4f("projection");
   const modelViewUniform = program.uniformMatrix4f("model_view");
@@ -165,6 +165,8 @@ const createRenderProgram = (gl: WebGL2RenderingContext) => {
 
     program.use();
 
+    uvwAttribute.use();
+
     projectionUniform.set(projection);
     modelViewUniform.set(modelView);
     xyzUniform.set(xyz);
@@ -180,13 +182,13 @@ const createRenderProgram = (gl: WebGL2RenderingContext) => {
     terrainUniform.set(1);
     terrain.use();
 
-    indicesBuffer.use();
+    indexBuffer.use();
     gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
   };
 
   const destroy = () => {
     uvwBuffer.destroy();
-    indicesBuffer.destroy();
+    indexBuffer.destroy();
     program.destroy();
   };
 
@@ -203,10 +205,10 @@ const createDepthProgram = (gl: WebGL2RenderingContext) => {
   const uvwBuffer = createBuffer({ gl, type: "f32", target: "array" });
   uvwBuffer.set(uvw.flatMap(([x, y, z]) => [x, y, z]));
 
-  const indicesBuffer = createBuffer({ gl, type: "u16", target: "element" });
-  indicesBuffer.set(indices);
+  const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
+  indexBuffer.set(indices);
 
-  program.attribute("uvw", uvwBuffer);
+  const uvwAttribute = program.attribute3f("uvw", uvwBuffer);
 
   const projectionUniform = program.uniformMatrix4f("projection");
   const modelViewUniform = program.uniformMatrix4f("model_view");
@@ -234,6 +236,8 @@ const createDepthProgram = (gl: WebGL2RenderingContext) => {
 
     program.use();
 
+    uvwAttribute.use();
+
     projectionUniform.set(projection);
     modelViewUniform.set(modelView);
     xyzUniform.set(xyz);
@@ -244,13 +248,13 @@ const createDepthProgram = (gl: WebGL2RenderingContext) => {
     terrainUniform.set(1);
     terrain.use();
 
-    indicesBuffer.use();
+    indexBuffer.use();
     gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
   };
 
   const destroy = () => {
     uvwBuffer.destroy();
-    indicesBuffer.destroy();
+    indexBuffer.destroy();
     program.destroy();
   };
 
@@ -292,7 +296,7 @@ const calculateVisibleTiles = (view: View) => {
         .reduce((a, b) => a + b, 0) / 4
     );
 
-    if (size > 256 && z < maxZ) {
+    if (size > 512 && z < maxZ) {
       const divided: vec3[] = [
         [2 * x, 2 * y, z + 1],
         [2 * x + 1, 2 * y, z + 1],

@@ -1,5 +1,6 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { Layer } from "../";
+import { createBuffer } from "../../buffer";
 import { range } from "../../common";
 import { circumference } from "../../constants";
 import { Line } from "../../line";
@@ -8,6 +9,7 @@ import { createProgram } from "../../program";
 import { Viewport } from "../../viewport";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
+import { Buffer } from "../../buffer";
 
 const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
@@ -25,14 +27,9 @@ export const createLineLayer: (
 
   let center: vec3 = [0, 0, 0];
 
-  const positionBuffer = gl.createBuffer();
-  if (!positionBuffer) throw new Error("Buffer creation failed");
-
-  const indexBuffer = gl.createBuffer();
-  if (!indexBuffer) throw new Error("Buffer creation failed");
-
-  const cornerBuffer = gl.createBuffer();
-  if (!cornerBuffer) throw new Error("Buffer creation failed");
+  const positionBuffer = createBuffer({ gl, type: "f32", target: "array" });
+  const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
+  const cornerBuffer = createBuffer({ gl, type: "f32", target: "array" });
 
   const program = createLineProgram(gl, {
     positionBuffer,
@@ -48,14 +45,14 @@ export const createLineLayer: (
     program.execute({
       projection,
       modelView,
-      camera,
+      camera: to(camera),
+      center: to(center),
       screen,
-      center,
       count,
       color,
-      width,
-      minWidthPixels,
-      maxWidthPixels,
+      width: width / circumference,
+      minWidthPixels: minWidthPixels || 0,
+      maxWidthPixels: maxWidthPixels || Number.MAX_VALUE,
     });
 
   const depth = () => {
@@ -63,7 +60,10 @@ export const createLineLayer: (
   };
 
   const destroy = () => {
-    // TODO:
+    positionBuffer.destroy();
+    indexBuffer.destroy();
+    cornerBuffer.destroy();
+    program.destroy();
   };
 
   const updatePoints = (points: vec3[]) => {
@@ -95,26 +95,9 @@ export const createLineLayer: (
       ].flat()
     );
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array(positionData),
-      gl.DYNAMIC_DRAW
-    );
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
-    gl.bufferData(
-      gl.ELEMENT_ARRAY_BUFFER,
-      new Uint16Array(indexData),
-      gl.DYNAMIC_DRAW
-    );
-
-    gl.bindBuffer(gl.ARRAY_BUFFER, cornerBuffer);
-    gl.bufferData(
-      gl.ARRAY_BUFFER,
-      new Float32Array(cornerData),
-      gl.DYNAMIC_DRAW
-    );
+    positionBuffer.set(positionData);
+    indexBuffer.set(indexData);
+    cornerBuffer.set(cornerData);
   };
 
   return {
@@ -146,39 +129,46 @@ const createLineProgram = (
     indexBuffer,
     cornerBuffer,
   }: {
-    positionBuffer: WebGLBuffer;
-    indexBuffer: WebGLBuffer;
-    cornerBuffer: WebGLBuffer;
+    positionBuffer: Buffer;
+    indexBuffer: Buffer;
+    cornerBuffer: Buffer;
   }
 ) => {
   const program = createProgram({ gl, vertexSource, fragmentSource });
 
-  const previousAttribute = gl.getAttribLocation(program, "previous");
-  const currentAttribute = gl.getAttribLocation(program, "current");
-  const nextAttribute = gl.getAttribLocation(program, "next");
-  const cornerAttribute = gl.getAttribLocation(program, "corner");
-  const projectionUniform = gl.getUniformLocation(program, "projection");
-  const modelViewUniform = gl.getUniformLocation(program, "modelView");
-  const cameraUniform = gl.getUniformLocation(program, "camera");
-  const centerUniform = gl.getUniformLocation(program, "center");
-  const screenUniform = gl.getUniformLocation(program, "screen");
-  const colorUniform = gl.getUniformLocation(program, "color");
-  const widthUniform = gl.getUniformLocation(program, "width");
-  const maxWidthPixelsUniform = gl.getUniformLocation(
-    program,
-    "maxWidthPixels"
-  );
-  const minWidthPixelsUniform = gl.getUniformLocation(
-    program,
-    "minWidthPixels"
-  );
+  const FLOAT_BYTES = Float32Array.BYTES_PER_ELEMENT;
+
+  const previousAttribute = program.attribute3f("previous", positionBuffer, {
+    stride: 3 * FLOAT_BYTES,
+  });
+  const currentAttribute = program.attribute3f("current", positionBuffer, {
+    stride: 3 * FLOAT_BYTES,
+    offset: FLOAT_BYTES * 3 * 4,
+  });
+  const nextAttribute = program.attribute3f("next", positionBuffer, {
+    stride: 3 * FLOAT_BYTES,
+    offset: FLOAT_BYTES * 3 * 4 * 2,
+  });
+  const cornerAttribute = program.attribute2f("corner", cornerBuffer, {
+    stride: FLOAT_BYTES * 2,
+  });
+
+  const projectionUniform = program.uniformMatrix4f("projection");
+  const modelViewUniform = program.uniformMatrix4f("model_view");
+  const cameraUniform = program.uniform3i("camera");
+  const centerUniform = program.uniform3i("center");
+  const screenUniform = program.uniform2f("screen");
+  const colorUniform = program.uniform4f("color");
+  const widthUniform = program.uniform1f("width");
+  const maxWidthPixelsUniform = program.uniform1f("max_width_pixels");
+  const minWidthPixelsUniform = program.uniform1f("min_width_pixels");
 
   const execute = ({
     projection,
     modelView,
     camera,
-    screen,
     center,
+    screen,
     count,
     color,
     width,
@@ -193,76 +183,37 @@ const createLineProgram = (
     count: number;
     color: vec4;
     width: number;
-    minWidthPixels?: number;
-    maxWidthPixels?: number;
+    minWidthPixels: number;
+    maxWidthPixels: number;
   }) => {
     if (count == 0) return;
 
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
 
-    gl.useProgram(program);
-    gl.uniformMatrix4fv(projectionUniform, false, projection);
-    gl.uniformMatrix4fv(modelViewUniform, false, modelView);
-    gl.uniform3iv(cameraUniform, [...to(camera)]);
-    gl.uniform3iv(centerUniform, [...to(center)]);
-    gl.uniform2fv(screenUniform, screen);
-    gl.uniform4fv(colorUniform, color);
-    gl.uniform1f(widthUniform, width / circumference);
-    gl.uniform1f(minWidthPixelsUniform, minWidthPixels || 0);
-    gl.uniform1f(maxWidthPixelsUniform, maxWidthPixels || Number.MAX_VALUE);
+    program.use();
 
-    const FLOAT_BYTES = Float32Array.BYTES_PER_ELEMENT;
+    previousAttribute.use();
+    currentAttribute.use();
+    nextAttribute.use();
+    cornerAttribute.use();
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, cornerBuffer);
-    gl.vertexAttribPointer(
-      cornerAttribute,
-      2,
-      gl.FLOAT,
-      false,
-      FLOAT_BYTES * 2,
-      0
-    );
-    gl.enableVertexAttribArray(cornerAttribute);
+    projectionUniform.set(projection);
+    modelViewUniform.set(modelView);
+    cameraUniform.set(camera);
+    centerUniform.set(center);
+    screenUniform.set(screen);
+    colorUniform.set(color);
+    widthUniform.set(width);
+    minWidthPixelsUniform.set(minWidthPixels);
+    maxWidthPixelsUniform.set(maxWidthPixels);
 
-    gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
-    gl.vertexAttribPointer(
-      previousAttribute,
-      3,
-      gl.FLOAT,
-      false,
-      FLOAT_BYTES * 3,
-      0
-    );
-    gl.enableVertexAttribArray(previousAttribute);
+    indexBuffer.use();
 
-    gl.vertexAttribPointer(
-      currentAttribute,
-      3,
-      gl.FLOAT,
-      false,
-      FLOAT_BYTES * 3,
-      FLOAT_BYTES * 3 * 4
-    );
-    gl.enableVertexAttribArray(currentAttribute);
-
-    gl.vertexAttribPointer(
-      nextAttribute,
-      3,
-      gl.FLOAT,
-      false,
-      FLOAT_BYTES * 3,
-      FLOAT_BYTES * 3 * 4 * 2
-    );
-    gl.enableVertexAttribArray(nextAttribute);
-
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, indexBuffer);
     gl.drawElements(gl.TRIANGLES, count * 3 * 4 - 4, gl.UNSIGNED_SHORT, 0);
   };
 
-  const destroy = () => {
-    // TODO:
-  };
+  const destroy = () => program.destroy();
 
   return { execute, destroy };
 };

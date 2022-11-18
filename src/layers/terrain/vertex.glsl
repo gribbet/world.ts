@@ -1,6 +1,8 @@
 #version 300 es
 
-in vec3 uvw;
+precision highp float;
+
+
 uniform mat4 projection;
 uniform mat4 model_view;
 uniform ivec3 xyz;
@@ -8,6 +10,8 @@ uniform ivec3 camera;
 uniform sampler2D terrain;
 uniform int downsample_imagery;
 uniform int downsample_terrain;
+
+in vec3 uvw;
 out vec2 uv;
 
 const int ONE = 1073741824; // 2^30

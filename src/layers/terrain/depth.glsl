@@ -2,7 +2,7 @@
 
 precision highp float;
 
-out vec4 color;
+out vec4 result;
 
 vec2 pack_depth(in float depth) {
     float depth_val = depth * (256. * 256. - 1.) / (256. * 256.);
@@ -11,5 +11,5 @@ vec2 pack_depth(in float depth) {
 }
 
 void main(void) {
-    color = vec4(pack_depth(gl_FragCoord.z), 0, 1.);
+    result = vec4(pack_depth(gl_FragCoord.z), 0, 1.);
 }
