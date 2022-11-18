@@ -66,16 +66,71 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
 
   const depthProgram = createDepthProgram(gl);
 
+  const q = [0, 1, 2, 3];
+  const vec3s = q.map(vec3.create);
+  const vec4s = q.map(vec4.create);
+  const vec2s = q.map(vec2.create);
+
+  const calculateVisibleTiles = (view: View) => {
+    const { worldToLocal, localToClip, clipToScreen } = createViewport(view);
+
+    const divide: (xyz: vec3) => vec3[] = (xyz) => {
+      const [x, y, z] = xyz;
+
+      const clip = tileShape(xyz)
+        ?.map((_, i) => worldToLocal(_, vec3s[i]))
+        .map((_, i) => localToClip(_, vec4s[i]));
+      if (
+        !clip ||
+        clip.every(([x, , , w]) => x > w) ||
+        clip.every(([x, , , w]) => x < -w) ||
+        clip.every(([, y, , w]) => y > w) ||
+        clip.every(([, y, , w]) => y < -w) ||
+        clip.every(([, , z, w]) => z > w) ||
+        clip.every(([, , z, w]) => z < -w) ||
+        clip.every(([, , , w]) => w < 0)
+      )
+        return [];
+
+      const pixels = clip.map((_, i) => clipToScreen(_, vec2s[i]));
+      const size = Math.sqrt(
+        q
+          .map((i) =>
+            vec2.squaredDistance(pixels[i], pixels[(i + 1) % pixels.length])
+          )
+          .reduce((a, b) => a + b, 0) / 4
+      );
+
+      if (size > 512 && z < maxZ) {
+        const divided: vec3[] = [
+          [2 * x, 2 * y, z + 1],
+          [2 * x + 1, 2 * y, z + 1],
+          [2 * x, 2 * y + 1, z + 1],
+          [2 * x + 1, 2 * y + 1, z + 1],
+        ];
+
+        const next = divided.flatMap((_) => divide(_));
+
+        if (divided.some((_) => !tileShape(_))) return [xyz];
+
+        return next;
+      } else return [xyz];
+    };
+
+    return divide([0, 0, 0]);
+  };
+
   const render = ({ view, projection, modelView }: Viewport) =>
     tiles.cancelUnused(() => {
       const { camera } = view;
       const visible = calculateVisibleTiles(view);
 
       for (const xyz of visible) {
-        const { texture: imagery, downsample: downsampleImagery } =
-          tiles.imagery(xyz);
-        const { texture: terrain, downsample: downsampleTerrain } =
-          tiles.terrain(xyz);
+        const imageryTile = tiles.imagery(xyz);
+        const terrainTile = tiles.terrain(xyz);
+        if (!imageryTile || !terrainTile) continue;
+        const { texture: imagery, downsample: downsampleImagery } = imageryTile;
+        const { texture: terrain, downsample: downsampleTerrain } = terrainTile;
 
         renderProgram.execute({
           projection,
@@ -96,7 +151,9 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
       const visible = calculateVisibleTiles(view);
 
       for (const xyz of visible) {
-        const { texture: terrain, downsample } = tiles.terrain(xyz);
+        const terrainTile = tiles.terrain(xyz);
+        if (!terrainTile) continue;
+        const { texture: terrain, downsample } = terrainTile;
 
         depthProgram.execute({
           projection,
@@ -259,58 +316,4 @@ const createDepthProgram = (gl: WebGL2RenderingContext) => {
   };
 
   return { execute, destroy };
-};
-
-const q = [0, 1, 2, 3];
-const vec3s = q.map(vec3.create);
-const vec4s = q.map(vec4.create);
-const vec2s = q.map(vec2.create);
-
-const calculateVisibleTiles = (view: View) => {
-  const { worldToLocal, localToClip, clipToScreen } = createViewport(view);
-
-  const divide: (xyz: vec3) => vec3[] = (xyz) => {
-    const [x, y, z] = xyz;
-
-    const clip = tileShape(xyz)
-      ?.map((_, i) => worldToLocal(_, vec3s[i]))
-      .map((_, i) => localToClip(_, vec4s[i]));
-    if (
-      !clip ||
-      clip.every(([x, , , w]) => x > w) ||
-      clip.every(([x, , , w]) => x < -w) ||
-      clip.every(([, y, , w]) => y > w) ||
-      clip.every(([, y, , w]) => y < -w) ||
-      clip.every(([, , z, w]) => z > w) ||
-      clip.every(([, , z, w]) => z < -w) ||
-      clip.every(([, , , w]) => w < 0)
-    )
-      return [];
-
-    const pixels = clip.map((_, i) => clipToScreen(_, vec2s[i]));
-    const size = Math.sqrt(
-      q
-        .map((i) =>
-          vec2.squaredDistance(pixels[i], pixels[(i + 1) % pixels.length])
-        )
-        .reduce((a, b) => a + b, 0) / 4
-    );
-
-    if (size > 512 && z < maxZ) {
-      const divided: vec3[] = [
-        [2 * x, 2 * y, z + 1],
-        [2 * x + 1, 2 * y, z + 1],
-        [2 * x, 2 * y + 1, z + 1],
-        [2 * x + 1, 2 * y + 1, z + 1],
-      ];
-
-      const next = divided.flatMap((_) => divide(_));
-
-      if (divided.some((_) => !tileShape(_))) return [xyz];
-
-      return next;
-    } else return [xyz];
-  };
-
-  return divide([0, 0, 0]);
 };
