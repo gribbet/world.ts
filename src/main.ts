@@ -7,8 +7,11 @@ import { createWorld } from "./world";
 /**
  * TODO:
  * elevation to use tile cache
- * smooth transition
+ * mesh
+ * object class
+ * pick
  * mercator elevation
+ * smooth transition
  * subdivide const
  */
 
@@ -36,7 +39,7 @@ const frame = (time: number) => {
     return [-121 + 1 * Math.cos(a * 5), 38 + 1 * Math.sin(a), 400];
   });
   line.points = points;
-  requestAnimationFrame(frame);
+  //requestAnimationFrame(frame);
 };
 
 requestAnimationFrame(frame);

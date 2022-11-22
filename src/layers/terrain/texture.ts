@@ -1,5 +1,6 @@
 export interface Texture {
   use: () => void;
+  attach: () => void;
   destroy: () => void;
 }
 
@@ -7,19 +8,20 @@ export const createTexture: (gl: WebGL2RenderingContext) => Texture = (gl) => {
   const texture = gl.createTexture();
   if (!texture) throw new Error("Texture creation failed");
 
-  let destroyed = false;
+  const use = () => gl.bindTexture(gl.TEXTURE_2D, texture);
 
-  const use = () => {
-    if (destroyed) {
-      throw new Error("Test");
-    }
-    gl.bindTexture(gl.TEXTURE_2D, texture);
+  const attach = () => {
+    use();
+    gl.framebufferTexture2D(
+      gl.FRAMEBUFFER,
+      gl.COLOR_ATTACHMENT0,
+      gl.TEXTURE_2D,
+      texture,
+      0
+    );
   };
 
-  const destroy = () => {
-    destroyed = true;
-    gl.deleteTexture(texture);
-  };
+  const destroy = () => gl.deleteTexture(texture);
 
-  return { use, destroy };
+  return { use, attach, destroy };
 };

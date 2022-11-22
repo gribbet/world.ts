@@ -14,28 +14,37 @@ export const createTileCache: (_: {
   urlPattern: string;
   onLoad?: () => void;
 }) => TileCache = ({ gl, urlPattern, onLoad }) => {
-  const tiles = new LruCache<string, ImageTexture>({
+  const tiles = new LruCache<number, ImageTexture>({
     max: 1000,
     dispose: (tile) => {
       tile.destroy();
     },
   });
 
-  const used = new Set<string>();
-  const get: (xyz: vec3) => ImageTexture | undefined = (xyz) => {
+  const tileKey = ([x, y, z]: vec3) => {
+    let key = y * 2 ** z + x;
+    while (--z > 0) {
+      key += 4 ** z;
+    }
+    return key;
+  };
+
+  const used = new Set<number>();
+  const get: (xyz: vec3) => Texture | undefined = (xyz) => {
     const [x, y, z] = xyz;
-    const url = urlPattern
-      .replace("{x}", `${x}`)
-      .replace("{y}", `${y}`)
-      .replace("{z}", `${z}`);
-    used.add(url);
-    const cached = tiles.get(url);
+    const key = tileKey(xyz);
+    used.add(key);
+    const cached = tiles.get(key);
     if (cached) {
       const { loaded } = cached;
       if (loaded) return cached;
     } else {
+      const url = urlPattern
+        .replace("{x}", `${x}`)
+        .replace("{y}", `${y}`)
+        .replace("{z}", `${z}`);
       const texture = createImageTexture({ gl, url, onLoad });
-      tiles.set(url, texture);
+      tiles.set(key, texture);
     }
   };
 

@@ -32,7 +32,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   const minimumDistance = 200;
 
   let view: View = {
-    camera: [0.18364142064305536, 0.3759435476297003, 7.430314677337515e-5],
+    camera: [0, 0, 1],
     screen: [0, 0],
     bearing: 0,
     pitch: 0,

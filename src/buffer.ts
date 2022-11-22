@@ -10,7 +10,7 @@ export const createBuffer: (_: {
   target: "array" | "element";
 }) => Buffer = ({ gl, type, target }) => {
   const buffer = gl.createBuffer();
-  if (!buffer) throw new Error("Could not create buffer");
+  if (!buffer) throw new Error("Buffer creation failed");
 
   const glTarget =
     target === "array" ? gl.ARRAY_BUFFER : gl.ELEMENT_ARRAY_BUFFER;

@@ -1,15 +1,18 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { Layer } from "..";
+import { createBuffer } from "../../buffer";
 import { range } from "../../common";
+import { imageryUrl, terrainUrl } from "../../constants";
+import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
-import { tileShape } from "./tile-shape";
-import { createTiles } from "./tiles";
-import { View, Viewport, createViewport } from "../../viewport";
+import { createViewport, View, Viewport } from "../../viewport";
 import depthSource from "./depth.glsl";
 import fragmentSource from "./fragment.glsl";
-import vertexSource from "./vertex.glsl";
-import { createBuffer } from "../../buffer";
 import { Texture } from "./texture";
+import { createTileCache } from "./tile-cache";
+import { createTileDownsampler } from "./tile-downsampler";
+import { createTileShapes } from "./tile-shapes";
+import vertexSource from "./vertex.glsl";
 
 const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
@@ -60,7 +63,40 @@ const uvw = range(0, n + 1).flatMap((y) =>
 export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
   gl
 ) => {
-  const tiles = createTiles(gl);
+  const imageryCache = createTileCache({
+    gl,
+    urlPattern: imageryUrl,
+    onLoad: () => {
+      gl.texParameteri(
+        gl.TEXTURE_2D,
+        gl.TEXTURE_MIN_FILTER,
+        gl.LINEAR_MIPMAP_LINEAR
+      );
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+      gl.generateMipmap(gl.TEXTURE_2D);
+    },
+  });
+
+  const terrainCache = createTileCache({
+    gl,
+    urlPattern: terrainUrl,
+    onLoad: () => {
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    },
+  });
+
+  const imageryDownsampler = createTileDownsampler(imageryCache);
+
+  const terrainDownsampler = createTileDownsampler(terrainCache);
+
+  const elevation = createElevation({ gl, terrainCache });
+
+  const tileShapes = createTileShapes(elevation);
 
   const renderProgram = createRenderProgram(gl);
 
@@ -77,11 +113,11 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
     const divide: (xyz: vec3) => vec3[] = (xyz) => {
       const [x, y, z] = xyz;
 
-      const clip = tileShape(xyz)
-        ?.map((_, i) => worldToLocal(_, vec3s[i]))
+      const clip = tileShapes
+        .get(xyz)
+        .map((_, i) => worldToLocal(_, vec3s[i]))
         .map((_, i) => localToClip(_, vec4s[i]));
       if (
-        !clip ||
         clip.every(([x, , , w]) => x > w) ||
         clip.every(([x, , , w]) => x < -w) ||
         clip.every(([, y, , w]) => y > w) ||
@@ -109,28 +145,31 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
           [2 * x + 1, 2 * y + 1, z + 1],
         ];
 
-        const next = divided.flatMap((_) => divide(_));
-
-        if (divided.some((_) => !tileShape(_))) return [xyz];
-
-        return next;
+        return divided.flatMap((_) => divide(_));
       } else return [xyz];
     };
 
     return divide([0, 0, 0]);
   };
 
+  const cancelUnused = (f: () => void) =>
+    imageryCache.cancelUnused(() => terrainCache.cancelUnused(f));
+
   const render = ({ view, projection, modelView }: Viewport) =>
-    tiles.cancelUnused(() => {
+    cancelUnused(() => {
       const { camera } = view;
       const visible = calculateVisibleTiles(view);
 
+      //console.log(visible.length);
+
       for (const xyz of visible) {
-        const imageryTile = tiles.imagery(xyz);
-        const terrainTile = tiles.terrain(xyz);
-        if (!imageryTile || !terrainTile) continue;
-        const { texture: imagery, downsample: downsampleImagery } = imageryTile;
-        const { texture: terrain, downsample: downsampleTerrain } = terrainTile;
+        const downsampledImagery = imageryDownsampler.get(xyz);
+        const downsampledTerrain = terrainDownsampler.get(xyz);
+        if (!downsampledImagery || !downsampledTerrain) continue;
+        const { texture: imagery, downsample: downsampleImagery } =
+          downsampledImagery;
+        const { texture: terrain, downsample: downsampleTerrain } =
+          downsampledTerrain;
 
         renderProgram.execute({
           projection,
@@ -146,14 +185,14 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
     });
 
   const depth = ({ view, projection, modelView }: Viewport) =>
-    tiles.cancelUnused(() => {
+    cancelUnused(() => {
       const { camera } = view;
       const visible = calculateVisibleTiles(view);
 
       for (const xyz of visible) {
-        const terrainTile = tiles.terrain(xyz);
-        if (!terrainTile) continue;
-        const { texture: terrain, downsample } = terrainTile;
+        const downsampledTerrain = terrainDownsampler.get(xyz);
+        if (!downsampledTerrain) continue;
+        const { texture: terrain, downsample } = downsampledTerrain;
 
         depthProgram.execute({
           projection,
@@ -169,7 +208,9 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
   const destroy = () => {
     depthProgram.destroy();
     renderProgram.destroy();
-    tiles.destroy();
+    imageryCache.destroy();
+    terrainCache.destroy();
+    elevation.destroy();
   };
 
   return { render, depth, destroy };

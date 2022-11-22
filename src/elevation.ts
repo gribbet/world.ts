@@ -1,84 +1,74 @@
+import { vec2, vec3 } from "gl-matrix";
 import * as LRUCache from "lru-cache";
-import { terrainUrl } from "./constants";
-import { createImageLoad } from "./image-load";
+import { TileCache } from "./layers/terrain/tile-cache";
+import { createTileDownsampler } from "./layers/terrain/tile-downsampler";
+import { createTileIndexCache } from "./layers/terrain/tile-index-cache";
 import { mercator } from "./math";
 
-const defaultZ = 12;
+const defaultZ = 5;
+const size = 256;
 
-const cache = new LRUCache<string, Promise<number>>({
-  max: 1000,
-});
-
-export const elevation: (
-  [lng, lat]: [number, number],
-  z?: number
-) => Promise<number> = ([lng, lat], z = defaultZ) => {
-  const key = `${lng}-${lat}`;
-  const cached = cache.get(key);
-  if (cached) return cached;
-
-  const k = 2 ** z;
-  const p = mercator([lng, lat, 0]).map((_) => _ * k);
-  const [x, y] = p.map((_) => Math.floor(_ % k));
-  const [px, py] = p.map((_) => _ % 1);
-  const result = tile(x, y, z).then((_) => _.query(px, py));
-
-  cache.set(key, result);
-
-  return result;
-};
-
-interface Tile {
-  query(x: number, y: number): number;
+export interface Elevation {
+  get: ([lng, lat]: vec2, z?: number) => number;
+  destroy: () => void;
 }
 
-const tileCache = new LRUCache<string, Promise<Tile>>({
-  max: 10000,
-});
+export const createElevation: (_: {
+  gl: WebGL2RenderingContext;
+  terrainCache: TileCache;
+}) => Elevation = ({ gl, terrainCache }) => {
+  const tileCache = createTileIndexCache<Uint8Array>({
+    max: 1000,
+  });
 
-const tile = (x: number, y: number, z: number) => {
-  const key = [x, y, z].join("-");
-  const cached = tileCache.get(key);
-  if (cached) return cached;
-  const result = loadTile(x, y, z);
-  tileCache.set(key, result);
-  return result;
-};
+  const downsampler = createTileDownsampler(terrainCache);
 
-const loadTile = async (x: number, y: number, z: number) => {
-  try {
-    const image = await new Promise<ImageBitmap | undefined>((onLoad) => {
-      const url = terrainUrl
-        .replace("{x}", x.toString())
-        .replace("{y}", y.toString())
-        .replace("{z}", z.toString());
-      createImageLoad({ url, onLoad });
-    });
+  const framebuffer = gl.createFramebuffer();
+  if (!framebuffer) throw new Error("Framebuffer creation failed");
 
-    if (!image) {
-      const query = () => 0;
-      return { query };
-    }
+  const downsampleBuffer = ([x, y, z]: vec3) => {
+    const tile = downsampler.get([x, y, z]);
+    if (!tile) return undefined;
+    const { texture, downsample } = tile;
+    const k = 2 ** downsample;
+    const xyz: vec3 = [Math.floor(x / k), Math.floor(y / k), z - downsample];
+    const cached = tileCache.get(xyz);
+    if (cached) return { buffer: cached, downsample };
 
-    const { width, height } = image;
+    const buffer = new Uint8Array(4 * size * size);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, framebuffer);
+    texture.attach();
+    gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    const canvas = document.createElement("canvas");
-    canvas.width = width;
-    canvas.height = height;
-    const context = canvas.getContext("2d");
-    if (!context) throw new Error("Context failure");
+    console.log("Read", xyz);
 
-    context.drawImage(image, 0, 0, width, height);
+    tileCache.set(xyz, buffer);
+    return { buffer, downsample };
+  };
 
-    const query = (x: number, y: number) => {
-      const { data } = context.getImageData(x * width, y * height, 1, 1);
-      const [r, g, b] = data;
-      return (r * 65536 + g * 256 + b) / 10 - 10000;
-    };
+  const get = ([lng, lat]: vec2, z = defaultZ) => {
+    const k = 2 ** z;
+    const p = mercator([lng, lat, 0]).map((_) => _ * k);
+    const [x, y] = p.map((_) => Math.floor(_ % k));
+    let [px, py] = p.map((_) => _ % 1);
+    const downsampled = downsampleBuffer([x, y, z]);
+    if (!downsampled) return 0;
+    const { buffer, downsample } = downsampled;
+    const k2 = 2 ** downsample;
+    [px, py] = [((x % k2) + px) / k2, ((y % k2) + py) / k2];
 
-    return { query };
-  } catch (error) {
-    console.warn("Elevation tile load failure", { x, y, z });
-    return { query: () => 0 };
-  }
+    const q = 4 * size * Math.floor(py * size) + 4 * Math.floor(px * size);
+    const [r, g, b] = buffer.slice(q, q + 4);
+
+    const value = (r * 65536 + g * 256 + b) / 10 - 10000;
+
+    return value;
+  };
+
+  const destroy = () => {
+    gl.deleteFramebuffer(framebuffer);
+  };
+
+  return { get, destroy };
 };

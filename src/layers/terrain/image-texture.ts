@@ -4,6 +4,7 @@ import { createTexture } from "./texture";
 export interface ImageTexture {
   loaded: boolean;
   use: () => void;
+  attach: () => void;
   destroy: () => void;
 }
 
@@ -17,6 +18,7 @@ export const createImageTexture: (_: {
   const imageLoad = createImageLoad({
     url,
     onLoad: (image) => {
+      if (!image) return;
       texture.use();
       gl.texImage2D(
         gl.TEXTURE_2D,
@@ -26,11 +28,14 @@ export const createImageTexture: (_: {
         gl.UNSIGNED_BYTE,
         image
       );
+      image.close();
       onLoad?.();
     },
   });
 
   const use = () => texture.use();
+
+  const attach = () => texture.attach();
 
   const destroy = () => {
     imageLoad.cancel();
@@ -42,6 +47,7 @@ export const createImageTexture: (_: {
       return imageLoad.loaded;
     },
     use,
+    attach,
     destroy,
   };
 };

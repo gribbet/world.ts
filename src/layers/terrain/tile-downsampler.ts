@@ -1,7 +1,6 @@
 import { vec3 } from "gl-matrix";
-import { imageryUrl, terrainUrl } from "../../constants";
-import { createTexture, Texture } from "./texture";
-import { createTileCache, TileCache } from "./tile-cache";
+import { Texture } from "./texture";
+import { TileCache } from "./tile-cache";
 
 export interface DownsampledTile {
   texture: Texture;
