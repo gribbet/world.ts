@@ -1,10 +1,10 @@
 import { vec3 } from "gl-matrix";
 import * as LRUCache from "lru-cache";
 
-export interface TileIndexCache<T> {
+export type TileIndexCache<T> = {
   get: (xyz: vec3) => T | undefined;
   set: (xyz: vec3, value: T) => void;
-}
+};
 
 export const createTileIndexCache: <T>(_: {
   max: number;

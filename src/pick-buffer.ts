@@ -1,11 +1,11 @@
 import { vec2 } from "gl-matrix";
 
-export interface PickBuffer {
+export type PickBuffer = {
   use: () => void;
   resize: (size: vec2) => void;
   read: (pixel: vec2) => number;
   destroy: () => void;
-}
+};
 
 export const createPickBuffer: (gl: WebGL2RenderingContext) => PickBuffer = (
   gl

@@ -1,12 +1,12 @@
 import { createImageLoad } from "../../image-load";
 import { createTexture } from "./texture";
 
-export interface ImageTexture {
+export type ImageTexture = {
   loaded: boolean;
   use: () => void;
   attach: () => void;
   destroy: () => void;
-}
+};
 
 export const createImageTexture: (_: {
   gl: WebGL2RenderingContext;

@@ -15,9 +15,10 @@ const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
   [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
 
-export interface LineLayer extends Layer, Line {
-  destroy: () => void;
-}
+export type LineLayer = Layer &
+  Line & {
+    destroy: () => void;
+  };
 
 export const createLineLayer: (
   gl: WebGL2RenderingContext,

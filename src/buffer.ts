@@ -1,8 +1,8 @@
-export interface Buffer {
+export type Buffer = {
   set: (value: number[]) => void;
   use: () => void;
   destroy: () => void;
-}
+};
 
 export const createBuffer: (_: {
   gl: WebGL2RenderingContext;

@@ -4,9 +4,9 @@ import { Elevation } from "../../elevation";
 import { geodetic, mercator, tileToMercator } from "../../math";
 import { createTileIndexCache } from "./tile-index-cache";
 
-export interface TileShapes {
+export type TileShapes = {
   get: (xyz: vec3) => vec3[];
-}
+};
 
 export const createTileShapes: (elevation: Elevation) => TileShapes = (
   elevation

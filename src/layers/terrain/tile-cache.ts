@@ -3,11 +3,11 @@ import * as LruCache from "lru-cache";
 import { createImageTexture, ImageTexture } from "./image-texture";
 import { Texture } from "./texture";
 
-export interface TileCache {
+export type TileCache = {
   get: (xyz: vec3) => Texture | undefined;
   cancelUnused: (f: () => void) => void;
   destroy: () => void;
-}
+};
 
 export const createTileCache: (_: {
   gl: WebGL2RenderingContext;

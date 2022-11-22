@@ -14,17 +14,17 @@ import { View, createViewport } from "./viewport";
 
 glMatrix.setMatrixArrayType(Array);
 
-export interface World {
+export type World = {
   set anchor(anchor: Anchor);
   addLine: (line: Partial<Line>) => Line;
   destroy: () => void;
-}
+};
 
-interface Anchor {
+type Anchor = {
   screen: vec2;
   world: vec3;
   distance: number;
-}
+};
 
 export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let anchor: Anchor | undefined;

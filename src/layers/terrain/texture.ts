@@ -1,8 +1,8 @@
-export interface Texture {
+export type Texture = {
   use: () => void;
   attach: () => void;
   destroy: () => void;
-}
+};
 
 export const createTexture: (gl: WebGL2RenderingContext) => Texture = (gl) => {
   const texture = gl.createTexture();

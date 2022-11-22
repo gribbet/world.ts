@@ -2,14 +2,14 @@ import { vec3 } from "gl-matrix";
 import { Texture } from "./texture";
 import { TileCache } from "./tile-cache";
 
-export interface DownsampledTile {
+export type DownsampledTile = {
   texture: Texture;
   downsample: number;
-}
+};
 
-export interface TileDownsampler {
+export type TileDownsampler = {
   get: (xyz: vec3, downsample?: number) => DownsampledTile | undefined;
-}
+};
 
 export const createTileDownsampler: (cache: TileCache) => TileDownsampler = (
   cache

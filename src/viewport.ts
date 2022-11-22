@@ -1,13 +1,13 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
-export interface View {
+export type View = {
   camera: vec3;
   screen: vec2;
   bearing: number;
   pitch: number;
-}
+};
 
-export interface Viewport {
+export type Viewport = {
   view: View;
   projection: mat4;
   modelView: mat4;
@@ -17,7 +17,7 @@ export interface Viewport {
   localToClip: (_: vec3, out?: vec4) => vec4;
   localToWorld: (_: vec3, out?: vec3) => vec3;
   worldToLocal: (_: vec3, out?: vec3) => vec3;
-}
+};
 
 const matrix = mat4.create();
 const vector = vec4.create();

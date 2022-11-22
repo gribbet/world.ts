@@ -2,10 +2,10 @@ const worker = new Worker(new URL("./image-load-worker.ts", import.meta.url), {
   type: "module",
 });
 
-export interface ImageLoad {
+export type ImageLoad = {
   loaded: boolean;
   cancel: () => void;
-}
+};
 
 export const createImageLoad: (_: {
   url: string;

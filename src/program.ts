@@ -1,7 +1,7 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { Buffer } from "./buffer";
 
-export interface Program {
+export type Program = {
   use: () => void;
   uniform1f: (name: string) => Uniform<number>;
   uniform1i: (name: string) => Uniform<number>;
@@ -23,15 +23,15 @@ export interface Program {
     _?: { stride?: number; offset?: number }
   ) => Attribute;
   destroy: () => void;
-}
+};
 
-export interface Uniform<T> {
+export type Uniform<T> = {
   set: (value: T) => void;
-}
+};
 
-export interface Attribute {
+export type Attribute = {
   use: () => void;
-}
+};
 
 export const createProgram: (_: {
   gl: WebGL2RenderingContext;

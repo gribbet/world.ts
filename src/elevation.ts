@@ -8,10 +8,10 @@ import { mercator } from "./math";
 const defaultZ = 5;
 const size = 256;
 
-export interface Elevation {
+export type Elevation = {
   get: ([lng, lat]: vec2, z?: number) => number;
   destroy: () => void;
-}
+};
 
 export const createElevation: (_: {
   gl: WebGL2RenderingContext;
