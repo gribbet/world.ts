@@ -92,7 +92,7 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
 
   const imageryDownsampler = createTileDownsampler(imageryCache);
 
-  const terrainDownsampler = createTileDownsampler(terrainCache);
+  const terrainDownsampler = createTileDownsampler(terrainCache, 3);
 
   const elevation = createElevation({ gl, terrainCache });
 
@@ -137,7 +137,7 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
           .reduce((a, b) => a + b, 0) / 4
       );
 
-      if (size > 512 && z < maxZ) {
+      if (size > 1024 && z < maxZ) {
         const divided: vec3[] = [
           [2 * x, 2 * y, z + 1],
           [2 * x + 1, 2 * y, z + 1],
@@ -152,58 +152,51 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
     return divide([0, 0, 0]);
   };
 
-  const cancelUnused = (f: () => void) =>
-    imageryCache.cancelUnused(() => terrainCache.cancelUnused(f));
+  const render = ({ view, projection, modelView }: Viewport) => {
+    const { camera } = view;
+    const visible = calculateVisibleTiles(view);
 
-  const render = ({ view, projection, modelView }: Viewport) =>
-    cancelUnused(() => {
-      const { camera } = view;
-      const visible = calculateVisibleTiles(view);
+    for (const xyz of visible) {
+      const downsampledImagery = imageryDownsampler.get(xyz);
+      const downsampledTerrain = terrainDownsampler.get(xyz);
+      if (!downsampledImagery || !downsampledTerrain) continue;
+      const { texture: imagery, downsample: downsampleImagery } =
+        downsampledImagery;
+      const { texture: terrain, downsample: downsampleTerrain } =
+        downsampledTerrain;
 
-      //console.log(visible.length);
+      renderProgram.execute({
+        projection,
+        modelView,
+        camera: to(camera),
+        xyz,
+        imagery,
+        terrain,
+        downsampleImagery,
+        downsampleTerrain,
+      });
+    }
+  };
 
-      for (const xyz of visible) {
-        const downsampledImagery = imageryDownsampler.get(xyz);
-        const downsampledTerrain = terrainDownsampler.get(xyz);
-        if (!downsampledImagery || !downsampledTerrain) continue;
-        const { texture: imagery, downsample: downsampleImagery } =
-          downsampledImagery;
-        const { texture: terrain, downsample: downsampleTerrain } =
-          downsampledTerrain;
+  const depth = ({ view, projection, modelView }: Viewport) => {
+    const { camera } = view;
+    const visible = calculateVisibleTiles(view);
 
-        renderProgram.execute({
-          projection,
-          modelView,
-          camera: to(camera),
-          xyz,
-          imagery,
-          terrain,
-          downsampleImagery,
-          downsampleTerrain,
-        });
-      }
-    });
+    for (const xyz of visible) {
+      const downsampledTerrain = terrainDownsampler.get(xyz);
+      if (!downsampledTerrain) continue;
+      const { texture: terrain, downsample } = downsampledTerrain;
 
-  const depth = ({ view, projection, modelView }: Viewport) =>
-    cancelUnused(() => {
-      const { camera } = view;
-      const visible = calculateVisibleTiles(view);
-
-      for (const xyz of visible) {
-        const downsampledTerrain = terrainDownsampler.get(xyz);
-        if (!downsampledTerrain) continue;
-        const { texture: terrain, downsample } = downsampledTerrain;
-
-        depthProgram.execute({
-          projection,
-          modelView,
-          camera: to(camera),
-          xyz,
-          terrain,
-          downsample,
-        });
-      }
-    });
+      depthProgram.execute({
+        projection,
+        modelView,
+        camera: to(camera),
+        xyz,
+        terrain,
+        downsample,
+      });
+    }
+  };
 
   const destroy = () => {
     depthProgram.destroy();

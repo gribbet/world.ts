@@ -8,21 +8,29 @@ export type DownsampledTile = {
 };
 
 export type TileDownsampler = {
-  get: (xyz: vec3, downsample?: number) => DownsampledTile | undefined;
+  get: (xyz: vec3) => DownsampledTile | undefined;
 };
 
-export const createTileDownsampler: (cache: TileCache) => TileDownsampler = (
-  cache
-) => {
-  const get = (xyz: vec3, downsample = 0) => {
-    const [x, y, z] = xyz;
-    for (; downsample <= z; downsample++) {
-      const k = 2 ** downsample;
-      const xyz: vec3 = [Math.floor(x / k), Math.floor(y / k), z - downsample];
-      const texture = cache.get(xyz);
-      if (texture) return { texture, downsample };
-    }
-  };
+export const createTileDownsampler: (
+  cache: TileCache,
+  initialDownsample?: number
+) => TileDownsampler = (cache, initialDownsample = 0) => {
+  return {
+    get: (xyz) => {
+      const [x, y, z] = xyz;
+      let result: { texture: Texture; downsample: number } | undefined;
+      for (let downsample = z; downsample >= initialDownsample; downsample--) {
+        const k = 2 ** downsample;
+        const xyz: vec3 = [
+          Math.floor(x / k),
+          Math.floor(y / k),
+          z - downsample,
+        ];
+        const texture = cache.get(xyz);
+        if (texture) result = { texture, downsample };
+      }
 
-  return { get };
+      return result;
+    },
+  };
 };

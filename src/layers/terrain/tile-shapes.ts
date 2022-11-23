@@ -13,7 +13,7 @@ export const createTileShapes: (elevation: Elevation) => TileShapes = (
 ) => {
   let cache = createTileIndexCache<vec3[]>({
     max: 10000,
-    ttl: 1000,
+    ttl: 100,
   });
 
   const corners = [
