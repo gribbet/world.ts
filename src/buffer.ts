@@ -17,20 +17,20 @@ export const createBuffer: (_: {
 
   const use = () => gl.bindBuffer(glTarget, buffer);
 
-  const set = (value: number[]) => {
-    use();
-    gl.bufferData(
-      glTarget,
-      type === "f32"
-        ? new Float32Array(value)
-        : type === "u16"
-        ? new Uint16Array(value)
-        : null,
-      gl.DYNAMIC_DRAW
-    );
+  return {
+    set: (value) => {
+      use();
+      gl.bufferData(
+        glTarget,
+        type === "f32"
+          ? new Float32Array(value)
+          : type === "u16"
+          ? new Uint16Array(value)
+          : null,
+        gl.DYNAMIC_DRAW
+      );
+    },
+    use,
+    destroy: () => gl.deleteBuffer(buffer),
   };
-
-  const destroy = () => gl.deleteBuffer(buffer);
-
-  return { set, use, destroy };
 };
