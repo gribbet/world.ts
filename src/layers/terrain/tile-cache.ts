@@ -6,6 +6,7 @@ import { createTileIndexCache } from "./tile-index-cache";
 
 export type TileCache = {
   get: (xyz: vec3) => Texture | undefined;
+  has: (xyz: vec3) => boolean;
   destroy: () => void;
 };
 
@@ -42,6 +43,7 @@ export const createTileCache: (_: {
         .replace("{x}", `${x}`)
         .replace("{y}", `${y}`)
         .replace("{z}", `${z}`);
+      console.log("Get", xyz);
       const texture = createImageTexture({
         gl,
         url,
@@ -55,6 +57,9 @@ export const createTileCache: (_: {
     }
   };
 
+  const has: (xyz: vec3) => boolean = (xyz) =>
+    (tiles.has(xyz) && tiles.get(xyz)?.loaded) || false;
+
   const interval = setInterval(() => loading.purgeStale(), 200);
 
   const destroy = () => {
@@ -62,5 +67,5 @@ export const createTileCache: (_: {
     tiles.clear();
   };
 
-  return { get, destroy };
+  return { get, has, destroy };
 };
