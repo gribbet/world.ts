@@ -32,7 +32,7 @@ export const createTileShapes: (elevation: Elevation) => TileShapes = (
       .map((_) => geodetic(_, _))
       .map((_) => {
         const [lng, lat] = _;
-        const elevationZ = Math.min(z + 3, 15);
+        const elevationZ = Math.max(z - 5, 0);
         return mercator(
           vec3.set(_, lng, lat, elevation.get([lng, lat], elevationZ)),
           _
