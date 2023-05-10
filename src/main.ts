@@ -33,13 +33,13 @@ const line = world.addLine({
 });
 
 const frame = (time: number) => {
-  const n = 300;
+  const n = 100;
   const points: vec3[] = range(0, n + 1).map<vec3>((i) => {
-    const a = ((i / n) * Math.PI * 2) / 10 + time / 100000;
+    const a = ((i / n) * Math.PI * 2) / 10 + time / 1000;
     return [-121 + 1 * Math.cos(a * 5), 38 + 1 * Math.sin(a), 400];
   });
   line.points = points;
-  //requestAnimationFrame(frame);
+  requestAnimationFrame(frame);
 };
 
 requestAnimationFrame(frame);
