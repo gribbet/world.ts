@@ -41,8 +41,6 @@ export const createElevation: (_: {
     gl.readPixels(0, 0, size, size, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    console.log("Read", xyz);
-
     tileCache.set(xyz, buffer);
     return { buffer, downsample };
   };
