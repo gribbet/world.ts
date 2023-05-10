@@ -5,7 +5,7 @@ import { createTileDownsampler } from "./layers/terrain/tile-downsampler";
 import { createTileIndexCache } from "./layers/terrain/tile-index-cache";
 import { mercator } from "./math";
 
-const defaultZ = 5;
+const defaultZ = 10;
 const size = 256;
 
 export type Elevation = {
