@@ -18,8 +18,7 @@ export const createTileDownsampler: (
   return {
     get: (xyz) => {
       const [x, y, z] = xyz;
-      let result: { texture: Texture; downsample: number } | undefined;
-      for (let downsample = z; downsample >= initialDownsample; downsample--) {
+      for (let downsample = initialDownsample; downsample <= z; downsample++) {
         const k = 2 ** downsample;
         const xyz: vec3 = [
           Math.floor(x / k),
@@ -27,10 +26,8 @@ export const createTileDownsampler: (
           z - downsample,
         ];
         const texture = cache.get(xyz);
-        if (texture) result = { texture, downsample };
+        if (texture) return { texture, downsample };
       }
-
-      return result;
     },
   };
 };
