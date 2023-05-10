@@ -92,7 +92,7 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
 
   const imageryDownsampler = createTileDownsampler(imageryCache);
 
-  const terrainDownsampler = createTileDownsampler(terrainCache);
+  const terrainDownsampler = createTileDownsampler(terrainCache, 3);
 
   const elevation = createElevation({ gl, terrainCache });
 
@@ -157,13 +157,8 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
     const visible = calculateVisibleTiles(view);
 
     for (const xyz of visible) {
-      const downsampledImagery = imageryDownsampler.get(xyz, {
-        loadParents: true,
-      });
-      const downsampledTerrain = terrainDownsampler.get(xyz, {
-        loadParents: true,
-        downsample: 3,
-      });
+      const downsampledImagery = imageryDownsampler.get(xyz);
+      const downsampledTerrain = terrainDownsampler.get(xyz);
       if (!downsampledImagery || !downsampledTerrain) continue;
       const { texture: imagery, downsample: downsampleImagery } =
         downsampledImagery;
@@ -188,10 +183,7 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
     const visible = calculateVisibleTiles(view);
 
     for (const xyz of visible) {
-      const downsampledTerrain = terrainDownsampler.get(xyz, {
-        loadParents: true,
-        downsample: 3,
-      });
+      const downsampledTerrain = terrainDownsampler.get(xyz);
       if (!downsampledTerrain) continue;
       const { texture: terrain, downsample } = downsampledTerrain;
 
