@@ -18,13 +18,7 @@ export const createTileIndexCache: <T>(_: {
 }) => TileIndexCache<T> = (options) => {
   const cache = new LRUCache<number, any>({ ...options, ttlResolution: 0 });
 
-  const tileKey = ([x, y, z]: vec3) => {
-    let key = y * 2 ** z + x;
-    while (--z > 0) {
-      key += 4 ** z;
-    }
-    return key;
-  };
+  const tileKey = ([x, y, z]: vec3) => y * 2 ** z + x + (4 ** (z + 1) - 1) / 3;
 
   return {
     get: (xyz) => cache.get(tileKey(xyz)),
