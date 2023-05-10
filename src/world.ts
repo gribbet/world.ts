@@ -179,19 +179,22 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   canvas.addEventListener("mouseup", clearAnchor);
 
-  canvas.addEventListener("wheel", (event) => {
-    event.preventDefault();
-    const { x, y } = event;
-    if (!anchor) anchor = mouseAnchor([x, y]);
-    anchor = {
-      ...anchor,
-      distance: Math.max(
-        Math.min(anchor.distance, minimumDistance),
-        anchor.distance * Math.exp(event.deltaY * 0.001)
-      ),
-    };
-    clearAnchor();
-  });
+  canvas.addEventListener(
+    "wheel",
+    (event) => {
+      const { x, y } = event;
+      if (!anchor) anchor = mouseAnchor([x, y]);
+      anchor = {
+        ...anchor,
+        distance: Math.max(
+          Math.min(anchor.distance, minimumDistance),
+          anchor.distance * Math.exp(event.deltaY * 0.001)
+        ),
+      };
+      clearAnchor();
+    },
+    { passive: true }
+  );
 
   canvas.addEventListener("contextmenu", (event) => event.preventDefault());
 
