@@ -1,11 +1,10 @@
 import { vec2, vec3 } from "gl-matrix";
-import * as LRUCache from "lru-cache";
 import { TileCache } from "./layers/terrain/tile-cache";
 import { createTileDownsampler } from "./layers/terrain/tile-downsampler";
 import { createTileIndexCache } from "./layers/terrain/tile-index-cache";
 import { mercator } from "./math";
 
-const defaultZ = 10;
+const defaultZ = 15;
 const size = 256;
 
 export type Elevation = {
