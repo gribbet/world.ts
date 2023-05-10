@@ -15,14 +15,13 @@ export const createTileCache: (_: {
   onLoad?: () => void;
 }) => TileCache = ({ gl, urlPattern, onLoad }) => {
   const tiles = createTileIndexCache<ImageTexture>({
-    max: 1000,
+    max: 10000,
     dispose: (tile) => tile.destroy(),
   });
-  const loading = createTileIndexCache<vec3>({
-    max: 1000,
-    ttl: 200,
-    updateAgeOnGet: true,
-    dispose: (xyz) => {
+  const loading = createTileIndexCache<true>({
+    max: 10000,
+    ttl: 2000,
+    dispose: (_, xyz) => {
       const cached = tiles.get(xyz);
       if (cached && !cached.loaded) {
         console.log("Cancel", xyz);
@@ -34,8 +33,11 @@ export const createTileCache: (_: {
   const get: (xyz: vec3) => Texture | undefined = (xyz) => {
     const cached = tiles.get(xyz);
     if (cached) {
-      if (cached.loaded) return cached;
-      loading.get(xyz);
+      if (cached.loaded) {
+        loading.delete(xyz);
+        return cached;
+      }
+      loading.set(xyz, true);
     } else {
       const [x, y, z] = xyz;
       const url = urlPattern
@@ -51,7 +53,7 @@ export const createTileCache: (_: {
         },
       });
       tiles.set(xyz, texture);
-      loading.set(xyz, xyz);
+      loading.set(xyz, true);
     }
   };
 

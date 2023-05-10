@@ -9,20 +9,34 @@ export type TileIndexCache<T> = {
   purgeStale: () => void;
 };
 
-export const createTileIndexCache: <T>(_: {
+export type CreateTileIndexCacheOptions<T> = {
   max: number;
   ttl?: number;
-  updateAgeOnGet?: boolean;
-  dispose?: (value: T) => void;
-}) => TileIndexCache<T> = (options) => {
-  const cache = new LRUCache<number, any>({ ...options, ttlResolution: 0 });
+  dispose?: (value: T, key: vec3) => void;
+};
 
-  const tileKey = ([x, y, z]: vec3) => y * 2 ** z + x + (4 ** (z + 1) - 1) / 3;
+export const createTileIndexCache: <T>(
+  options: CreateTileIndexCacheOptions<T>
+) => TileIndexCache<T> = <T>(options: CreateTileIndexCacheOptions<T>) => {
+  const cache = new LRUCache<number, T>({
+    ...options,
+    ttlResolution: 0,
+    dispose: (value, key) => options.dispose?.(value, fromKey(key)),
+  });
+
+  const toKey = ([x, y, z]: vec3) => y * 2 ** z + x + (4 ** (z + 1) - 1) / 3;
+  const fromKey: (key: number) => vec3 = (key) => {
+    const z = Math.floor(Math.log(key * 3 + 1) / Math.log(4)) - 1;
+    key -= (4 ** (z + 1) - 1) / 3;
+    const y = Math.floor(key / 2 ** z);
+    const x = key - y * 2 ** z;
+    return [x, y, z];
+  };
 
   return {
-    get: (xyz) => cache.get(tileKey(xyz)),
-    set: (xyz, value) => cache.set(tileKey(xyz), value),
-    delete: (xyz) => cache.delete(tileKey(xyz)),
+    get: (xyz) => cache.get(toKey(xyz)),
+    set: (xyz, value) => cache.set(toKey(xyz), value as unknown as T),
+    delete: (xyz) => cache.delete(toKey(xyz)),
     clear: () => cache.clear(),
     purgeStale: () => cache.purgeStale(),
   };

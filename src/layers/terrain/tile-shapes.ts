@@ -1,5 +1,4 @@
 import { vec3 } from "gl-matrix";
-import * as LRUCache from "lru-cache";
 import { Elevation } from "../../elevation";
 import { geodetic, mercator, tileToMercator } from "../../math";
 import { createTileIndexCache } from "./tile-index-cache";
@@ -13,7 +12,7 @@ export const createTileShapes: (elevation: Elevation) => TileShapes = (
 ) => {
   let cache = createTileIndexCache<vec3[]>({
     max: 10000,
-    ttl: 100,
+    ttl: 1000,
   });
 
   const corners = [
@@ -33,7 +32,11 @@ export const createTileShapes: (elevation: Elevation) => TileShapes = (
       .map((_) => geodetic(_, _))
       .map((_) => {
         const [lng, lat] = _;
-        return mercator(vec3.set(_, lng, lat, elevation.get([lng, lat])), _);
+        const elevationZ = Math.min(z + 3, 15);
+        return mercator(
+          vec3.set(_, lng, lat, elevation.get([lng, lat], elevationZ)),
+          _
+        );
       });
     cache.set(xyz, result);
     return result;
