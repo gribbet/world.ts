@@ -7,6 +7,7 @@ import { createProgram } from "../../program";
 import { Viewport } from "../../viewport";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
+import { circumference } from "../../constants";
 
 const one = 1073741824; // 2^30
 const to = ([x, y, z]: vec3) =>
@@ -20,7 +21,19 @@ export type MeshLayer = Layer &
 export const createMeshLayer: (
   gl: WebGL2RenderingContext,
   mesh: Mesh
-) => MeshLayer = (gl, { vertices, indices, position, orientation, color }) => {
+) => MeshLayer = (
+  gl,
+  {
+    vertices,
+    indices,
+    position,
+    orientation,
+    color,
+    size,
+    minSizePixels,
+    maxSizePixels,
+  }
+) => {
   let count = 0;
 
   const vertexBuffer = createBuffer({ gl, type: "f32", target: "array" });
@@ -40,11 +53,14 @@ export const createMeshLayer: (
       projection,
       modelView,
       camera: to(camera),
-      screen, // TODO: Needed?
+      screen,
       count,
       position: to(mercator(position)),
-      orientation,
+      orientation: mat4.fromQuat(mat4.create(), orientation),
       color,
+      size: size / circumference,
+      minSizePixels: minSizePixels || 0,
+      maxSizePixels: maxSizePixels || Number.MAX_VALUE,
     });
 
   const depth = () => {
@@ -87,6 +103,15 @@ export const createMeshLayer: (
     set color(_color: vec4) {
       color = _color;
     },
+    set size(_size: number) {
+      size = _size;
+    },
+    set minSizePixels(_minSizePixels: number) {
+      minSizePixels = _minSizePixels;
+    },
+    set maxSizePixels(_maxWidthPixels: number) {
+      maxSizePixels = _maxWidthPixels;
+    },
   };
 };
 
@@ -108,9 +133,12 @@ const createMeshProgram = (
   const modelViewUniform = program.uniformMatrix4f("model_view");
   const cameraUniform = program.uniform3i("camera");
   const positionUniform = program.uniform3i("position");
-  // const orientationUniform = program.uniform4f("orientation");
-  //const screenUniform = program.uniform2f("screen");
+  const orientationUniform = program.uniformMatrix4f("orientation");
+  const screenUniform = program.uniform2f("screen");
   const colorUniform = program.uniform4f("color");
+  const sizeUniform = program.uniform1f("size");
+  const minSizePixelsUniform = program.uniform1f("min_size_pixels");
+  const maxSizePixelsUniform = program.uniform1f("max_size_pixels");
 
   const execute = ({
     projection,
@@ -121,6 +149,9 @@ const createMeshProgram = (
     position,
     orientation,
     color,
+    size,
+    minSizePixels,
+    maxSizePixels,
   }: {
     projection: mat4;
     modelView: mat4;
@@ -128,8 +159,11 @@ const createMeshProgram = (
     screen: vec2;
     count: number;
     position: vec3;
-    orientation: quat;
+    orientation: mat4;
     color: vec4;
+    size: number;
+    minSizePixels: number;
+    maxSizePixels: number;
   }) => {
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -141,10 +175,13 @@ const createMeshProgram = (
     projectionUniform.set(projection);
     modelViewUniform.set(modelView);
     cameraUniform.set(camera);
-    //screenUniform.set(screen);
+    screenUniform.set(screen);
     positionUniform.set(position);
-    //orientationUniform.set(orientation);
+    orientationUniform.set(orientation);
     colorUniform.set(color);
+    sizeUniform.set(size);
+    minSizePixelsUniform.set(minSizePixels);
+    maxSizePixelsUniform.set(maxSizePixels);
 
     indexBuffer.use();
 

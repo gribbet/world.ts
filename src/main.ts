@@ -1,4 +1,4 @@
-import { vec3 } from "gl-matrix";
+import { quat, vec3 } from "gl-matrix";
 import { range } from "./common";
 import { circumference } from "./constants";
 import { Line } from "./line";
@@ -38,7 +38,7 @@ world.addLine({
   maxWidthPixels: 20,
 });
 
-world.addMesh({
+const mesh = world.addMesh({
   vertices: [
     [0, 0, 0],
     [1, 0, 0],
@@ -47,4 +47,14 @@ world.addMesh({
   indices: [[0, 1, 2]],
   position: [-121, 38, 1000],
   color: [1, 0, 0, 1],
+  size: 1000,
+  maxSizePixels: 100,
+  minSizePixels: 10,
 });
+
+const frame = (time: number) => {
+  mesh.orientation = quat.fromEuler(quat.create(), 0, time / 10, 0);
+  requestAnimationFrame(frame);
+};
+
+requestAnimationFrame(frame);

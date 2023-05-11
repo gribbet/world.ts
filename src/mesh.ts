@@ -6,4 +6,7 @@ export type Mesh = {
   position: vec3;
   orientation: quat;
   color: vec4;
+  size: number;
+  minSizePixels?: number;
+  maxSizePixels?: number;
 };

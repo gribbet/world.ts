@@ -1,4 +1,4 @@
-import { glMatrix, mat4, vec2, vec3, vec4 } from "gl-matrix";
+import { glMatrix, mat4, quat, vec2, vec3, vec4 } from "gl-matrix";
 import { debounce } from "./common";
 import { circumference } from "./constants";
 import {
@@ -217,8 +217,9 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
       vertices: [],
       indices: [],
       position: [0, 0, 0],
-      orientation: [0, 0, 0, 1],
+      orientation: quat.identity(quat.create()),
       color: [1, 1, 1, 1],
+      size: 1,
       ...mesh,
     });
     layers.push(layer);
