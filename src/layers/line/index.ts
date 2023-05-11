@@ -23,7 +23,10 @@ export type LineLayer = Layer &
 export const createLineLayer: (
   gl: WebGL2RenderingContext,
   line: Line
-) => LineLayer = (gl, { color, width, minWidthPixels, maxWidthPixels }) => {
+) => LineLayer = (
+  gl,
+  { points, color, width, minWidthPixels, maxWidthPixels }
+) => {
   let count = 0;
 
   let center: vec3 = [0, 0, 0];
@@ -100,6 +103,8 @@ export const createLineLayer: (
     indexBuffer.set(indexData);
     cornerBuffer.set(cornerData);
   };
+
+  updatePoints(points);
 
   return {
     render,

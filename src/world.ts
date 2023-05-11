@@ -11,12 +11,15 @@ import { Line } from "./line";
 import { geodetic, mercator, quadratic } from "./math";
 import { createPickBuffer } from "./pick-buffer";
 import { View, createViewport } from "./viewport";
+import { Mesh } from "./mesh";
+import { createMeshLayer } from "./layers/mesh";
 
 glMatrix.setMatrixArrayType(Array);
 
 export type World = {
   set anchor(anchor: Anchor);
   addLine: (line: Partial<Line>) => Line;
+  addMesh: (mesh: Partial<Mesh>) => Mesh;
   destroy: () => void;
 };
 
@@ -206,7 +209,19 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
       ...line,
     });
     layers.push(layer);
+    return layer;
+  };
 
+  const addMesh = (mesh: Partial<Mesh>) => {
+    const layer = createMeshLayer(gl, {
+      vertices: [],
+      indices: [],
+      position: [0, 0, 0],
+      orientation: [0, 0, 0, 1],
+      color: [1, 1, 1, 1],
+      ...mesh,
+    });
+    layers.push(layer);
     return layer;
   };
 
@@ -215,6 +230,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
       anchor = _anchor;
     },
     addLine,
+    addMesh,
     destroy,
   };
 };
