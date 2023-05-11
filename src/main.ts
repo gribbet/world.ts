@@ -6,8 +6,9 @@ import { createWorld } from "./world";
 
 /**
  * TODO:
- * elevation to use tile cache
  * mesh
+ * Zoom limits?
+ * yaw pitch roll camera
  * object class
  * pick
  * mercator elevation
