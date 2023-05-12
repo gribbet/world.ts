@@ -3,10 +3,11 @@ import { range } from "./common";
 import { circumference } from "./constants";
 import { Line } from "./line";
 import { createWorld } from "./world";
+import { indices, vertices } from "./k1000";
 
 /**
  * TODO:
- * mesh
+ * useful mesh
  * Zoom limits?
  * yaw pitch roll camera
  * object class
@@ -39,20 +40,32 @@ world.addLine({
 });
 
 const mesh = world.addMesh({
-  vertices: [
-    [0, 0, 0],
-    [1, 0, 0],
-    [0, 1, 0],
-  ],
-  indices: [[0, 1, 2]],
-  position: [-121, 38, 1000],
-  color: [1, 0, 0, 1],
-  size: 1000,
-  maxSizePixels: 100,
-  minSizePixels: 10,
+  vertices,
+  indices,
+  size: 1 / 1000,
+  minSizePixels: 32 / 1000,
 });
 
+const stem = world.addLine({
+  color: [1, 0, 0, 0.5],
+  width: 3,
+  minWidthPixels: 3,
+});
+
+let position: vec3 = [-121, 38, 10000];
+
+let lastTime = 0;
 const frame = (time: number) => {
+  const delta = time - lastTime;
+  lastTime = time;
+
+  const [lng, lat, alt] = position;
+  position = [lng, lat + 0.00001 * delta, alt];
+  mesh.position = position;
+  stem.points = [
+    [lng, lat, 0],
+    [lng, lat, alt],
+  ];
   mesh.orientation = quat.fromEuler(quat.create(), 0, time / 10, 0);
   requestAnimationFrame(frame);
 };
