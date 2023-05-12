@@ -7,7 +7,6 @@ import { indices, vertices } from "./k1000";
 
 /**
  * TODO:
- * useful mesh
  * Zoom limits?
  * yaw pitch roll camera
  * object class
