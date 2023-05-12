@@ -118,7 +118,9 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
       az + t1 * (bz - az),
     ];
 
-    view.camera = vec3.sub(vec3.create(), mercator(world), local);
+    let camera = vec3.sub(vec3.create(), mercator(world), local);
+    if (vec3.length(camera) > 1) camera = vec3.normalize(vec3.create(), camera);
+    view.camera = camera;
   };
 
   const pick = ([screenX, screenY]: vec2) => {
@@ -190,8 +192,8 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
       anchor = {
         ...anchor,
         distance: Math.max(
-          Math.min(anchor.distance, minimumDistance),
-          anchor.distance * Math.exp(event.deltaY * 0.001)
+          anchor.distance * Math.exp(event.deltaY * 0.001),
+          minimumDistance
         ),
       };
       clearAnchor();
