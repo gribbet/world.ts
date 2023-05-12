@@ -18,7 +18,11 @@ export const createTileDownsampler: (
   return {
     get: (xyz) => {
       const [x, y, z] = xyz;
-      for (let downsample = initialDownsample; downsample <= z; downsample++) {
+      for (
+        let downsample = Math.min(z, initialDownsample);
+        downsample <= z;
+        downsample++
+      ) {
         const k = 2 ** downsample;
         const xyz: vec3 = [
           Math.floor(x / k),
