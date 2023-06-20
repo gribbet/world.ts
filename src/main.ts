@@ -18,6 +18,7 @@ import { indices, vertices } from "./k1000";
 const world = createWorld(
   document.querySelector("canvas") as HTMLCanvasElement
 );
+world.draggable = true;
 
 const n = 100;
 world.addLine({
@@ -53,20 +54,19 @@ const frame = (time: number) => {
   lastTime = time;
 
   const [lng, lat, alt] = position;
-  const newLat = lat + 0.000001 * delta;
+  const newLat = lat + 0.00000001 * delta;
   position = [lng, newLat, alt];
   mesh.position = position;
   stem.points = [
     [lng, newLat, 0],
     [lng, newLat, alt],
   ];
-  world.anchor = {
-    distance: 10000,
+  /*world.anchor = {
     ...world.anchor,
     screen: [400, 400],
     world: position,
-  };
-  mesh.orientation = quat.fromEuler(quat.create(), 0, time / 10, 0);
+  };*/
+  mesh.orientation = quat.fromEuler(quat.create(), 0, time / 1000, 0);
   requestAnimationFrame(frame);
 };
 

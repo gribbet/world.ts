@@ -1,24 +1,21 @@
-import { glMatrix, mat4, quat, vec2, vec3, vec4 } from "gl-matrix";
+import { glMatrix, quat, vec2, vec3 } from "gl-matrix";
 import { debounce } from "./common";
 import { circumference } from "./constants";
-import {
-  createLineLayer,
-  createTerrainLayer,
-  Layer,
-  LineLayer,
-} from "./layers";
+import { Layer, createLineLayer, createTerrainLayer } from "./layers";
+import { createMeshLayer } from "./layers/mesh";
 import { Line } from "./line";
 import { geodetic, mercator, quadratic } from "./math";
+import { Mesh } from "./mesh";
 import { createPickBuffer } from "./pick-buffer";
 import { View, createViewport } from "./viewport";
-import { Mesh } from "./mesh";
-import { createMeshLayer } from "./layers/mesh";
 
 glMatrix.setMatrixArrayType(Array);
 
 export type World = {
-  set anchor(anchor: Anchor | undefined);
-  get anchor(): Anchor | undefined;
+  set draggable(draggable: boolean);
+  get draggable(): boolean;
+  set anchor(anchor: Anchor);
+  get anchor(): Anchor;
   addLine: (line: Partial<Line>) => Line;
   addMesh: (mesh: Partial<Mesh>) => Mesh;
   destroy: () => void;
@@ -30,18 +27,22 @@ type Anchor = {
   distance: number;
 };
 
-export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
-  let anchor: Anchor | undefined;
-  let dragging = false;
-  const pickScale = 0.5;
-  const minimumDistance = 200;
+const pickScale = 0.5;
+const minimumDistance = 2;
 
+export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let view: View = {
     camera: [0, 0, 1],
     screen: [0, 0],
     bearing: 0,
     pitch: 0,
   };
+  let anchor: Anchor = {
+    screen: [0, 0],
+    world: [0, 0, 0],
+    distance: circumference,
+  };
+  let draggable = true;
 
   const gl = canvas.getContext("webgl2") as WebGL2RenderingContext;
   if (!gl) throw new Error("WebGL context failure");
@@ -88,16 +89,14 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   };
 
   const frame = () => {
-    if (anchor) recenter(anchor);
-
+    recenter();
     render();
-
     requestAnimationFrame(frame);
   };
 
   requestAnimationFrame(frame);
 
-  const recenter = (anchor: Anchor) => {
+  const recenter = () => {
     const { screen, world, distance } = anchor;
     const { screenToClip, clipToLocal } = createViewport(view);
 
@@ -122,9 +121,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
       az + t1 * (bz - az),
     ];
 
-    let camera = vec3.sub(vec3.create(), mercator(world), local);
-    if (vec3.length(camera) > 1) camera = vec3.normalize(vec3.create(), camera);
-    view.camera = camera;
+    view.camera = vec3.sub(vec3.create(), mercator(world), local);
   };
 
   const pick = ([screenX, screenY]: vec2) => {
@@ -158,19 +155,14 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     };
   };
 
-  const clearDragging = debounce(() => {
-    dragging = false;
-  }, 100);
-
   canvas.addEventListener("mousedown", ({ x, y }) => {
-    anchor = anchor ?? screenToAnchor([x, y]);
-    dragging = true;
+    if (draggable) anchor = screenToAnchor([x, y]);
   });
 
   canvas.addEventListener(
     "mousemove",
     ({ buttons, movementX, movementY, x, y }) => {
-      if (buttons === 1 && anchor && dragging) {
+      if (buttons === 1 && draggable) {
         anchor = {
           ...anchor,
           screen: [x, y],
@@ -186,24 +178,28 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     }
   );
 
-  canvas.addEventListener("mouseup", clearDragging);
+  let zooming = false;
+  const clearZooming = debounce(() => (zooming = false), 10);
 
   canvas.addEventListener(
     "wheel",
     (event) => {
       const { x, y } = event;
-      if (!dragging || !anchor) {
-        anchor = anchor ?? screenToAnchor([x, y]);
-        dragging = true;
+      if (!zooming && draggable) {
+        anchor = screenToAnchor([x, y]);
+        zooming = true;
       }
       anchor = {
         ...anchor,
-        distance: Math.max(
-          anchor.distance * Math.exp(event.deltaY * 0.001),
-          minimumDistance
+        distance: Math.min(
+          Math.max(
+            anchor.distance * Math.exp(event.deltaY * 0.001),
+            minimumDistance
+          ),
+          circumference
         ),
       };
-      clearDragging();
+      clearZooming();
     },
     { passive: true }
   );
@@ -236,7 +232,13 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   };
 
   return {
-    set anchor(_anchor: Anchor | undefined) {
+    set draggable(_draggable: boolean) {
+      draggable = _draggable;
+    },
+    get draggable() {
+      return draggable;
+    },
+    set anchor(_anchor: Anchor) {
       anchor = _anchor;
     },
     get anchor() {
