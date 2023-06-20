@@ -1,14 +1,20 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
+import { circumference } from "./constants";
+import { mercator, quadratic } from "./math";
+
+export type Orientation = [pitch: number, yaw: number, roll: number];
 
 export type View = {
-  camera: vec3;
+  target: vec3;
+  center: vec2;
   screen: vec2;
-  bearing: number;
-  pitch: number;
+  distance: number;
+  orientation: Orientation;
 };
 
 export type Viewport = {
-  view: View;
+  camera: vec3;
+  screen: vec2;
   projection: mat4;
   modelView: mat4;
   screenToClip: (_: vec2, out?: vec4) => vec4;
@@ -24,12 +30,14 @@ const vector = vec4.create();
 
 export const createViewport: (view: View) => Viewport = (view) => {
   const {
-    camera,
-    screen: [width, height],
-    pitch,
-    bearing,
+    target,
+    center,
+    screen,
+    distance,
+    orientation: [pitch, yaw, roll],
   } = view;
-  const [, , z] = camera;
+  const [width, height] = screen;
+  const z = distance / circumference;
   const near = z / 100;
   const far = z * 100;
 
@@ -41,10 +49,12 @@ export const createViewport: (view: View) => Viewport = (view) => {
   const modelView = mat4.create();
   mat4.identity(modelView);
   mat4.rotateX(modelView, modelView, pitch);
-  mat4.rotateZ(modelView, modelView, bearing);
+  mat4.rotateY(modelView, modelView, roll);
+  mat4.rotateZ(modelView, modelView, yaw);
 
   const transform = mat4.multiply(matrix, projection, modelView);
   const inverse = mat4.invert(mat4.create(), transform);
+  if (!inverse) throw new Error("Unexpected");
 
   const screenToClip = ([screenX, screenY]: vec2, out = vec4.create()) => {
     const x = (2 * screenX) / width - 1;
@@ -63,6 +73,29 @@ export const createViewport: (view: View) => Viewport = (view) => {
   const localToClip = ([x, y, z]: vec3, out = vec4.create()) =>
     vec4.transformMat4(out, vec4.set(out, x, y, z, 1), transform);
 
+  const [x, y] = screenToClip(center);
+  const [ax, ay, az] = clipToLocal([x, y, -10000, 1]);
+  const [bx, by, bz] = clipToLocal([x, y, 10000, 1]);
+
+  const [t1] = quadratic(
+    (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
+    ax * (bx - ax) + ay * (by - ay) + az * (bz - az),
+    ax * ax +
+      ay * ay +
+      az * az -
+      (distance * distance) / circumference / circumference
+  );
+
+  if (isNaN(t1)) throw new Error("Unexpected");
+
+  const local: vec3 = [
+    ax + t1 * (bx - ax),
+    ay + t1 * (by - ay),
+    az + t1 * (bz - az),
+  ];
+
+  const camera = vec3.sub(vec3.create(), mercator(target), local);
+
   const localToWorld = (v: vec3, out = vec3.create()) =>
     vec3.add(out, v, camera);
 
@@ -70,7 +103,8 @@ export const createViewport: (view: View) => Viewport = (view) => {
     vec3.sub(out, v, camera);
 
   return {
-    view,
+    camera,
+    screen,
     projection,
     modelView,
     screenToClip,

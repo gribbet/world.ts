@@ -18,7 +18,7 @@ import { indices, vertices } from "./k1000";
 const world = createWorld(
   document.querySelector("canvas") as HTMLCanvasElement
 );
-world.draggable = true;
+world.draggable = false;
 
 const n = 100;
 world.addLine({
@@ -61,12 +61,13 @@ const frame = (time: number) => {
     [lng, newLat, 0],
     [lng, newLat, alt],
   ];
-  /*world.anchor = {
-    ...world.anchor,
-    screen: [400, 400],
-    world: position,
-  };*/
-  mesh.orientation = quat.fromEuler(quat.create(), 0, time / 1000, 0);
+  const roll = time / 10;
+  world.view = {
+    ...world.view,
+    center: [400, 400],
+    target: position,
+  };
+  mesh.orientation = quat.fromEuler(quat.create(), 0, roll, 0);
   requestAnimationFrame(frame);
 };
 

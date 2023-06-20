@@ -107,8 +107,8 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
   const vec4s = q.map(vec4.create);
   const vec2s = q.map(vec2.create);
 
-  const calculateVisibleTiles = (view: View) => {
-    const { worldToLocal, localToClip, clipToScreen } = createViewport(view);
+  const calculateVisibleTiles = (viewport: Viewport) => {
+    const { worldToLocal, localToClip, clipToScreen } = viewport;
 
     const divide: (xyz: vec3) => vec3[] = (xyz) => {
       const [x, y, z] = xyz;
@@ -152,9 +152,9 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
     return divide([0, 0, 0]);
   };
 
-  const render = ({ view, projection, modelView }: Viewport) => {
-    const { camera } = view;
-    const visible = calculateVisibleTiles(view);
+  const render = (viewport: Viewport) => {
+    const { projection, modelView, camera } = viewport;
+    const visible = calculateVisibleTiles(viewport);
 
     for (const xyz of visible) {
       const downsampledImagery = imageryDownsampler.get(xyz);
@@ -178,9 +178,9 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
     }
   };
 
-  const depth = ({ view, projection, modelView }: Viewport) => {
-    const { camera } = view;
-    const visible = calculateVisibleTiles(view);
+  const depth = (viewport: Viewport) => {
+    const { projection, modelView, camera } = viewport;
+    const visible = calculateVisibleTiles(viewport);
 
     for (const xyz of visible) {
       const downsampledTerrain = terrainDownsampler.get(xyz);

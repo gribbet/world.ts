@@ -44,11 +44,7 @@ export const createMeshLayer: (
     indexBuffer,
   });
 
-  const render = ({
-    projection,
-    modelView,
-    view: { camera, screen },
-  }: Viewport) =>
+  const render = ({ projection, modelView, camera, screen }: Viewport) =>
     program.execute({
       projection,
       modelView,

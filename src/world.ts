@@ -12,19 +12,13 @@ import { View, createViewport } from "./viewport";
 glMatrix.setMatrixArrayType(Array);
 
 export type World = {
+  set view(view: View);
+  get view(): View;
   set draggable(draggable: boolean);
   get draggable(): boolean;
-  set anchor(anchor: Anchor);
-  get anchor(): Anchor;
   addLine: (line: Partial<Line>) => Line;
   addMesh: (mesh: Partial<Mesh>) => Mesh;
   destroy: () => void;
-};
-
-type Anchor = {
-  screen: vec2;
-  world: vec3;
-  distance: number;
 };
 
 const pickScale = 0.5;
@@ -32,15 +26,11 @@ const minimumDistance = 2;
 
 export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let view: View = {
-    camera: [0, 0, 1],
+    target: [0, 0, 0],
+    center: [0, 0],
     screen: [0, 0],
-    bearing: 0,
-    pitch: 0,
-  };
-  let anchor: Anchor = {
-    screen: [0, 0],
-    world: [0, 0, 0],
     distance: circumference,
+    orientation: [0, 0, 0],
   };
   let draggable = true;
 
@@ -67,62 +57,39 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   });
   resizer.observe(canvas);
 
-  const scaleViewport = (scale: number) => {
-    let [width, height] = view.screen;
-    [width, height] = [width * scale, height * scale];
-    let screen: vec2 = [width, height];
-
+  const clear = ([width, height]: vec2) => {
     gl.viewport(0, 0, width, height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+  };
 
-    return createViewport({ ...view, screen });
+  const scaleViewport = (scale: number) => {
+    const {
+      screen: [width, height],
+      center: [x, y],
+    } = view;
+    const screen: vec2 = [width * scale, height * scale];
+    const center: vec2 = [x * scale, y * scale];
+    return createViewport({ ...view, center, screen });
   };
 
   const render = () => {
     let viewport = scaleViewport(devicePixelRatio);
+    clear(viewport.screen);
     layers.forEach((_) => _.render(viewport));
   };
 
   const depth = () => {
     let viewport = scaleViewport(pickScale * devicePixelRatio);
+    clear(viewport.screen);
     layers.forEach((_) => _.depth(viewport));
   };
 
   const frame = () => {
-    recenter();
     render();
     requestAnimationFrame(frame);
   };
 
   requestAnimationFrame(frame);
-
-  const recenter = () => {
-    const { screen, world, distance } = anchor;
-    const { screenToClip, clipToLocal } = createViewport(view);
-
-    const [x, y] = screenToClip(screen);
-    const [ax, ay, az] = clipToLocal([x, y, -10000, 1]);
-    const [bx, by, bz] = clipToLocal([x, y, 10000, 1]);
-
-    const [t1] = quadratic(
-      (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
-      ax * (bx - ax) + ay * (by - ay) + az * (bz - az),
-      ax * ax +
-        ay * ay +
-        az * az -
-        (distance * distance) / circumference / circumference
-    );
-
-    if (isNaN(t1)) return;
-
-    const local: vec3 = [
-      ax + t1 * (bx - ax),
-      ay + t1 * (by - ay),
-      az + t1 * (bz - az),
-    ];
-
-    view.camera = vec3.sub(vec3.create(), mercator(world), local);
-  };
 
   const pick = ([screenX, screenY]: vec2) => {
     const { screenToClip, clipToLocal, localToWorld } = createViewport(view);
@@ -144,36 +111,43 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     // TODO: Destroy
   };
 
-  const screenToAnchor: (screen: vec2) => Anchor = (screen) => {
-    const { camera } = view;
-    const world = pick(screen);
-    const distance = vec3.distance(mercator(world), camera) * circumference;
-    return {
-      screen,
-      world,
+  const recenter = (center: vec2) => {
+    const { camera } = createViewport(view);
+    const target = pick(center);
+    const distance = vec3.distance(mercator(target), camera) * circumference;
+    view = {
+      ...view,
+      center,
+      target,
       distance,
     };
   };
 
   canvas.addEventListener("mousedown", ({ x, y }) => {
-    if (draggable) anchor = screenToAnchor([x, y]);
+    if (draggable) recenter([x, y]);
   });
 
   canvas.addEventListener(
     "mousemove",
     ({ buttons, movementX, movementY, x, y }) => {
       if (buttons === 1 && draggable) {
-        anchor = {
-          ...anchor,
-          screen: [x, y],
+        view = {
+          ...view,
+          center: [x, y],
         };
       } else if (buttons === 2) {
-        const [width, height] = view.screen;
-        view.bearing -= (movementX / width) * Math.PI;
-        view.pitch = Math.min(
-          0.5 * Math.PI,
-          Math.max(0, view.pitch - (movementY / height) * Math.PI)
-        );
+        const {
+          screen: [width, height],
+          orientation: [pitch, yaw, roll],
+        } = view;
+        view.orientation = [
+          Math.min(
+            0.5 * Math.PI,
+            Math.max(0, pitch - (movementY / height) * Math.PI)
+          ),
+          yaw - (movementX / width) * Math.PI,
+          roll,
+        ];
       }
     }
   );
@@ -186,14 +160,14 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     (event) => {
       const { x, y } = event;
       if (!zooming && draggable) {
-        anchor = screenToAnchor([x, y]);
+        recenter([x, y]);
         zooming = true;
       }
-      anchor = {
-        ...anchor,
+      view = {
+        ...view,
         distance: Math.min(
           Math.max(
-            anchor.distance * Math.exp(event.deltaY * 0.001),
+            view.distance * Math.exp(event.deltaY * 0.001),
             minimumDistance
           ),
           circumference
@@ -232,17 +206,17 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   };
 
   return {
-    set draggable(_draggable: boolean) {
-      draggable = _draggable;
+    get view() {
+      return view;
+    },
+    set view(_view: View) {
+      view = _view;
     },
     get draggable() {
       return draggable;
     },
-    set anchor(_anchor: Anchor) {
-      anchor = _anchor;
-    },
-    get anchor() {
-      return anchor;
+    set draggable(_draggable: boolean) {
+      draggable = _draggable;
     },
     addLine,
     addMesh,
