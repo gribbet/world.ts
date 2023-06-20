@@ -7,7 +7,6 @@ import { indices, vertices } from "./k1000";
 
 /**
  * TODO:
- * Zoom limits?
  * yaw pitch roll camera
  * object class
  * pick
@@ -19,12 +18,6 @@ import { indices, vertices } from "./k1000";
 const world = createWorld(
   document.querySelector("canvas") as HTMLCanvasElement
 );
-
-world.anchor = {
-  screen: [400, 400],
-  world: [-121, 38, 0],
-  distance: 40000,
-};
 
 const n = 100;
 world.addLine({
@@ -48,10 +41,11 @@ const mesh = world.addMesh({
 const stem = world.addLine({
   color: [1, 0, 0, 0.5],
   width: 3,
-  minWidthPixels: 3,
+  minWidthPixels: 1,
+  maxWidthPixels: 3,
 });
 
-let position: vec3 = [-121, 38, 10000];
+let position: vec3 = [-121, 38, 100];
 
 let lastTime = 0;
 const frame = (time: number) => {
@@ -59,12 +53,19 @@ const frame = (time: number) => {
   lastTime = time;
 
   const [lng, lat, alt] = position;
-  position = [lng, lat + 0.00001 * delta, alt];
+  const newLat = lat + 0.000001 * delta;
+  position = [lng, newLat, alt];
   mesh.position = position;
   stem.points = [
-    [lng, lat, 0],
-    [lng, lat, alt],
+    [lng, newLat, 0],
+    [lng, newLat, alt],
   ];
+  world.anchor = {
+    distance: 10000,
+    ...world.anchor,
+    screen: [400, 400],
+    world: position,
+  };
   mesh.orientation = quat.fromEuler(quat.create(), 0, time / 10, 0);
   requestAnimationFrame(frame);
 };

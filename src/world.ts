@@ -17,7 +17,8 @@ import { createMeshLayer } from "./layers/mesh";
 glMatrix.setMatrixArrayType(Array);
 
 export type World = {
-  set anchor(anchor: Anchor);
+  set anchor(anchor: Anchor | undefined);
+  get anchor(): Anchor | undefined;
   addLine: (line: Partial<Line>) => Line;
   addMesh: (mesh: Partial<Mesh>) => Mesh;
   destroy: () => void;
@@ -31,6 +32,7 @@ type Anchor = {
 
 export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let anchor: Anchor | undefined;
+  let dragging = false;
   const pickScale = 0.5;
   const minimumDistance = 200;
 
@@ -112,6 +114,8 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
         (distance * distance) / circumference / circumference
     );
 
+    if (isNaN(t1)) return;
+
     const local: vec3 = [
       ax + t1 * (bx - ax),
       ay + t1 * (by - ay),
@@ -143,7 +147,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     // TODO: Destroy
   };
 
-  const mouseAnchor: (screen: vec2) => Anchor = (screen) => {
+  const screenToAnchor: (screen: vec2) => Anchor = (screen) => {
     const { camera } = view;
     const world = pick(screen);
     const distance = vec3.distance(mercator(world), camera) * circumference;
@@ -154,19 +158,19 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     };
   };
 
-  const clearAnchor = debounce(() => {
-    anchor = undefined;
+  const clearDragging = debounce(() => {
+    dragging = false;
   }, 100);
 
   canvas.addEventListener("mousedown", ({ x, y }) => {
-    anchor = mouseAnchor([x, y]);
+    anchor = anchor ?? screenToAnchor([x, y]);
+    dragging = true;
   });
 
   canvas.addEventListener(
     "mousemove",
     ({ buttons, movementX, movementY, x, y }) => {
-      if (!anchor) return;
-      if (buttons === 1) {
+      if (buttons === 1 && anchor && dragging) {
         anchor = {
           ...anchor,
           screen: [x, y],
@@ -182,13 +186,16 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     }
   );
 
-  canvas.addEventListener("mouseup", clearAnchor);
+  canvas.addEventListener("mouseup", clearDragging);
 
   canvas.addEventListener(
     "wheel",
     (event) => {
       const { x, y } = event;
-      if (!anchor) anchor = mouseAnchor([x, y]);
+      if (!dragging || !anchor) {
+        anchor = anchor ?? screenToAnchor([x, y]);
+        dragging = true;
+      }
       anchor = {
         ...anchor,
         distance: Math.max(
@@ -196,7 +203,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
           minimumDistance
         ),
       };
-      clearAnchor();
+      clearDragging();
     },
     { passive: true }
   );
@@ -229,8 +236,11 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   };
 
   return {
-    set anchor(_anchor: Anchor) {
+    set anchor(_anchor: Anchor | undefined) {
       anchor = _anchor;
+    },
+    get anchor() {
+      return anchor;
     },
     addLine,
     addMesh,
