@@ -137,7 +137,7 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
           .reduce((a, b) => a + b, 0) / 4
       );
 
-      if (size > 1024 && z < maxZ) {
+      if (size > 512 && z < maxZ) {
         const divided: vec3[] = [
           [2 * x, 2 * y, z + 1],
           [2 * x + 1, 2 * y, z + 1],
