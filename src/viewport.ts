@@ -38,8 +38,8 @@ export const createViewport: (view: View) => Viewport = (view) => {
   } = view;
   const [width, height] = screen;
   const z = distance / circumference;
-  const near = z / 100;
-  const far = z * 100;
+  const near = z / 1000;
+  const far = z * 1000;
 
   const projection = mat4.create();
   mat4.identity(projection);
@@ -74,8 +74,8 @@ export const createViewport: (view: View) => Viewport = (view) => {
     vec4.transformMat4(out, vec4.set(out, x, y, z, 1), transform);
 
   const [x, y] = screenToClip(center);
-  const [ax, ay, az] = clipToLocal([x, y, -10000, 1]);
-  const [bx, by, bz] = clipToLocal([x, y, 10000, 1]);
+  const [ax, ay, az] = clipToLocal([x, y, -100, 1]);
+  const [bx, by, bz] = clipToLocal([x, y, 100, 1]);
 
   const [t1] = quadratic(
     (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),

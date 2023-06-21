@@ -2,7 +2,6 @@
 
 precision highp float;
 
-
 uniform mat4 projection;
 uniform mat4 model_view;
 uniform ivec3 xyz;

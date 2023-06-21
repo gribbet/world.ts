@@ -24,7 +24,7 @@ vec4 transform(vec4 v) {
 }
 
 void main(void) {
-   float pixel_size = transform(vec4(0., 0., 0., 0.)).w / length(screen);
+    float pixel_size = transform(vec4(0., 0., 0., 0.)).w / length(screen);
     float size_pixels = clamp(size / pixel_size, min_size_pixels, max_size_pixels);
     float scale = size_pixels * pixel_size;
 

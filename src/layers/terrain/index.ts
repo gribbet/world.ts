@@ -5,7 +5,7 @@ import { range } from "../../common";
 import { imageryUrl, terrainUrl } from "../../constants";
 import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
-import { createViewport, View, Viewport } from "../../viewport";
+import { Viewport } from "../../viewport";
 import depthSource from "./depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import { Texture } from "./texture";
@@ -13,10 +13,7 @@ import { createTileCache } from "./tile-cache";
 import { createTileDownsampler } from "./tile-downsampler";
 import { createTileShapes } from "./tile-shapes";
 import vertexSource from "./vertex.glsl";
-
-const one = 1073741824; // 2^30
-const to = ([x, y, z]: vec3) =>
-  [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
+import { to } from "../utils";
 
 const n = 34;
 

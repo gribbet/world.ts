@@ -36,16 +36,16 @@ void main(void) {
 
     vec2 a = normalize(screen_current - screen_previous);
     vec2 b = normalize(screen_next - screen_current);
-    if (screen_current == screen_previous)
+    if(screen_current == screen_previous)
         a = b;
-    if (screen_next == screen_current)
+    if(screen_next == screen_current)
         b = a;
     vec2 direction = normalize(a + b);
     vec2 point = normalize(a - b);
     vec2 normal = vec2(-direction.y, direction.x);
     vec2 offset;
 
-    if (sign(corner.y * dot(normal, point)) > 0.0) {
+    if(sign(corner.y * dot(normal, point)) > 0.0) {
         vec2 ap = vec2(-a.y, a.x);
         vec2 bp = vec2(-b.y, b.x);
         offset = 0.5 * corner.y * (corner.x * (bp - ap) + ap + bp);

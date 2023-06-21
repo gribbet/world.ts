@@ -10,10 +10,7 @@ import { Viewport } from "../../viewport";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 import { Buffer } from "../../buffer";
-
-const one = 1073741824; // 2^30
-const to = ([x, y, z]: vec3) =>
-  [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
+import { to } from "../utils";
 
 export type LineLayer = Layer &
   Line & {
