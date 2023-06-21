@@ -34,7 +34,9 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   };
   let draggable = true;
 
-  const gl = canvas.getContext("webgl2") as WebGL2RenderingContext;
+  const gl = canvas.getContext("webgl2", {
+    antialias: true,
+  }) as WebGL2RenderingContext;
   if (!gl) throw new Error("WebGL context failure");
 
   let layers: Layer[] = [createTerrainLayer(gl)];
