@@ -1,6 +1,6 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { circumference } from "./constants";
-import { mercator, quadratic } from "./math";
+import { geodetic, mercator, quadratic } from "./math";
 
 export type Orientation = [pitch: number, yaw: number, roll: number];
 
@@ -37,7 +37,7 @@ export const createViewport: (view: View) => Viewport = (view) => {
     orientation: [pitch, yaw, roll],
   } = view;
   const [width, height] = screen;
-  const z = distance / circumference;
+  const z = Math.max(distance, 10000) / circumference;
   const near = z / 1000;
   const far = z * 1000;
 
