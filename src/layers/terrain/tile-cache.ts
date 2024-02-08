@@ -9,11 +9,15 @@ export type TileCache = {
   destroy: () => void;
 };
 
-export const createTileCache: (_: {
+export const createTileCache = ({
+  gl,
+  urlPattern,
+  onLoad,
+}: {
   gl: WebGL2RenderingContext;
   urlPattern: string;
   onLoad?: () => void;
-}) => TileCache = ({ gl, urlPattern, onLoad }) => {
+}) => {
   const tiles = createTileIndexCache<ImageTexture>({
     max: 10000,
     dispose: (tile) => tile.destroy(),
@@ -64,5 +68,5 @@ export const createTileCache: (_: {
     tiles.clear();
   };
 
-  return { get, destroy };
+  return { get, destroy } satisfies TileCache;
 };

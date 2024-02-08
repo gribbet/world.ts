@@ -7,9 +7,7 @@ export type PickBuffer = {
   destroy: () => void;
 };
 
-export const createPickBuffer: (gl: WebGL2RenderingContext) => PickBuffer = (
-  gl
-) => {
+export const createPickBuffer = (gl: WebGL2RenderingContext) => {
   const targetTexture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, targetTexture);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -90,5 +88,5 @@ export const createPickBuffer: (gl: WebGL2RenderingContext) => PickBuffer = (
     resize,
     read,
     destroy,
-  };
+  } satisfies PickBuffer;
 };

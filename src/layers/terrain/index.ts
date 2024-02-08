@@ -57,9 +57,7 @@ const uvw = range(0, n + 1).flatMap((y) =>
   })
 );
 
-export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
-  gl
-) => {
+export const createTerrainLayer = (gl: WebGL2RenderingContext) => {
   const imageryCache = createTileCache({
     gl,
     urlPattern: imageryUrl,
@@ -175,7 +173,7 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
     }
   };
 
-  const depth = (viewport: Viewport) => {
+  const depth = (viewport: Viewport, index: number) => {
     const { projection, modelView, camera } = viewport;
     const visible = calculateVisibleTiles(viewport);
 
@@ -191,6 +189,7 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
         xyz,
         terrain,
         downsample,
+        index,
       });
     }
   };
@@ -203,7 +202,7 @@ export const createTerrainLayer: (gl: WebGL2RenderingContext) => Layer = (
     elevation.destroy();
   };
 
-  return { render, depth, destroy };
+  return { render, depth, destroy } satisfies Layer;
 };
 
 const createRenderProgram = (gl: WebGL2RenderingContext) => {
@@ -304,6 +303,7 @@ const createDepthProgram = (gl: WebGL2RenderingContext) => {
   const downsampleTerrainUniform = program.uniform1i("downsample_terrain");
   const xyzUniform = program.uniform3i("xyz");
   const cameraUniform = program.uniform3i("camera");
+  const indexUniform = program.uniform1i("index");
 
   const execute = ({
     projection,
@@ -312,6 +312,7 @@ const createDepthProgram = (gl: WebGL2RenderingContext) => {
     xyz,
     terrain,
     downsample,
+    index,
   }: {
     projection: mat4;
     modelView: mat4;
@@ -319,6 +320,7 @@ const createDepthProgram = (gl: WebGL2RenderingContext) => {
     xyz: vec3;
     terrain: Texture;
     downsample: number;
+    index: number;
   }) => {
     gl.enable(gl.DEPTH_TEST);
 
@@ -331,6 +333,7 @@ const createDepthProgram = (gl: WebGL2RenderingContext) => {
     xyzUniform.set(xyz);
     cameraUniform.set(camera);
     downsampleTerrainUniform.set(downsample);
+    indexUniform.set(index);
 
     gl.activeTexture(gl.TEXTURE1);
     terrainUniform.set(1);

@@ -4,7 +4,7 @@ export type Texture = {
   destroy: () => void;
 };
 
-export const createTexture: (gl: WebGL2RenderingContext) => Texture = (gl) => {
+export const createTexture = (gl: WebGL2RenderingContext) => {
   const texture = gl.createTexture();
   if (!texture) throw new Error("Texture creation failed");
 
@@ -23,5 +23,5 @@ export const createTexture: (gl: WebGL2RenderingContext) => Texture = (gl) => {
 
   const destroy = () => gl.deleteTexture(texture);
 
-  return { use, attach, destroy };
+  return { use, attach, destroy } satisfies Texture;
 };

@@ -11,11 +11,11 @@ export type TileDownsampler = {
   get: (xyz: vec3) => DownsampledTile | undefined;
 };
 
-export const createTileDownsampler: (
+export const createTileDownsampler = (
   cache: TileCache,
-  initialDownsample?: number
-) => TileDownsampler = (cache, initialDownsample = 0) => {
-  return {
+  initialDownsample = 0
+) =>
+  ({
     get: (xyz) => {
       const [x, y, z] = xyz;
       for (
@@ -33,5 +33,4 @@ export const createTileDownsampler: (
         if (texture) return { texture, downsample };
       }
     },
-  };
-};
+  } satisfies TileDownsampler);

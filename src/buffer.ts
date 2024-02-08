@@ -4,11 +4,15 @@ export type Buffer = {
   destroy: () => void;
 };
 
-export const createBuffer: (_: {
+export const createBuffer = ({
+  gl,
+  type,
+  target,
+}: {
   gl: WebGL2RenderingContext;
   type: "f32" | "u16";
   target: "array" | "element";
-}) => Buffer = ({ gl, type, target }) => {
+}) => {
   const buffer = gl.createBuffer();
   if (!buffer) throw new Error("Buffer creation failed");
 
@@ -32,5 +36,5 @@ export const createBuffer: (_: {
     },
     use,
     destroy: () => gl.deleteBuffer(buffer),
-  };
+  } satisfies Buffer;
 };

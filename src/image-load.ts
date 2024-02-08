@@ -7,10 +7,13 @@ export type ImageLoad = {
   cancel: () => void;
 };
 
-export const createImageLoad: (_: {
+export const createImageLoad = ({
+  url,
+  onLoad,
+}: {
   url: string;
   onLoad: (image: ImageBitmap | undefined) => void;
-}) => ImageLoad = ({ url, onLoad }) => {
+}) => {
   let loaded = false;
 
   const handler = ({ data }: MessageEvent) => {
@@ -34,5 +37,5 @@ export const createImageLoad: (_: {
       return loaded;
     },
     cancel,
-  };
+  } satisfies ImageLoad;
 };

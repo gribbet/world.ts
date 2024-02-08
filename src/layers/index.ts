@@ -5,6 +5,6 @@ export * from "./terrain";
 
 export type Layer = {
   render: (view: Viewport) => void;
-  depth: (view: Viewport, i: number) => void;
+  depth: (view: Viewport, index: number) => void;
   destroy: () => void;
 };

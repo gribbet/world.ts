@@ -17,12 +17,9 @@ export type LineLayer = Layer &
     destroy: () => void;
   };
 
-export const createLineLayer: (
+export const createLineLayer = (
   gl: WebGL2RenderingContext,
-  line: Line
-) => LineLayer = (
-  gl,
-  { points, color, width, minWidthPixels, maxWidthPixels }
+  { points, color, width, minWidthPixels, maxWidthPixels }: Line
 ) => {
   let count = 0;
 
@@ -118,7 +115,7 @@ export const createLineLayer: (
     set maxWidthPixels(_maxWidthPixels: number) {
       maxWidthPixels = _maxWidthPixels;
     },
-  };
+  } satisfies LineLayer;
 };
 
 const createLineProgram = (

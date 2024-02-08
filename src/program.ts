@@ -33,11 +33,15 @@ export type Attribute = {
   use: () => void;
 };
 
-export const createProgram: (_: {
+export const createProgram = ({
+  gl,
+  vertexSource,
+  fragmentSource,
+}: {
   gl: WebGL2RenderingContext;
   vertexSource: string;
   fragmentSource: string;
-}) => Program = ({ gl, vertexSource, fragmentSource }) => {
+}) => {
   const program = gl.createProgram();
   if (!program) throw new Error("Program creation failed");
 
@@ -138,7 +142,7 @@ export const createProgram: (_: {
       );
     };
 
-    return { use };
+    return { use } satisfies Attribute;
   };
 
   const attribute2f = (
@@ -173,7 +177,7 @@ export const createProgram: (_: {
     attribute2f,
     attribute3f,
     destroy,
-  };
+  } satisfies Program;
 };
 
 const compileShader = (
@@ -188,6 +192,5 @@ const compileShader = (
     console.error("Compilation failed", gl.getShaderInfoLog(shader));
     throw new Error("Compilation failure");
   }
-
   return shader;
 };

@@ -15,9 +15,9 @@ export type CreateTileIndexCacheOptions<T> = {
   dispose?: (value: T, key: vec3) => void;
 };
 
-export const createTileIndexCache: <T>(
+export const createTileIndexCache = <T>(
   options: CreateTileIndexCacheOptions<T>
-) => TileIndexCache<T> = <T>(options: CreateTileIndexCacheOptions<T>) => {
+) => {
   const cache = new LRUCache<number, T>({
     ...options,
     ttlResolution: 0,
@@ -25,12 +25,12 @@ export const createTileIndexCache: <T>(
   });
 
   const toKey = ([x, y, z]: vec3) => y * 2 ** z + x + (4 ** (z + 1) - 1) / 3;
-  const fromKey: (key: number) => vec3 = (key) => {
+  const fromKey = (key: number) => {
     const z = Math.floor(Math.log(key * 3 + 1) / Math.log(4)) - 1;
     key -= (4 ** (z + 1) - 1) / 3;
     const y = Math.floor(key / 2 ** z);
     const x = key - y * 2 ** z;
-    return [x, y, z];
+    return [x, y, z] satisfies vec3;
   };
 
   return {
@@ -39,5 +39,5 @@ export const createTileIndexCache: <T>(
     delete: (xyz) => cache.delete(toKey(xyz)),
     clear: () => cache.clear(),
     purgeStale: () => cache.purgeStale(),
-  };
+  } satisfies TileIndexCache<T>;
 };

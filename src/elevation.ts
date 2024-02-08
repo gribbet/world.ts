@@ -12,10 +12,13 @@ export type Elevation = {
   destroy: () => void;
 };
 
-export const createElevation: (_: {
+export const createElevation = ({
+  gl,
+  terrainCache,
+}: {
   gl: WebGL2RenderingContext;
   terrainCache: TileCache;
-}) => Elevation = ({ gl, terrainCache }) => {
+}) => {
   const tileCache = createTileIndexCache<Uint8Array>({
     max: 1000,
   });
@@ -67,5 +70,5 @@ export const createElevation: (_: {
     gl.deleteFramebuffer(framebuffer);
   };
 
-  return { get, destroy };
+  return { get, destroy } satisfies Elevation;
 };

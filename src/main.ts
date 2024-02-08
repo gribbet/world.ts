@@ -6,7 +6,6 @@ import { createWorld } from "./world";
 /**
  * TODO:
  * object class
- * orthographic
  * pick
  * mercator elevation
  * smooth transition
@@ -20,7 +19,7 @@ let position: vec3 = [-121, 38, 100];
 const world = createWorld(
   document.querySelector("canvas") as HTMLCanvasElement
 );
-world.draggable = false;
+//world.draggable = false;
 world.view = {
   ...world.view,
   distance: 100000,
@@ -68,12 +67,6 @@ const frame = (time: number) => {
   ];
   const roll = time / 100;
   const pitch = Math.sin(time * 0.001) * 5;
-  const fieldOfView = (time / 100) % 100;
-  world.view = {
-    ...world.view,
-    target: position,
-    fieldOfView,
-  };
   mesh.orientation = quat.fromEuler(quat.create(), pitch, roll, 0);
   requestAnimationFrame(frame);
 };

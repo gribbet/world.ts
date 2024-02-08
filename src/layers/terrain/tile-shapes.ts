@@ -7,9 +7,7 @@ export type TileShapes = {
   get: (xyz: vec3) => vec3[];
 };
 
-export const createTileShapes: (elevation: Elevation) => TileShapes = (
-  elevation
-) => {
+export const createTileShapes = (elevation: Elevation) => {
   let cache = createTileIndexCache<vec3[]>({
     max: 10000,
     ttl: 1000,
@@ -21,7 +19,7 @@ export const createTileShapes: (elevation: Elevation) => TileShapes = (
     [1, 1],
     [0, 1],
   ];
-  const get: (xyz: vec3) => vec3[] = (xyz) => {
+  const get = (xyz: vec3) => {
     const cached = cache.get(xyz);
     if (cached) return cached;
 
@@ -42,5 +40,5 @@ export const createTileShapes: (elevation: Elevation) => TileShapes = (
     return result;
   };
 
-  return { get };
+  return { get } satisfies TileShapes;
 };

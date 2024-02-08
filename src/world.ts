@@ -24,7 +24,7 @@ export type World = {
 const pickScale = 0.5;
 const minimumDistance = 2;
 
-export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
+export const createWorld = (canvas: HTMLCanvasElement) => {
   let view: View = {
     target: [0, 0, 0],
     screen: [0, 0],
@@ -72,7 +72,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   const depth = () => {
     let viewport = createViewport(view).scale(pickScale * devicePixelRatio);
     clear(viewport.screen);
-    layers.forEach((_, i) => _.depth(viewport, i));
+    layers.forEach((_, index) => _.depth(viewport, index));
   };
 
   const frame = () => {
@@ -86,12 +86,16 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     const { screenToClip, clipToLocal, localToWorld } = createViewport(view);
 
     pickBuffer.use();
+
+    gl.disable(gl.BLEND);
     depth();
 
     const [z, n] = pickBuffer.read([
       screenX * devicePixelRatio * pickScale,
       screenY * devicePixelRatio * pickScale,
     ]);
+
+    console.log(n);
 
     const [x, y] = screenToClip([screenX, screenY]);
     const p = geodetic(localToWorld(clipToLocal([x, y, z, 1])));
@@ -210,5 +214,5 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     addLine,
     addMesh,
     destroy,
-  };
+  } satisfies World;
 };
