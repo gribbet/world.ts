@@ -42,7 +42,8 @@ export const createViewport: (view: View) => Viewport = (view) => {
   const z = Math.max(distance, 10000) / circumference;
   const near = z / 1000;
   const far = z * 1000;
-  const fieldOfView = view.fieldOfView ?? 45;
+  const defaultFieldOfView = 45;
+  const fieldOfView = view.fieldOfView ?? defaultFieldOfView;
 
   const projection = mat4.create();
   mat4.identity(projection);
@@ -92,13 +93,14 @@ export const createViewport: (view: View) => Viewport = (view) => {
   const [ax, ay, az] = clipToLocal([cx, cy, -1, 1]);
   const [bx, by, bz] = clipToLocal([cx, cy, 1.00001, 1]);
 
+  const d =
+    (distance * Math.tan(((defaultFieldOfView / 180) * Math.PI) / 2)) /
+    Math.tan(((fieldOfView / 180) * Math.PI) / 2);
+
   const [t1] = quadratic(
     (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
     ax * (bx - ax) + ay * (by - ay) + az * (bz - az),
-    ax * ax +
-      ay * ay +
-      az * az -
-      (distance * distance) / circumference / circumference
+    ax * ax + ay * ay + az * az - (d * d) / circumference / circumference
   );
 
   if (isNaN(t1)) throw new Error("Unexpected");
