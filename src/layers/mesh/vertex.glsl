@@ -17,18 +17,18 @@ in vec3 vertex;
 out vec4 color_out;
 
 const int ONE = 1073741824; // 2^30
-const float INV_ONE = 1. / float(ONE);
+const float INV_ONE = 1.f / float(ONE);
 
 vec4 transform(vec4 v) {
-    return projection * model_view * (vec4(vec3(position - camera) * INV_ONE, 1.) + v);
+    return projection * model_view * (vec4(vec3(position - camera) * INV_ONE, 1.f) + v);
 }
 
 void main(void) {
-    float pixel_size = transform(vec4(0., 0., 0., 0.)).w / length(screen);
-    float size_pixels = clamp(size / pixel_size, min_size_pixels, max_size_pixels);
-    float scale = size_pixels * pixel_size;
+    vec4 projected = transform(vec4(0.f, 0.f, 0.f, 1.f));
+    float pixel_size = projected.w / screen.y / -projection[1][1];
+    float scale = clamp(size, min_size_pixels * pixel_size, max_size_pixels * pixel_size);
 
-    gl_Position = transform(orientation * vec4(vertex * scale, 1.));
+    gl_Position = transform(orientation * vec4(vertex * scale, 1.f));
 
     color_out = color;
 }

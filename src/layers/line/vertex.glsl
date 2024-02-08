@@ -19,10 +19,10 @@ in vec2 corner;
 out vec4 color_out;
 
 const int ONE = 1073741824; // 2^30
-const float INV_ONE = 1. / float(ONE);
+const float INV_ONE = 1.f / float(ONE);
 
 vec4 transform(vec3 position) {
-    return projection * model_view * vec4(vec3(ivec3(position * float(ONE)) + center - camera) * INV_ONE, 1.);
+    return projection * model_view * vec4(vec3(ivec3(position * float(ONE)) + center - camera) * INV_ONE, 1.f);
 }
 
 void main(void) {
@@ -45,17 +45,19 @@ void main(void) {
     vec2 normal = vec2(-direction.y, direction.x);
     vec2 offset;
 
-    if(sign(corner.y * dot(normal, point)) > 0.0) {
+    if(sign(corner.y * dot(normal, point)) > 0.0f) {
         vec2 ap = vec2(-a.y, a.x);
         vec2 bp = vec2(-b.y, b.x);
-        offset = 0.5 * corner.y * (corner.x * (bp - ap) + ap + bp);
+        offset = 0.5f * corner.y * (corner.x * (bp - ap) + ap + bp);
     } else {
-        float distance = clamp(1. / dot(direction, a), 0., 10.);
+        float distance = clamp(1.f / dot(direction, a), 0.f, 10.f);
         offset = normal * distance * corner.y;
     }
 
-    vec2 width_pixels = clamp(width * screen / projected_current.w, min_width_pixels, max_width_pixels);
-    gl_Position = projected_current + vec4(width_pixels * offset / screen * projected_current.w, 0., 0.);
+    float pixel_size = projected_current.w / screen.y;
+    float scale = clamp(width * -projection[1][1], min_width_pixels * pixel_size, max_width_pixels * pixel_size);
+
+    gl_Position = projected_current + vec4(scale * offset, 0.f, 0.f);
 
     color_out = color;
 }

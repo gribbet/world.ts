@@ -15,12 +15,16 @@ import { createWorld } from "./world";
  * labels
  */
 
+let position: vec3 = [-121, 38, 100];
+
 const world = createWorld(
   document.querySelector("canvas") as HTMLCanvasElement
 );
 world.draggable = false;
 world.view = {
   ...world.view,
+  distance: 100000,
+  target: position,
 };
 
 const n = 100;
@@ -32,14 +36,14 @@ world.addLine({
   color: [0.1, 0.1, 1, 0.5],
   width: 1000,
   minWidthPixels: 4,
-  maxWidthPixels: 20,
 });
 
 const mesh = world.addMesh({
   vertices,
   indices,
-  size: 1 / 1000,
+  size: 1,
   minSizePixels: 32 / 1000,
+  maxSizePixels: 1,
 });
 
 const stem = world.addLine({
@@ -48,8 +52,6 @@ const stem = world.addLine({
   minWidthPixels: 1,
   maxWidthPixels: 3,
 });
-
-let position: vec3 = [-121, 38, 100];
 
 let lastTime = 0;
 const frame = (time: number) => {
@@ -66,14 +68,11 @@ const frame = (time: number) => {
   ];
   const roll = time / 100;
   const pitch = Math.sin(time * 0.001) * 5;
-  const fieldOfView = (time / 1000) % 50;
+  const fieldOfView = (time / 100) % 100;
   world.view = {
     ...world.view,
     target: position,
     fieldOfView,
-    distance:
-      (1000 * Math.tan(((45 / 180) * Math.PI) / 2)) /
-      Math.tan(((fieldOfView / 180) * Math.PI) / 2),
   };
   mesh.orientation = quat.fromEuler(quat.create(), pitch, roll, 0);
   requestAnimationFrame(frame);
