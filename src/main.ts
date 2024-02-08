@@ -7,7 +7,6 @@ import { createWorld } from "./world";
 
 /**
  * TODO:
- * cleanup radians/degrees
  * drag example
  * mercator elevation
  * smooth transition
