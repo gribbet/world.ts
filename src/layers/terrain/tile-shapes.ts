@@ -1,5 +1,6 @@
 import { vec3 } from "gl-matrix";
-import { Elevation } from "../../elevation";
+
+import type { Elevation } from "../../elevation";
 import { geodetic, mercator, tileToMercator } from "../../math";
 import { createTileIndexCache } from "./tile-index-cache";
 
@@ -8,7 +9,7 @@ export type TileShapes = {
 };
 
 export const createTileShapes = (elevation: Elevation) => {
-  let cache = createTileIndexCache<vec3[]>({
+  const cache = createTileIndexCache<vec3[]>({
     max: 10000,
     ttl: 1000,
   });
@@ -23,17 +24,17 @@ export const createTileShapes = (elevation: Elevation) => {
     const cached = cache.get(xyz);
     if (cached) return cached;
 
-    const [x, y, z] = xyz;
+    const [x = 0, y = 0, z = 0] = xyz;
     const result = corners
-      .map<vec3>(([u, v]) => [x + u, y + v, z])
-      .map((_) => tileToMercator(_, _))
-      .map((_) => geodetic(_, _))
-      .map((_) => {
-        const [lng, lat] = _;
+      .map<vec3>(([u = 0, v = 0]) => [x + u, y + v, z])
+      .map(_ => tileToMercator(_, _))
+      .map(_ => geodetic(_, _))
+      .map(_ => {
+        const [lng = 0, lat = 0] = _;
         const elevationZ = Math.max(z - 5, 0);
         return mercator(
           vec3.set(_, lng, lat, elevation.get([lng, lat], elevationZ)),
-          _
+          _,
         );
       });
     cache.set(xyz, result);

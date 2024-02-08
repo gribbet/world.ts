@@ -1,5 +1,6 @@
-import { vec2, vec3 } from "gl-matrix";
-import { TileCache } from "./layers/terrain/tile-cache";
+import type { vec2, vec3 } from "gl-matrix";
+
+import type { TileCache } from "./layers/terrain/tile-cache";
 import { createTileDownsampler } from "./layers/terrain/tile-downsampler";
 import { createTileIndexCache } from "./layers/terrain/tile-index-cache";
 import { mercator } from "./math";
@@ -28,7 +29,7 @@ export const createElevation = ({
   const framebuffer = gl.createFramebuffer();
   if (!framebuffer) throw new Error("Framebuffer creation failed");
 
-  const downsampleBuffer = ([x, y, z]: vec3) => {
+  const downsampleBuffer = ([x = 0, y = 0, z = 0]: vec3) => {
     const tile = downsampler.get([x, y, z]);
     if (!tile) return undefined;
     const { texture, downsample } = tile;
@@ -47,11 +48,11 @@ export const createElevation = ({
     return { buffer, downsample };
   };
 
-  const get = ([lng, lat]: vec2, z = defaultZ) => {
+  const get = ([lng = 0, lat = 0]: vec2, z = defaultZ) => {
     const k = 2 ** z;
-    const p = mercator([lng, lat, 0]).map((_) => _ * k);
-    const [x, y] = p.map((_) => Math.floor(_ % k));
-    let [px, py] = p.map((_) => _ % 1);
+    const p = mercator([lng, lat, 0]).map(_ => _ * k);
+    const [x = 0, y = 0] = p.map(_ => Math.floor(_ % k));
+    let [px = 0, py = 0] = p.map(_ => _ % 1);
     const downsampled = downsampleBuffer([x, y, z]);
     if (!downsampled) return 0;
     const { buffer, downsample } = downsampled;
@@ -59,7 +60,7 @@ export const createElevation = ({
     [px, py] = [((x % k2) + px) / k2, ((y % k2) + py) / k2];
 
     const q = 4 * size * Math.floor(py * size) + 4 * Math.floor(px * size);
-    const [r, g, b] = buffer.slice(q, q + 4);
+    const [r = 0, g = 0, b = 0] = buffer.slice(q, q + 4);
 
     const value = (r * 65536 + g * 256 + b) / 10 - 10000;
 

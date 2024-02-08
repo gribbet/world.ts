@@ -1,6 +1,7 @@
-import { vec3 } from "gl-matrix";
-import { Texture } from "./texture";
-import { TileCache } from "./tile-cache";
+import type { vec3 } from "gl-matrix";
+
+import type { Texture } from "./texture";
+import type { TileCache } from "./tile-cache";
 
 export type DownsampledTile = {
   texture: Texture;
@@ -13,11 +14,10 @@ export type TileDownsampler = {
 
 export const createTileDownsampler = (
   cache: TileCache,
-  initialDownsample = 0
+  initialDownsample = 0,
 ) =>
   ({
-    get: (xyz) => {
-      const [x, y, z] = xyz;
+    get: ([x = 0, y = 0, z = 0]) => {
       for (
         let downsample = Math.min(z, initialDownsample);
         downsample <= z;
@@ -33,4 +33,4 @@ export const createTileDownsampler = (
         if (texture) return { texture, downsample };
       }
     },
-  } satisfies TileDownsampler);
+  }) satisfies TileDownsampler;

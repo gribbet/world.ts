@@ -1,4 +1,4 @@
-import { vec2 } from "gl-matrix";
+import type { vec2 } from "gl-matrix";
 
 export type DepthBuffer = {
   use: () => void;
@@ -28,18 +28,18 @@ export const createDepthBuffer = (gl: WebGL2RenderingContext) => {
     gl.COLOR_ATTACHMENT0,
     gl.TEXTURE_2D,
     targetTexture,
-    0
+    0,
   );
   gl.framebufferRenderbuffer(
     gl.FRAMEBUFFER,
     gl.DEPTH_ATTACHMENT,
     gl.RENDERBUFFER,
-    renderbuffer
+    renderbuffer,
   );
   gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
   let height = 0;
-  const resize = ([width, _height]: vec2) => {
+  const resize = ([width = 0, _height = 0]: vec2) => {
     height = _height;
     gl.bindTexture(gl.TEXTURE_2D, targetTexture);
     gl.texImage2D(
@@ -51,7 +51,7 @@ export const createDepthBuffer = (gl: WebGL2RenderingContext) => {
       0,
       gl.RGBA,
       gl.UNSIGNED_BYTE,
-      null
+      null,
     );
 
     gl.bindRenderbuffer(gl.RENDERBUFFER, renderbuffer);
@@ -59,17 +59,17 @@ export const createDepthBuffer = (gl: WebGL2RenderingContext) => {
       gl.RENDERBUFFER,
       gl.DEPTH_COMPONENT16,
       width,
-      height
+      height,
     );
   };
 
   const buffer = new Uint8Array(4);
-  const read = ([x, y]: vec2) => {
+  const read = ([x = 0, y = 0]: vec2) => {
     use();
     gl.readPixels(x, height - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    const [r, g, b, a] = buffer;
+    const [r = 0, g = 0, b = 0, a = 0] = buffer;
     const zo = (r * 256 + g) / (256 * 256 - 1);
     const z = 2 * zo - 1;
     const n = b * 256 + a;

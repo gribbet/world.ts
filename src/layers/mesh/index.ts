@@ -1,21 +1,24 @@
-import { mat4, quat, vec2, vec3, vec4 } from "gl-matrix";
-import { BaseLayer, LayerEvents } from "..";
-import { Buffer, createBuffer } from "../../buffer";
+import type { quat, vec2, vec3, vec4 } from "gl-matrix";
+import { mat4 } from "gl-matrix";
+
+import type { Buffer } from "../../buffer";
+import { createBuffer } from "../../buffer";
+import { circumference } from "../../constants";
+import type { Mesh } from "../../layers";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
-import { Viewport } from "../../viewport";
-import fragmentSource from "./fragment.glsl";
+import type { Viewport } from "../../viewport";
+import type { BaseLayer, LayerEvents } from "..";
 import depthSource from "../depth.glsl";
-import vertexSource from "./vertex.glsl";
-import { circumference } from "../../constants";
 import { to } from "../utils";
-import { Mesh } from "../../layers";
+import fragmentSource from "./fragment.glsl";
+import vertexSource from "./vertex.glsl";
 
 export type MeshLayer = BaseLayer & Mesh;
 
 export const createMeshLayer: (
   gl: WebGL2RenderingContext,
-  mesh: Mesh & LayerEvents
+  mesh: Mesh & LayerEvents,
 ) => MeshLayer = (gl, mesh) => {
   let {
     vertices,
@@ -70,12 +73,12 @@ export const createMeshLayer: (
 
   const updateVertices = (_: vec3[]) => {
     vertices = _;
-    vertexBuffer.set(_.flatMap((_) => [..._]));
+    vertexBuffer.set(_.flatMap(_ => [..._]));
   };
 
   const updateIndices = (_: vec3[]) => {
     indices = _;
-    indexBuffer.set(_.flatMap((_) => [..._]));
+    indexBuffer.set(_.flatMap(_ => [..._]));
     count = _.length;
   };
 
@@ -145,9 +148,9 @@ const createPrograms = (
   }: {
     vertexBuffer: Buffer;
     indexBuffer: Buffer;
-  }
+  },
 ) => {
-  const [renderProgram, depthProgram] = [false, true].map((depth) => {
+  const createRenderProgram = (depth = false) => {
     const program = createProgram({
       gl,
       vertexSource,
@@ -225,7 +228,10 @@ const createPrograms = (
     const destroy = () => program.destroy();
 
     return { execute, destroy };
-  });
+  };
+
+  const renderProgram = createRenderProgram();
+  const depthProgram = createRenderProgram(true);
 
   return { renderProgram, depthProgram };
 };

@@ -17,7 +17,7 @@ export const createImageTexture: (_: {
 
   const imageLoad = createImageLoad({
     url,
-    onLoad: (image) => {
+    onLoad: image => {
       if (!image) return;
       texture.use();
       gl.texImage2D(
@@ -26,7 +26,7 @@ export const createImageTexture: (_: {
         gl.RGBA,
         gl.RGBA,
         gl.UNSIGNED_BYTE,
-        image
+        image,
       );
       image.close();
       onLoad?.();

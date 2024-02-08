@@ -1,14 +1,16 @@
-import { mat4, vec2, vec3, vec4 } from "gl-matrix";
-import { BaseLayer, LayerEvents, Terrain } from "..";
+import type { mat4 } from "gl-matrix";
+import { vec2, vec3, vec4 } from "gl-matrix";
+
 import { createBuffer } from "../../buffer";
 import { range } from "../../common";
 import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
-import { Viewport } from "../../viewport";
+import type { Viewport } from "../../viewport";
+import type { BaseLayer, LayerEvents, Terrain } from "..";
 import depthSource from "../depth.glsl";
 import { to } from "../utils";
 import fragmentSource from "./fragment.glsl";
-import { Texture } from "./texture";
+import type { Texture } from "./texture";
 import { createTileCache } from "./tile-cache";
 import { createTileDownsampler } from "./tile-downsampler";
 import { createTileShapes } from "./tile-shapes";
@@ -18,20 +20,20 @@ const n = 34;
 
 const maxZ = 22;
 
-const indices = range(0, n).flatMap((y) =>
-  range(0, n).flatMap((x) => [
+const indices = range(0, n).flatMap(y =>
+  range(0, n).flatMap(x => [
     y * (n + 1) + x,
     (y + 1) * (n + 1) + x + 1,
     y * (n + 1) + x + 1,
     y * (n + 1) + x,
     (y + 1) * (n + 1) + x,
     (y + 1) * (n + 1) + x + 1,
-  ])
+  ]),
 );
 
 const skirt = 0.5;
-const uvw = range(0, n + 1).flatMap((y) =>
-  range(0, n + 1).map((x) => {
+const uvw = range(0, n + 1).flatMap(y =>
+  range(0, n + 1).map(x => {
     let u = (x - 1) / (n - 2);
     let v = (y - 1) / (n - 2);
     let w = 0;
@@ -53,14 +55,14 @@ const uvw = range(0, n + 1).flatMap((y) =>
     }
 
     return [u, v, w] as vec3;
-  })
+  }),
 );
 
 export type TerrainLayer = BaseLayer;
 
 export const createTerrainLayer = (
   gl: WebGL2RenderingContext,
-  terrain: Terrain & LayerEvents
+  terrain: Terrain & LayerEvents,
 ) => {
   const { terrainUrl, imageryUrl } = terrain;
 
@@ -71,7 +73,7 @@ export const createTerrainLayer = (
       gl.texParameteri(
         gl.TEXTURE_2D,
         gl.TEXTURE_MIN_FILTER,
-        gl.LINEAR_MIPMAP_LINEAR
+        gl.LINEAR_MIPMAP_LINEAR,
       );
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -109,31 +111,34 @@ export const createTerrainLayer = (
   const calculateVisibleTiles = (viewport: Viewport) => {
     const { worldToLocal, localToClip, clipToScreen } = viewport;
 
-    const divide: (xyz: vec3) => vec3[] = (xyz) => {
-      const [x, y, z] = xyz;
+    const divide: (xyz: vec3) => vec3[] = xyz => {
+      const [x = 0, y = 0, z = 0] = xyz;
 
       const clip = tileShapes
         .get(xyz)
         .map((_, i) => worldToLocal(_, vec3s[i]))
         .map((_, i) => localToClip(_, vec4s[i]));
       if (
-        clip.every(([x, , , w]) => x > w) ||
-        clip.every(([x, , , w]) => x < -w) ||
-        clip.every(([, y, , w]) => y > w) ||
-        clip.every(([, y, , w]) => y < -w) ||
-        clip.every(([, , z, w]) => z > w) ||
-        clip.every(([, , z, w]) => z < -w) ||
-        clip.every(([, , , w]) => w < 0)
+        clip.every(([x = 0, , , w = 0]) => x > w) ||
+        clip.every(([x = 0, , , w = 0]) => x < -w) ||
+        clip.every(([, y = 0, , w = 0]) => y > w) ||
+        clip.every(([, y = 0, , w = 0]) => y < -w) ||
+        clip.every(([, , z = 0, w = 0]) => z > w) ||
+        clip.every(([, , z = 0, w = 0]) => z < -w) ||
+        clip.every(([, , , w = 0]) => w < 0)
       )
         return [];
 
       const pixels = clip.map((_, i) => clipToScreen(_, vec2s[i]));
       const size = Math.sqrt(
         q
-          .map((i) =>
-            vec2.squaredDistance(pixels[i], pixels[(i + 1) % pixels.length])
+          .map(i =>
+            vec2.squaredDistance(
+              pixels[i] ?? [0, 0],
+              pixels[(i + 1) % pixels.length] ?? [0, 0],
+            ),
           )
-          .reduce((a, b) => a + b, 0) / 4
+          .reduce((a, b) => a + b, 0) / 4,
       );
 
       if (size > 512 && z < maxZ) {
@@ -144,7 +149,7 @@ export const createTerrainLayer = (
           [2 * x + 1, 2 * y + 1, z + 1],
         ];
 
-        return divided.flatMap((_) => divide(_));
+        return divided.flatMap(_ => divide(_));
       } else return [xyz];
     };
 
@@ -200,7 +205,7 @@ export const createTerrainLayer = (
 };
 
 const createPrograms = (gl: WebGL2RenderingContext) => {
-  const [renderProgram, depthProgram] = [false, true].map((depth) => {
+  const createRenderProgram = (depth = false) => {
     const program = createProgram({
       gl,
       vertexSource,
@@ -208,7 +213,7 @@ const createPrograms = (gl: WebGL2RenderingContext) => {
     });
 
     const uvwBuffer = createBuffer({ gl, type: "f32", target: "array" });
-    uvwBuffer.set(uvw.flatMap(([x, y, z]) => [x, y, z]));
+    uvwBuffer.set(uvw.flatMap(([x = 0, y = 0, z = 0]) => [x, y, z]));
 
     const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
     indexBuffer.set(indices);
@@ -279,7 +284,10 @@ const createPrograms = (gl: WebGL2RenderingContext) => {
     };
 
     return { execute, destroy };
-  });
+  };
+
+  const renderProgram = createRenderProgram();
+  const depthProgram = createRenderProgram(true);
 
   return { renderProgram, depthProgram };
 };

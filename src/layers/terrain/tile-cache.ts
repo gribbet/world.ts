@@ -1,7 +1,8 @@
-import { vec3 } from "gl-matrix";
-import * as LruCache from "lru-cache";
-import { createImageTexture, ImageTexture } from "./image-texture";
-import { Texture } from "./texture";
+import type { vec3 } from "gl-matrix";
+
+import type { ImageTexture } from "./image-texture";
+import { createImageTexture } from "./image-texture";
+import type { Texture } from "./texture";
 import { createTileIndexCache } from "./tile-index-cache";
 
 export type TileCache = {
@@ -20,7 +21,7 @@ export const createTileCache = ({
 }) => {
   const tiles = createTileIndexCache<ImageTexture>({
     max: 10000,
-    dispose: (tile) => tile.destroy(),
+    dispose: tile => tile.destroy(),
   });
   const loading = createTileIndexCache<true>({
     max: 10000,
@@ -34,7 +35,7 @@ export const createTileCache = ({
     },
   });
 
-  const get: (xyz: vec3) => Texture | undefined = (xyz) => {
+  const get: (xyz: vec3) => Texture | undefined = xyz => {
     const cached = tiles.get(xyz);
     if (cached) {
       if (cached.loaded) {

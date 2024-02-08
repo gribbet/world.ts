@@ -1,4 +1,4 @@
-import { vec3 } from "gl-matrix";
+import type { vec3 } from "gl-matrix";
 import * as LRUCache from "lru-cache";
 
 export type TileIndexCache<T> = {
@@ -16,7 +16,7 @@ export type CreateTileIndexCacheOptions<T> = {
 };
 
 export const createTileIndexCache = <T>(
-  options: CreateTileIndexCacheOptions<T>
+  options: CreateTileIndexCacheOptions<T>,
 ) => {
   const cache = new LRUCache<number, T>({
     ...options,
@@ -24,7 +24,8 @@ export const createTileIndexCache = <T>(
     dispose: (value, key) => options.dispose?.(value, fromKey(key)),
   });
 
-  const toKey = ([x, y, z]: vec3) => y * 2 ** z + x + (4 ** (z + 1) - 1) / 3;
+  const toKey = ([x = 0, y = 0, z = 0]: vec3) =>
+    y * 2 ** z + x + (4 ** (z + 1) - 1) / 3;
   const fromKey = (key: number) => {
     const z = Math.floor(Math.log(key * 3 + 1) / Math.log(4)) - 1;
     key -= (4 ** (z + 1) - 1) / 3;
@@ -34,9 +35,9 @@ export const createTileIndexCache = <T>(
   };
 
   return {
-    get: (xyz) => cache.get(toKey(xyz)),
+    get: xyz => cache.get(toKey(xyz)),
     set: (xyz, value) => cache.set(toKey(xyz), value as unknown as T),
-    delete: (xyz) => cache.delete(toKey(xyz)),
+    delete: xyz => cache.delete(toKey(xyz)),
     clear: () => cache.clear(),
     purgeStale: () => cache.purgeStale(),
   } satisfies TileIndexCache<T>;

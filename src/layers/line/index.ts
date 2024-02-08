@@ -1,22 +1,24 @@
-import { mat4, vec2, vec3, vec4 } from "gl-matrix";
-import { BaseLayer, LayerEvents, Line } from "../";
+import type { mat4, vec2, vec4 } from "gl-matrix";
+import { vec3 } from "gl-matrix";
+
+import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import { range } from "../../common";
 import { circumference } from "../../constants";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
-import { Viewport } from "../../viewport";
-import fragmentSource from "./fragment.glsl";
+import type { Viewport } from "../../viewport";
+import type { BaseLayer, LayerEvents, Line } from "../";
 import depthSource from "../depth.glsl";
-import vertexSource from "./vertex.glsl";
-import { Buffer } from "../../buffer";
 import { to } from "../utils";
+import fragmentSource from "./fragment.glsl";
+import vertexSource from "./vertex.glsl";
 
 export type LineLayer = BaseLayer & Line;
 
 export const createLineLayer = (
   gl: WebGL2RenderingContext,
-  line: Line & LayerEvents
+  line: Line & LayerEvents,
 ) => {
   let { points, color, width, minWidthPixels, maxWidthPixels } = line;
 
@@ -65,21 +67,22 @@ export const createLineLayer = (
     depthProgram.destroy();
   };
 
-  const updatePoints = (points: vec3[]) => {
-    count = points.length;
+  const updatePoints = (_: vec3[]) => {
+    points = _;
+    count = _.length;
 
-    const [first] = points;
-    const [last] = points.slice(-1);
+    const [first] = _;
+    const [last] = _.slice(-1);
 
     if (!first || !last) return;
 
     center = mercator(first);
 
-    const positionData = [first, ...points, last]
-      .map((_) => vec3.sub(vec3.create(), mercator(_), center))
-      .flatMap((_) => [..._, ..._, ..._, ..._]);
-    const indexData = range(0, count * 2).flatMap((i) => {
-      const [a, b, c, d] = range(i * 2, i * 2 + 4);
+    const positionData = [first, ..._, last]
+      .map(_ => vec3.sub(vec3.create(), mercator(_), center))
+      .flatMap(_ => [..._, ..._, ..._, ..._]);
+    const indexData = range(0, count * 2).flatMap(i => {
+      const [a = 0, b = 0, c = 0, d = 0] = range(i * 2, i * 2 + 4);
       return [
         [a, b, c],
         [a, c, d],
@@ -91,7 +94,7 @@ export const createLineLayer = (
         [-1, 1],
         [1, 1],
         [1, -1],
-      ].flat()
+      ].flat(),
     );
 
     positionBuffer.set(positionData);
@@ -148,9 +151,9 @@ const createPrograms = (
     positionBuffer: Buffer;
     indexBuffer: Buffer;
     cornerBuffer: Buffer;
-  }
+  },
 ) => {
-  const [renderProgram, depthProgram] = [false, true].map((depth) => {
+  const createRenderProgram = (depth = false) => {
     const program = createProgram({
       gl,
       vertexSource,
@@ -210,7 +213,7 @@ const createPrograms = (
       maxWidthPixels: number;
       index: number;
     }) => {
-      if (count == 0) return;
+      if (count === 0) return;
 
       gl.enable(gl.DEPTH_TEST);
       if (!depth) {
@@ -244,7 +247,10 @@ const createPrograms = (
     const destroy = () => program.destroy();
 
     return { execute, destroy };
-  });
+  };
+
+  const renderProgram = createRenderProgram();
+  const depthProgram = createRenderProgram(true);
 
   return { renderProgram, depthProgram };
 };

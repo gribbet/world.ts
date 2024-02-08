@@ -1,5 +1,6 @@
-import { mat4, vec2, vec3, vec4 } from "gl-matrix";
-import { Buffer } from "./buffer";
+import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
+
+import type { Buffer } from "./buffer";
 
 export type Program = {
   use: () => void;
@@ -15,12 +16,12 @@ export type Program = {
   attribute3f: (
     name: string,
     buffer: Buffer,
-    _?: { stride?: number; offset?: number }
+    _?: { stride?: number; offset?: number },
   ) => Attribute;
   attribute2f: (
     name: string,
     buffer: Buffer,
-    _?: { stride?: number; offset?: number }
+    _?: { stride?: number; offset?: number },
   ) => Attribute;
   destroy: () => void;
 };
@@ -48,12 +49,12 @@ export const createProgram = ({
   const vertexShader = compileShader(
     gl,
     gl.createShader(gl.VERTEX_SHADER),
-    vertexSource
+    vertexSource,
   );
   const fragmentShader = compileShader(
     gl,
     gl.createShader(gl.FRAGMENT_SHADER),
-    fragmentSource
+    fragmentSource,
   );
 
   gl.attachShader(program, vertexShader);
@@ -69,7 +70,7 @@ export const createProgram = ({
 
   const uniform = <T extends number | vec2 | vec3 | vec4 | mat4>(
     name: string,
-    f: (location: WebGLUniformLocation, value: T) => void
+    f: (location: WebGLUniformLocation, value: T) => void,
   ) => {
     const location = gl.getUniformLocation(program, name);
     let cached: T | undefined;
@@ -86,28 +87,32 @@ export const createProgram = ({
   const uniform1i = (name: string) =>
     uniform<number>(name, (location, x) => gl.uniform1i(location, x));
   const uniform2f = (name: string) =>
-    uniform<vec2>(name, (location, [x, y]) => gl.uniform2f(location, x, y));
+    uniform<vec2>(name, (location, [x = 0, y = 0]) =>
+      gl.uniform2f(location, x, y),
+    );
   const uniform2i = (name: string) =>
-    uniform<vec2>(name, (location, [x, y]) => gl.uniform2i(location, x, y));
+    uniform<vec2>(name, (location, [x = 0, y = 0]) =>
+      gl.uniform2i(location, x, y),
+    );
   const uniform3f = (name: string) =>
-    uniform<vec3>(name, (location, [x, y, z]) =>
-      gl.uniform3f(location, x, y, z)
+    uniform<vec3>(name, (location, [x = 0, y = 0, z = 0]) =>
+      gl.uniform3f(location, x, y, z),
     );
   const uniform3i = (name: string) =>
-    uniform<vec3>(name, (location, [x, y, z]) =>
-      gl.uniform3i(location, x, y, z)
+    uniform<vec3>(name, (location, [x = 0, y = 0, z = 0]) =>
+      gl.uniform3i(location, x, y, z),
     );
   const uniform4f = (name: string) =>
-    uniform<vec4>(name, (location, [x, y, z, w]) =>
-      gl.uniform4f(location, x, y, z, w)
+    uniform<vec4>(name, (location, [x = 0, y = 0, z = 0, w = 0]) =>
+      gl.uniform4f(location, x, y, z, w),
     );
   const uniform4i = (name: string) =>
-    uniform<vec4>(name, (location, [x, y, z, w]) =>
-      gl.uniform4i(location, x, y, z, w)
+    uniform<vec4>(name, (location, [x = 0, y = 0, z = 0, w = 0]) =>
+      gl.uniform4i(location, x, y, z, w),
     );
   const uniformMatrix4f = (name: string) =>
     uniform<mat4>(name, (location, value) =>
-      gl.uniformMatrix4fv(location, false, value)
+      gl.uniformMatrix4fv(location, false, value),
     );
 
   const attribute = ({
@@ -134,10 +139,10 @@ export const createProgram = ({
       gl.vertexAttribPointer(
         location,
         size,
-        type === "f32" ? gl.FLOAT : type === "u16" ? gl.UNSIGNED_SHORT : 0,
+        type === "u16" ? gl.UNSIGNED_SHORT : gl.FLOAT,
         false,
         stride || 0,
-        offset || 0
+        offset || 0,
       );
     };
 
@@ -147,13 +152,13 @@ export const createProgram = ({
   const attribute2f = (
     name: string,
     buffer: Buffer,
-    options: { stride?: number; offset?: number } = {}
+    options: { stride?: number; offset?: number } = {},
   ) => attribute({ name, buffer, size: 2, type: "f32", ...options });
 
   const attribute3f = (
     name: string,
     buffer: Buffer,
-    options: { stride?: number; offset?: number } = {}
+    options: { stride?: number; offset?: number } = {},
   ) => attribute({ name, buffer, size: 3, type: "f32", ...options });
 
   const destroy = () => {
@@ -182,7 +187,7 @@ export const createProgram = ({
 const compileShader = (
   gl: WebGL2RenderingContext,
   shader: WebGLShader | null,
-  source: string
+  source: string,
 ) => {
   if (!shader) throw new Error("Shader creation failed");
   gl.shaderSource(shader, source);

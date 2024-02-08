@@ -1,6 +1,7 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
+
 import { circumference } from "./constants";
-import { geodetic, mercator, quadratic, radians } from "./math";
+import { mercator, quadratic, radians } from "./math";
 
 export type Orientation = [pitch: number, roll: number, yaw: number];
 
@@ -9,7 +10,7 @@ export type View = {
   center?: vec2;
   screen: vec2;
   distance: number;
-  orientation: Orientation;
+  orientation: Orientation; // TODO: Quat?
   fieldOfView?: number;
 };
 
@@ -30,15 +31,15 @@ export type Viewport = {
 const matrix = mat4.create();
 const vector = vec4.create();
 
-export const createViewport: (view: View) => Viewport = (view) => {
+export const createViewport: (view: View) => Viewport = view => {
   const {
     target,
     screen,
     distance,
     orientation: [pitch, roll, yaw],
   } = view;
-  const [width, height] = screen;
-  const [x, y] = view.center ?? [width / 2, height / 2];
+  const [width = 0, height = 0] = screen;
+  const [x = 0, y = 0] = view.center ?? [width / 2, height / 2];
   const z = distance / circumference;
   const near = z / 1000;
   const far = z * 1000;
@@ -58,7 +59,6 @@ export const createViewport: (view: View) => Viewport = (view) => {
 
   const transform = mat4.multiply(matrix, projection, modelView);
   const inverse = mat4.invert(mat4.create(), transform);
-  if (!inverse) throw new Error("Unexpected");
 
   const scale = (scale: number) => {
     const screen: vec2 = [width * scale, height * scale];
@@ -66,35 +66,38 @@ export const createViewport: (view: View) => Viewport = (view) => {
     return createViewport({ ...view, center, screen });
   };
 
-  const screenToClip = ([screenX, screenY]: vec2, out = vec4.create()) => {
+  const screenToClip = (
+    [screenX = 0, screenY = 0]: vec2,
+    out = vec4.create(),
+  ) => {
     const x = (2 * screenX) / width - 1;
     const y = -((2 * screenY) / height - 1);
     return vec4.set(out, x, y, 0, 1);
   };
 
-  const clipToScreen = ([x, y, , w]: vec4, out = vec2.create()) =>
+  const clipToScreen = ([x = 0, y = 0, , w = 0]: vec4, out = vec2.create()) =>
     vec2.set(out, (x / w + 1) * width * 0.5, (1 - y / w) * height * 0.5);
 
   const clipToLocal = (v: vec4, out = vec3.create()) => {
-    const [x, y, z, w] = vec4.transformMat4(vector, v, inverse);
+    const [x = 0, y = 0, z = 0, w = 0] = vec4.transformMat4(vector, v, inverse);
     return vec3.set(out, x / w, y / w, z / w);
   };
 
-  const localToClip = ([x, y, z]: vec3, out = vec4.create()) =>
+  const localToClip = ([x = 0, y = 0, z = 0]: vec3, out = vec4.create()) =>
     vec4.transformMat4(out, vec4.set(out, x, y, z, 1), transform);
 
-  const [cx, cy] = screenToClip([x, y]);
-  const [ax, ay, az] = clipToLocal([cx, cy, -1, 1]);
-  const [bx, by, bz] = clipToLocal([cx, cy, 1.00001, 1]);
+  const [cx = 0, cy = 0] = screenToClip([x, y]);
+  const [ax = 0, ay = 0, az = 0] = clipToLocal([cx, cy, -1, 1]);
+  const [bx = 0, by = 0, bz = 0] = clipToLocal([cx, cy, 1.00001, 1]);
 
   const d =
     (distance * Math.tan(radians(defaultFieldOfView) / 2)) /
     Math.tan(radians(fieldOfView) / 2);
 
-  const [t1] = quadratic(
+  const [t1 = 0] = quadratic(
     (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
     ax * (bx - ax) + ay * (by - ay) + az * (bz - az),
-    ax * ax + ay * ay + az * az - (d * d) / circumference / circumference
+    ax * ax + ay * ay + az * az - (d * d) / circumference / circumference,
   );
 
   if (isNaN(t1)) throw new Error("Unexpected");

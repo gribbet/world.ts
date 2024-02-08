@@ -1,13 +1,16 @@
-import { glMatrix, quat, vec2, vec3 } from "gl-matrix";
+import type { vec2 } from "gl-matrix";
+import { glMatrix, quat, vec3 } from "gl-matrix";
+
 import { debounce } from "./common";
 import { circumference } from "./constants";
 import { createDepthBuffer } from "./depth-buffer";
-import { Layer, LayerEvents, Line, Mesh, Terrain } from "./layers";
+import type { Layer, LayerEvents, Line, Mesh, Terrain } from "./layers";
 import { createLineLayer } from "./layers/line";
 import { createMeshLayer } from "./layers/mesh";
-import { geodetic, mercator } from "./math";
-import { View, createViewport } from "./viewport";
 import { createTerrainLayer } from "./layers/terrain";
+import { geodetic, mercator } from "./math";
+import type { View } from "./viewport";
+import { createViewport } from "./viewport";
 
 glMatrix.setMatrixArrayType(Array); // Required for precision
 
@@ -38,7 +41,6 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   const gl = canvas.getContext("webgl2", {
     antialias: true,
   }) as WebGL2RenderingContext;
-  if (!gl) throw new Error("WebGL context failure");
 
   let layers: Layer[] = [];
 
@@ -46,7 +48,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
   const resize = (screen: vec2) => {
     view.screen = screen;
-    const [width, height] = screen;
+    const [width = 0, height = 0] = screen;
     canvas.width = width * devicePixelRatio;
     canvas.height = height * devicePixelRatio;
     depthBuffer.resize([canvas.width * depthScale, canvas.height * depthScale]);
@@ -54,25 +56,27 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
   resize([canvas.clientWidth, canvas.clientHeight]);
 
-  const resizer = new ResizeObserver(([{ contentRect }]) => {
+  const resizer = new ResizeObserver(([entry]) => {
+    if (!entry) return;
+    const { contentRect } = entry;
     const { width, height } = contentRect;
     resize([width, height]);
   });
   resizer.observe(canvas);
 
-  const clear = ([width, height]: vec2) => {
+  const clear = ([width = 0, height = 0]: vec2) => {
     gl.viewport(0, 0, width, height);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   };
 
   const render = () => {
-    let viewport = createViewport(view).scale(devicePixelRatio);
+    const viewport = createViewport(view).scale(devicePixelRatio);
     clear(viewport.screen);
-    layers.forEach((_) => _.render({ viewport }));
+    layers.forEach(_ => _.render({ viewport }));
   };
 
   const depth = () => {
-    let viewport = createViewport(view).scale(depthScale * devicePixelRatio);
+    const viewport = createViewport(view).scale(depthScale * devicePixelRatio);
     clear(viewport.screen);
     layers.forEach((_, i) => _.render({ viewport, depth: true, index: i + 1 }));
   };
@@ -85,7 +89,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
   requestAnimationFrame(frame);
 
-  const pick = ([screenX, screenY]: vec2) => {
+  const pick = ([screenX = 0, screenY = 0]: vec2) => {
     const { screenToClip, clipToLocal, localToWorld } = createViewport(view);
 
     depthBuffer.use();
@@ -98,7 +102,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
       screenY * devicePixelRatio * depthScale,
     ]);
 
-    const [x, y] = screenToClip([screenX, screenY]);
+    const [x = 0, y = 0] = screenToClip([screenX, screenY]);
     const p = geodetic(localToWorld(clipToLocal([x, y, z, 1])));
     return [p, index] as const;
   };
@@ -124,14 +128,14 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   };
 
   const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
-    if (buttons === 1 && draggable) {
+    if (buttons === 1 && draggable)
       view = {
         ...view,
         center: [x, y],
       };
-    } else if (buttons === 2) {
+    else if (buttons === 2) {
       const {
-        screen: [width, height],
+        screen: [width = 0, height = 0],
         orientation: [pitch, roll, yaw],
       } = view;
       view.orientation = [
@@ -152,7 +156,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     }
     const distance = Math.min(
       Math.max(view.distance * Math.exp(deltaY * 0.001), minimumDistance),
-      circumference
+      circumference,
     );
     view = {
       ...view,
@@ -206,7 +210,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   const destroy = () => {
     running = false;
     resizer.unobserve(canvas);
-    layers.forEach((_) => _.destroy());
+    layers.forEach(_ => _.destroy());
     layers = [];
     depthBuffer.destroy();
     canvas.removeEventListener("mousedown", onMouseDown);

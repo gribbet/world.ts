@@ -1,6 +1,6 @@
 export type Data = ["load" | "cancel", string];
 
-addEventListener("message", async (event) => {
+addEventListener("message", async event => {
   const [action, url] = event.data as Data;
   if (action !== "load") return;
   const abortController = new AbortController();

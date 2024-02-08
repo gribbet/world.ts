@@ -17,7 +17,7 @@ export const createTexture = (gl: WebGL2RenderingContext) => {
       gl.COLOR_ATTACHMENT0,
       gl.TEXTURE_2D,
       texture,
-      0
+      0,
     );
   };
 

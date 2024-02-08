@@ -1,6 +1,9 @@
-export const debounce = (f: (...args: any[]) => void, delay: number) => {
+export const debounce = <F extends (...args: unknown[]) => void>(
+  f: F,
+  delay: number,
+) => {
   let timeout: number;
-  return (...args: any[]) => {
+  return (...args: Parameters<F>) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => f(args), delay);
   };

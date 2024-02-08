@@ -1,9 +1,9 @@
-import { quat, vec3, vec4 } from "gl-matrix";
-import { Viewport } from "../viewport";
+import type { quat, vec3, vec4 } from "gl-matrix";
 
-import { TerrainLayer } from "./terrain";
-import { MeshLayer } from "./mesh";
-import { LineLayer } from "./line";
+import type { Viewport } from "../viewport";
+import type { LineLayer } from "./line";
+import type { MeshLayer } from "./mesh";
+import type { TerrainLayer } from "./terrain";
 
 export type Terrain = {
   terrainUrl: string;

@@ -22,16 +22,12 @@ export const createBuffer = ({
   const use = () => gl.bindBuffer(glTarget, buffer);
 
   return {
-    set: (value) => {
+    set: value => {
       use();
       gl.bufferData(
         glTarget,
-        type === "f32"
-          ? new Float32Array(value)
-          : type === "u16"
-          ? new Uint16Array(value)
-          : null,
-        gl.DYNAMIC_DRAW
+        type === "u16" ? new Uint16Array(value) : new Float32Array(value),
+        gl.DYNAMIC_DRAW,
       );
     },
     use,

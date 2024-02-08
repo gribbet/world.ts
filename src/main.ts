@@ -1,4 +1,6 @@
-import { quat, vec3 } from "gl-matrix";
+import type { vec3 } from "gl-matrix";
+import { quat } from "gl-matrix";
+
 import { range } from "./common";
 import { indices, vertices } from "./k1000";
 import { createWorld } from "./world";
@@ -21,7 +23,7 @@ export const terrainUrl =
 let position: vec3 = [-121, 38, 100];
 
 const world = createWorld(
-  document.querySelector("canvas") as HTMLCanvasElement
+  document.querySelector("canvas") as HTMLCanvasElement,
 );
 //world.draggable = false;
 world.view = {
@@ -32,7 +34,7 @@ world.view = {
 
 const n = 100;
 world.addLine({
-  points: range(0, n + 1).map<vec3>((i) => {
+  points: range(0, n + 1).map<vec3>(i => {
     const a = ((i / n) * Math.PI * 2) / 10;
     return [-121 + 1 * Math.cos(a * 5), 38 + 1 * Math.sin(a), 400];
   }),
@@ -52,7 +54,7 @@ const mesh = world.addMesh({
   indices,
   size: 1 / 1000,
   minSizePixels: 64 / 1000,
-  onMouseDown: (target) => {
+  onMouseDown: target => {
     console.log("Clicked", target);
   },
 });
@@ -69,7 +71,7 @@ const frame = (time: number) => {
   const delta = time - lastTime;
   lastTime = time;
 
-  const [lng, lat, alt] = position;
+  const [lng = 0, lat = 0, alt = 0] = position;
   const newLat = lat + 0.00000001 * delta;
   position = [lng, newLat, alt];
   mesh.position = position;
