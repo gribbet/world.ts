@@ -13,6 +13,11 @@ import { createWorld } from "./world";
  * labels
  */
 
+export const imageryUrl =
+  "http://mt0.google.com/vt/lyrs=s&hl=en&x={x}&y={y}&z={z}";
+export const terrainUrl =
+  "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
+
 let position: vec3 = [-121, 38, 100];
 
 const world = createWorld(
@@ -36,11 +41,20 @@ world.addLine({
   minWidthPixels: 4,
 });
 
+world.addTerrain({
+  terrainUrl,
+  imageryUrl,
+  onMouseDown: () => console.log("Terrain"),
+});
+
 const mesh = world.addMesh({
   vertices,
   indices,
   size: 1 / 1000,
   minSizePixels: 64 / 1000,
+  onMouseDown: (target) => {
+    console.log("Clicked", target);
+  },
 });
 
 const stem = world.addLine({

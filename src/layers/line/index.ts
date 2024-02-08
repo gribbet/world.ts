@@ -1,9 +1,8 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
-import { Layer } from "../";
+import { BaseLayer, LayerEvents, Line } from "../";
 import { createBuffer } from "../../buffer";
 import { range } from "../../common";
 import { circumference } from "../../constants";
-import { Line } from "../../line";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import { Viewport } from "../../viewport";
@@ -13,15 +12,14 @@ import vertexSource from "./vertex.glsl";
 import { Buffer } from "../../buffer";
 import { to } from "../utils";
 
-export type LineLayer = Layer &
-  Line & {
-    destroy: () => void;
-  };
+export type LineLayer = BaseLayer & Line;
 
 export const createLineLayer = (
   gl: WebGL2RenderingContext,
-  { points, color, width, minWidthPixels, maxWidthPixels }: Line
+  line: Line & LayerEvents
 ) => {
+  let { points, color, width, minWidthPixels, maxWidthPixels } = line;
+
   let count = 0;
 
   let center: vec3 = [0, 0, 0];
@@ -106,19 +104,35 @@ export const createLineLayer = (
   return {
     render,
     destroy,
+    ...line,
+    get points() {
+      return points;
+    },
     set points(_: vec3[]) {
       updatePoints(_);
+    },
+    get color() {
+      return color;
     },
     set color(_: vec4) {
       color = _;
     },
+    get width() {
+      return width;
+    },
     set width(_: number) {
       width = _;
     },
-    set minWidthPixels(_: number) {
+    get minWidthPixels() {
+      return minWidthPixels;
+    },
+    set minWidthPixels(_: number | undefined) {
       minWidthPixels = _;
     },
-    set maxWidthPixels(_: number) {
+    get maxWidthPixels() {
+      return maxWidthPixels;
+    },
+    set maxWidthPixels(_: number | undefined) {
       maxWidthPixels = _;
     },
   } satisfies LineLayer;

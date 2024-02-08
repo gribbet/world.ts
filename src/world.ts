@@ -2,12 +2,12 @@ import { glMatrix, quat, vec2, vec3 } from "gl-matrix";
 import { debounce } from "./common";
 import { circumference } from "./constants";
 import { createDepthBuffer } from "./depth-buffer";
-import { Layer, createLineLayer, createTerrainLayer } from "./layers";
+import { Layer, LayerEvents, Line, Mesh, Terrain } from "./layers";
+import { createLineLayer } from "./layers/line";
 import { createMeshLayer } from "./layers/mesh";
-import { Line } from "./line";
 import { geodetic, mercator } from "./math";
-import { Mesh } from "./mesh";
 import { View, createViewport } from "./viewport";
+import { createTerrainLayer } from "./layers/terrain";
 
 glMatrix.setMatrixArrayType(Array); // Required for precision
 
@@ -16,8 +16,9 @@ export type World = {
   get view(): View;
   set draggable(_: boolean);
   get draggable(): boolean;
-  addLine: (line: Partial<Line>) => Line;
-  addMesh: (mesh: Partial<Mesh>) => Mesh;
+  addTerrain: (terrain: Partial<Terrain & LayerEvents>) => Terrain;
+  addMesh: (mesh: Partial<Mesh & LayerEvents>) => Mesh;
+  addLine: (line: Partial<Line & LayerEvents>) => Line;
   destroy: () => void;
 };
 
@@ -39,7 +40,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   }) as WebGL2RenderingContext;
   if (!gl) throw new Error("WebGL context failure");
 
-  let layers: Layer[] = [createTerrainLayer(gl)];
+  let layers: Layer[] = [];
 
   const depthBuffer = createDepthBuffer(gl);
 
@@ -73,7 +74,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   const depth = () => {
     let viewport = createViewport(view).scale(depthScale * devicePixelRatio);
     clear(viewport.screen);
-    layers.forEach((_, index) => _.render({ viewport, depth: true, index }));
+    layers.forEach((_, i) => _.render({ viewport, depth: true, index: i + 1 }));
   };
 
   const frame = () => {
@@ -92,19 +93,20 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     gl.disable(gl.BLEND);
     depth();
 
-    const [z, n] = depthBuffer.read([
+    const [z, index] = depthBuffer.read([
       screenX * devicePixelRatio * depthScale,
       screenY * devicePixelRatio * depthScale,
     ]);
 
     const [x, y] = screenToClip([screenX, screenY]);
     const p = geodetic(localToWorld(clipToLocal([x, y, z, 1])));
-    return [p, n] as const;
+    return [p, index] as const;
   };
 
   const recenter = (center: vec2) => {
     const { camera } = createViewport(view);
-    const [target] = pick(center);
+    const [target, index] = pick(center);
+    if (index === 0) return;
     const distance = vec3.distance(mercator(target), camera) * circumference;
     view = {
       ...view,
@@ -116,6 +118,9 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
   const onMouseDown = ({ x, y }: MouseEvent) => {
     if (draggable) recenter([x, y]);
+    const [position, index] = pick([x, y]);
+    if (index === 0) return;
+    layers[index - 1]?.onMouseDown?.(position);
   };
 
   const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
@@ -163,18 +168,17 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   canvas.addEventListener("wheel", onWheel, { passive: true });
   canvas.addEventListener("contextmenu", onContextMenu);
 
-  const addLine = (line: Partial<Line>) => {
-    const layer = createLineLayer(gl, {
-      points: [],
-      color: [1, 1, 1, 1],
-      width: 1,
-      ...line,
+  const addTerrain = (terrain: Partial<Terrain & LayerEvents>) => {
+    const layer = createTerrainLayer(gl, {
+      terrainUrl: "",
+      imageryUrl: "",
+      ...terrain,
     });
     layers.push(layer);
     return layer;
   };
 
-  const addMesh = (mesh: Partial<Mesh>) => {
+  const addMesh = (mesh: Partial<Mesh & LayerEvents>) => {
     const layer = createMeshLayer(gl, {
       vertices: [],
       indices: [],
@@ -183,6 +187,17 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
       color: [1, 1, 1, 1],
       size: 1,
       ...mesh,
+    });
+    layers.push(layer);
+    return layer;
+  };
+
+  const addLine = (line: Partial<Line & LayerEvents>) => {
+    const layer = createLineLayer(gl, {
+      points: [],
+      color: [1, 1, 1, 1],
+      width: 1,
+      ...line,
     });
     layers.push(layer);
     return layer;
@@ -213,8 +228,9 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     set draggable(_: boolean) {
       draggable = _;
     },
-    addLine,
+    addTerrain,
     addMesh,
+    addLine,
     destroy,
   } satisfies World;
 };

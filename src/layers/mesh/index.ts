@@ -1,8 +1,7 @@
 import { mat4, quat, vec2, vec3, vec4 } from "gl-matrix";
-import { Layer } from "..";
+import { BaseLayer, LayerEvents } from "..";
 import { Buffer, createBuffer } from "../../buffer";
 import { mercator } from "../../math";
-import { Mesh } from "../../mesh";
 import { createProgram } from "../../program";
 import { Viewport } from "../../viewport";
 import fragmentSource from "./fragment.glsl";
@@ -10,18 +9,15 @@ import depthSource from "../depth.glsl";
 import vertexSource from "./vertex.glsl";
 import { circumference } from "../../constants";
 import { to } from "../utils";
+import { Mesh } from "../../layers";
 
-export type MeshLayer = Layer &
-  Mesh & {
-    destroy: () => void;
-  };
+export type MeshLayer = BaseLayer & Mesh;
 
 export const createMeshLayer: (
   gl: WebGL2RenderingContext,
-  mesh: Mesh
-) => MeshLayer = (
-  gl,
-  {
+  mesh: Mesh & LayerEvents
+) => MeshLayer = (gl, mesh) => {
+  let {
     vertices,
     indices,
     position,
@@ -30,8 +26,7 @@ export const createMeshLayer: (
     size,
     minSizePixels,
     maxSizePixels,
-  }
-) => {
+  } = mesh;
   let count = 0;
 
   const vertexBuffer = createBuffer({ gl, type: "f32", target: "array" });
@@ -73,12 +68,15 @@ export const createMeshLayer: (
     depthProgram.destroy();
   };
 
-  const updateVertices = (vertices: vec3[]) =>
-    vertexBuffer.set(vertices.flatMap((_) => [..._]));
+  const updateVertices = (_: vec3[]) => {
+    vertices = _;
+    vertexBuffer.set(_.flatMap((_) => [..._]));
+  };
 
-  const updateIndices = (indices: vec3[]) => {
-    indexBuffer.set(indices.flatMap((_) => [..._]));
-    count = indices.length;
+  const updateIndices = (_: vec3[]) => {
+    indices = _;
+    indexBuffer.set(_.flatMap((_) => [..._]));
+    count = _.length;
   };
 
   updateVertices(vertices);
@@ -87,28 +85,53 @@ export const createMeshLayer: (
   return {
     render,
     destroy,
+    ...mesh,
+    get vertices() {
+      return vertices;
+    },
     set vertices(_: vec3[]) {
       updateVertices(_);
+    },
+    get indices() {
+      return indices;
     },
     set indices(_: vec3[]) {
       updateIndices(_);
     },
+    get position() {
+      return position;
+    },
     set position(_: vec3) {
       position = _;
+    },
+    get orientation() {
+      return orientation;
     },
     set orientation(_: quat) {
       orientation = _;
     },
+    get color() {
+      return color;
+    },
     set color(_: vec4) {
       color = _;
+    },
+    get size() {
+      return size;
     },
     set size(_: number) {
       size = _;
     },
-    set minSizePixels(_: number) {
+    get minSizePixels() {
+      return minSizePixels;
+    },
+    set minSizePixels(_: number | undefined) {
       minSizePixels = _;
     },
-    set maxSizePixels(_: number) {
+    get maxSizePixels() {
+      return maxSizePixels;
+    },
+    set maxSizePixels(_: number | undefined) {
       maxSizePixels = _;
     },
   };

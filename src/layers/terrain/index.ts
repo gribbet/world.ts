@@ -1,19 +1,18 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
-import { Layer } from "..";
+import { BaseLayer, LayerEvents, Terrain } from "..";
 import { createBuffer } from "../../buffer";
 import { range } from "../../common";
-import { imageryUrl, terrainUrl } from "../../constants";
 import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
 import { Viewport } from "../../viewport";
 import depthSource from "../depth.glsl";
+import { to } from "../utils";
 import fragmentSource from "./fragment.glsl";
 import { Texture } from "./texture";
 import { createTileCache } from "./tile-cache";
 import { createTileDownsampler } from "./tile-downsampler";
 import { createTileShapes } from "./tile-shapes";
 import vertexSource from "./vertex.glsl";
-import { to } from "../utils";
 
 const n = 34;
 
@@ -57,7 +56,14 @@ const uvw = range(0, n + 1).flatMap((y) =>
   })
 );
 
-export const createTerrainLayer = (gl: WebGL2RenderingContext) => {
+export type TerrainLayer = BaseLayer;
+
+export const createTerrainLayer = (
+  gl: WebGL2RenderingContext,
+  terrain: Terrain & LayerEvents
+) => {
+  const { terrainUrl, imageryUrl } = terrain;
+
   const imageryCache = createTileCache({
     gl,
     urlPattern: imageryUrl,
@@ -154,7 +160,7 @@ export const createTerrainLayer = (gl: WebGL2RenderingContext) => {
     depth?: boolean;
     index?: number;
   }) => {
-    const { projection, modelView, camera, screen } = viewport;
+    const { projection, modelView, camera } = viewport;
     const visible = calculateVisibleTiles(viewport);
 
     for (const xyz of visible) {
@@ -190,7 +196,7 @@ export const createTerrainLayer = (gl: WebGL2RenderingContext) => {
     elevation.destroy();
   };
 
-  return { render, destroy } satisfies Layer;
+  return { render, destroy, ...terrain } satisfies TerrainLayer;
 };
 
 const createPrograms = (gl: WebGL2RenderingContext) => {
