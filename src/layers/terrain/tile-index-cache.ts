@@ -1,5 +1,5 @@
 import type { vec3 } from "gl-matrix";
-import * as LRUCache from "lru-cache";
+import LRUCache from "lru-cache";
 
 export type TileIndexCache<T> = {
   get: (xyz: vec3) => T | undefined;

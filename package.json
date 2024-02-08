@@ -1,16 +1,14 @@
 {
   "name": "world",
-  "version": "1.0.0",
-  "license": "MIT",
+  "type": "module",
   "scripts": {
-    "start": "parcel src/index.html",
-    "lint": "eslint --max-warnings 0 --cache --cache-strategy content src",
-    "build": "parcel build --public-url ./ src/index.html"
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "lint": "eslint --max-warnings 0 --cache --cache-strategy content src"
   },
   "devDependencies": {
-    "@parcel/optimizer-data-url": "2.8.3",
-    "@parcel/transformer-glsl": "2.8.3",
-    "@parcel/transformer-inline-string": "2.8.3",
+    "@parcel/transformer-css": "^2.11.0",
     "@types/lru-cache": "^7.5.0",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "eslint": "^8.56.0",
@@ -19,9 +17,9 @@
     "eslint-plugin-prettier": "^5.1.1",
     "eslint-plugin-simple-import-sort": "^10.0.0",
     "eslint-plugin-unused-imports": "^3.0.0",
-    "parcel": "^2.8.3",
-    "process": "^0.11.10",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "vite": "^5.1.0",
+    "vite-plugin-glsl": "^1.2.1"
   },
   "dependencies": {
     "gl-matrix": "^3.4.3",
