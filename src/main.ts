@@ -69,11 +69,12 @@ const frame = (time: number) => {
     [lng, newLat, alt],
   ];
   const roll = time / 10;
+  const pitch = Math.sin(time * 0.001) * 20;
   world.view = {
     ...world.view,
     target: position,
   };
-  mesh.orientation = quat.fromEuler(quat.create(), 0, roll, 0);
+  mesh.orientation = quat.fromEuler(quat.create(), pitch, roll, 0);
   requestAnimationFrame(frame);
 };
 
