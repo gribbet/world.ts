@@ -25,6 +25,7 @@ const depthScale = 0.5;
 const minimumDistance = 2;
 
 export const createWorld = (canvas: HTMLCanvasElement) => {
+  let running = true;
   let view: View = {
     target: [0, 0, 0],
     screen: [0, 0],
@@ -76,6 +77,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   };
 
   const frame = () => {
+    if (!running) return;
     render();
     requestAnimationFrame(frame);
   };
@@ -100,11 +102,6 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     return [p, n] as const;
   };
 
-  const destroy = () => {
-    resizer.unobserve(canvas);
-    // TODO: Destroy
-  };
-
   const recenter = (center: vec2) => {
     const { camera } = createViewport(view);
     const [target] = pick(center);
@@ -117,59 +114,53 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     };
   };
 
-  canvas.addEventListener("mousedown", ({ x, y }) => {
+  const onMouseDown = ({ x, y }: MouseEvent) => {
     if (draggable) recenter([x, y]);
-  });
+  };
 
-  canvas.addEventListener(
-    "mousemove",
-    ({ buttons, movementX, movementY, x, y }) => {
-      if (buttons === 1 && draggable) {
-        view = {
-          ...view,
-          center: [x, y],
-        };
-      } else if (buttons === 2) {
-        const {
-          screen: [width, height],
-          orientation: [pitch, roll, yaw],
-        } = view;
-        view.orientation = [
-          pitch - (movementY / height) * Math.PI,
-          roll,
-          yaw - (movementX / width) * Math.PI,
-        ];
-      }
+  const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
+    if (buttons === 1 && draggable) {
+      view = {
+        ...view,
+        center: [x, y],
+      };
+    } else if (buttons === 2) {
+      const {
+        screen: [width, height],
+        orientation: [pitch, roll, yaw],
+      } = view;
+      view.orientation = [
+        pitch - (movementY / height) * Math.PI,
+        roll,
+        yaw - (movementX / width) * Math.PI,
+      ];
     }
-  );
+  };
 
   let zooming = false;
   const clearZooming = debounce(() => (zooming = false), 10);
 
-  canvas.addEventListener(
-    "wheel",
-    (event) => {
-      const { x, y } = event;
-      if (!zooming && draggable) {
-        recenter([x, y]);
-        zooming = true;
-      }
-      view = {
-        ...view,
-        distance: Math.min(
-          Math.max(
-            view.distance * Math.exp(event.deltaY * 0.001),
-            minimumDistance
-          ),
-          circumference
-        ),
-      };
-      clearZooming();
-    },
-    { passive: true }
-  );
+  const onWheel = ({ x, y, deltaY }: WheelEvent) => {
+    if (!zooming && draggable) {
+      recenter([x, y]);
+      zooming = true;
+    }
+    view = {
+      ...view,
+      distance: Math.min(
+        Math.max(view.distance * Math.exp(deltaY * 0.001), minimumDistance),
+        circumference
+      ),
+    };
+    clearZooming();
+  };
 
-  canvas.addEventListener("contextmenu", (event) => event.preventDefault());
+  const onContextMenu = (event: MouseEvent) => event.preventDefault();
+
+  canvas.addEventListener("mousedown", onMouseDown);
+  canvas.addEventListener("mousemove", onMouseMove);
+  canvas.addEventListener("wheel", onWheel, { passive: true });
+  canvas.addEventListener("contextmenu", onContextMenu);
 
   const addLine = (line: Partial<Line>) => {
     const layer = createLineLayer(gl, {
@@ -194,6 +185,18 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     });
     layers.push(layer);
     return layer;
+  };
+
+  const destroy = () => {
+    running = false;
+    resizer.unobserve(canvas);
+    layers.forEach((_) => _.destroy());
+    layers = [];
+    depthBuffer.destroy();
+    canvas.removeEventListener("mousedown", onMouseDown);
+    canvas.removeEventListener("mousemove", onMouseMove);
+    canvas.removeEventListener("wheel", onWheel);
+    canvas.removeEventListener("contextmenu", onContextMenu);
   };
 
   return {
