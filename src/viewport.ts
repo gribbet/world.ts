@@ -2,7 +2,7 @@ import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { circumference } from "./constants";
 import { geodetic, mercator, quadratic } from "./math";
 
-export type Orientation = [pitch: number, yaw: number, roll: number];
+export type Orientation = [pitch: number, roll: number, yaw: number];
 
 export type View = {
   target: vec3;
@@ -34,7 +34,7 @@ export const createViewport: (view: View) => Viewport = (view) => {
     target,
     screen,
     distance,
-    orientation: [pitch, yaw, roll],
+    orientation: [pitch, roll, yaw],
   } = view;
   const [width, height] = screen;
   const [x, y] = view.center ?? [width / 2, height / 2];

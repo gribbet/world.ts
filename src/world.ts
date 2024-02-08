@@ -130,12 +130,12 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
       } else if (buttons === 2) {
         const {
           screen: [width, height],
-          orientation: [pitch, yaw, roll],
+          orientation: [pitch, roll, yaw],
         } = view;
         view.orientation = [
           pitch - (movementY / height) * Math.PI,
-          yaw - (movementX / width) * Math.PI,
           roll,
+          yaw - (movementX / width) * Math.PI,
         ];
       }
     }
