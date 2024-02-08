@@ -133,10 +133,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
           orientation: [pitch, yaw, roll],
         } = view;
         view.orientation = [
-          Math.min(
-            0.5 * Math.PI,
-            Math.max(0, pitch - (movementY / height) * Math.PI)
-          ),
+          pitch - (movementY / height) * Math.PI,
           yaw - (movementX / width) * Math.PI,
           roll,
         ];
