@@ -1,12 +1,12 @@
 import { glMatrix, quat, vec2, vec3 } from "gl-matrix";
 import { debounce } from "./common";
 import { circumference } from "./constants";
+import { createDepthBuffer } from "./depth-buffer";
 import { Layer, createLineLayer, createTerrainLayer } from "./layers";
 import { createMeshLayer } from "./layers/mesh";
 import { Line } from "./line";
-import { geodetic, mercator, quadratic } from "./math";
+import { geodetic, mercator } from "./math";
 import { Mesh } from "./mesh";
-import { createDepthBuffer as createDepthBuffer } from "./depth-buffer";
 import { View, createViewport } from "./viewport";
 
 glMatrix.setMatrixArrayType(Array);
