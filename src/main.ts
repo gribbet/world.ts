@@ -1,13 +1,10 @@
 import { quat, vec3 } from "gl-matrix";
 import { range } from "./common";
-import { circumference } from "./constants";
-import { Line } from "./line";
-import { createWorld } from "./world";
 import { indices, vertices } from "./k1000";
+import { createWorld } from "./world";
 
 /**
  * TODO:
- * yaw pitch roll camera
  * object class
  * orthographic
  * pick
