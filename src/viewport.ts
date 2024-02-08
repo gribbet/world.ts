@@ -6,7 +6,7 @@ export type Orientation = [pitch: number, yaw: number, roll: number];
 
 export type View = {
   target: vec3;
-  center: vec2;
+  center?: vec2;
   screen: vec2;
   distance: number;
   orientation: Orientation;
@@ -32,12 +32,12 @@ const vector = vec4.create();
 export const createViewport: (view: View) => Viewport = (view) => {
   const {
     target,
-    center,
     screen,
     distance,
     orientation: [pitch, yaw, roll],
   } = view;
   const [width, height] = screen;
+  const [x, y] = view.center ?? [width / 2, height / 2];
   const z = Math.max(distance, 10000) / circumference;
   const near = z / 1000;
   const far = z * 1000;
@@ -58,7 +58,6 @@ export const createViewport: (view: View) => Viewport = (view) => {
   if (!inverse) throw new Error("Unexpected");
 
   const scale = (scale: number) => {
-    const [x, y] = view.center;
     const screen: vec2 = [width * scale, height * scale];
     const center: vec2 = [x * scale, y * scale];
     return createViewport({ ...view, center, screen });
@@ -81,9 +80,9 @@ export const createViewport: (view: View) => Viewport = (view) => {
   const localToClip = ([x, y, z]: vec3, out = vec4.create()) =>
     vec4.transformMat4(out, vec4.set(out, x, y, z, 1), transform);
 
-  const [x, y] = screenToClip(center);
-  const [ax, ay, az] = clipToLocal([x, y, -100, 1]);
-  const [bx, by, bz] = clipToLocal([x, y, 100, 1]);
+  const [cx, cy] = screenToClip([x, y]);
+  const [ax, ay, az] = clipToLocal([cx, cy, -100, 1]);
+  const [bx, by, bz] = clipToLocal([cx, cy, 100, 1]);
 
   const [t1] = quadratic(
     (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),

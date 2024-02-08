@@ -21,11 +21,9 @@ import { indices, vertices } from "./k1000";
 const world = createWorld(
   document.querySelector("canvas") as HTMLCanvasElement
 );
-//world.draggable = false;
+world.draggable = false;
 world.view = {
   ...world.view,
-  center: [400, 400],
-  target: [-121, 37, 1000],
   distance: 1000,
 };
 
@@ -71,11 +69,10 @@ const frame = (time: number) => {
     [lng, newLat, alt],
   ];
   const roll = time / 10;
-  /*world.view = {
+  world.view = {
     ...world.view,
-    center: [400, 400],
-    //target: position,
-  };*/
+    target: position,
+  };
   mesh.orientation = quat.fromEuler(quat.create(), 0, roll, 0);
   requestAnimationFrame(frame);
 };

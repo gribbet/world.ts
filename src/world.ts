@@ -27,7 +27,6 @@ const minimumDistance = 2;
 export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
   let view: View = {
     target: [0, 0, 0],
-    center: [0, 0],
     screen: [0, 0],
     distance: circumference,
     orientation: [0, 0, 0],
