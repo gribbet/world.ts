@@ -70,11 +70,6 @@ const frame = (time: number) => {
   world.view = {
     ...world.view,
     target: position,
-    orientation: [
-      Math.PI / 2 - (pitch / 180) * Math.PI,
-      (-roll / 180) * Math.PI,
-      0,
-    ],
   };
   mesh.orientation = quat.fromEuler(quat.create(), pitch, roll, 0);
   requestAnimationFrame(frame);

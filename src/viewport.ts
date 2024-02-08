@@ -10,6 +10,7 @@ export type View = {
   screen: vec2;
   distance: number;
   orientation: Orientation;
+  fieldOfView?: number;
 };
 
 export type Viewport = {
@@ -41,10 +42,17 @@ export const createViewport: (view: View) => Viewport = (view) => {
   const z = Math.max(distance, 10000) / circumference;
   const near = z / 1000;
   const far = z * 1000;
+  const fieldOfView = view.fieldOfView ?? 45;
 
   const projection = mat4.create();
   mat4.identity(projection);
-  mat4.perspective(projection, (45 * Math.PI) / 180, width / height, near, far);
+  mat4.perspective(
+    projection,
+    (fieldOfView * Math.PI) / 180,
+    width / height,
+    near,
+    far
+  );
   mat4.scale(projection, projection, [1, -1, 1]);
 
   const modelView = mat4.create();
@@ -81,8 +89,8 @@ export const createViewport: (view: View) => Viewport = (view) => {
     vec4.transformMat4(out, vec4.set(out, x, y, z, 1), transform);
 
   const [cx, cy] = screenToClip([x, y]);
-  const [ax, ay, az] = clipToLocal([cx, cy, -100, 1]);
-  const [bx, by, bz] = clipToLocal([cx, cy, 100, 1]);
+  const [ax, ay, az] = clipToLocal([cx, cy, -1, 1]);
+  const [bx, by, bz] = clipToLocal([cx, cy, 1.00001, 1]);
 
   const [t1] = quadratic(
     (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
