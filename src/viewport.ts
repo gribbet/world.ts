@@ -1,6 +1,6 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import { circumference } from "./constants";
-import { geodetic, mercator, quadratic } from "./math";
+import { geodetic, mercator, quadratic, radians } from "./math";
 
 export type Orientation = [pitch: number, roll: number, yaw: number];
 
@@ -47,13 +47,7 @@ export const createViewport: (view: View) => Viewport = (view) => {
 
   const projection = mat4.create();
   mat4.identity(projection);
-  mat4.perspective(
-    projection,
-    (fieldOfView * Math.PI) / 180,
-    width / height,
-    near,
-    far
-  );
+  mat4.perspective(projection, radians(fieldOfView), width / height, near, far);
   mat4.scale(projection, projection, [1, -1, 1]);
 
   const modelView = mat4.create();
@@ -94,8 +88,8 @@ export const createViewport: (view: View) => Viewport = (view) => {
   const [bx, by, bz] = clipToLocal([cx, cy, 1.00001, 1]);
 
   const d =
-    (distance * Math.tan(((defaultFieldOfView / 180) * Math.PI) / 2)) /
-    Math.tan(((fieldOfView / 180) * Math.PI) / 2);
+    (distance * Math.tan(radians(defaultFieldOfView) / 2)) /
+    Math.tan(radians(fieldOfView) / 2);
 
   const [t1] = quadratic(
     (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
