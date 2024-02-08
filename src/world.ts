@@ -9,7 +9,7 @@ import { geodetic, mercator } from "./math";
 import { Mesh } from "./mesh";
 import { View, createViewport } from "./viewport";
 
-glMatrix.setMatrixArrayType(Array);
+glMatrix.setMatrixArrayType(Array); // Required for precision
 
 export type World = {
   set view(_: View);
@@ -105,7 +105,8 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   const recenter = (center: vec2) => {
     const { camera } = createViewport(view);
     const [target] = pick(center);
-    const distance = vec3.distance(mercator(target), camera) * circumference;
+    console.log(target, camera);
+    const distance = vec3.distance(mercator(target), camera);
     view = {
       ...view,
       center,
@@ -138,19 +139,20 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   };
 
   let zooming = false;
-  const clearZooming = debounce(() => (zooming = false), 10);
+  const clearZooming = debounce(() => (zooming = false), 100);
 
   const onWheel = ({ x, y, deltaY }: WheelEvent) => {
     if (!zooming && draggable) {
       recenter([x, y]);
       zooming = true;
     }
+    const distance = Math.min(
+      Math.max(view.distance * Math.exp(deltaY * 0.001), minimumDistance),
+      circumference
+    );
     view = {
       ...view,
-      distance: Math.min(
-        Math.max(view.distance * Math.exp(deltaY * 0.001), minimumDistance),
-        circumference
-      ),
+      distance,
     };
     clearZooming();
   };
