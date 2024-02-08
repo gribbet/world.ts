@@ -6,7 +6,6 @@ import { createWorld } from "./world";
 /**
  * TODO:
  * object class
- * pick
  * mercator elevation
  * smooth transition
  * subdivide const
@@ -33,7 +32,7 @@ world.addLine({
     return [-121 + 1 * Math.cos(a * 5), 38 + 1 * Math.sin(a), 400];
   }),
   color: [0.1, 0.1, 1, 0.5],
-  width: 1000,
+  width: 100,
   minWidthPixels: 4,
 });
 

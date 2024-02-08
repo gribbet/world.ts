@@ -1,13 +1,13 @@
 import { vec2 } from "gl-matrix";
 
-export type PickBuffer = {
+export type DepthBuffer = {
   use: () => void;
   resize: (size: vec2) => void;
   read: (pixel: vec2) => readonly [z: number, n: number];
   destroy: () => void;
 };
 
-export const createPickBuffer = (gl: WebGL2RenderingContext) => {
+export const createDepthBuffer = (gl: WebGL2RenderingContext) => {
   const targetTexture = gl.createTexture();
   gl.bindTexture(gl.TEXTURE_2D, targetTexture);
   gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
@@ -88,5 +88,5 @@ export const createPickBuffer = (gl: WebGL2RenderingContext) => {
     resize,
     read,
     destroy,
-  } satisfies PickBuffer;
+  } satisfies DepthBuffer;
 };

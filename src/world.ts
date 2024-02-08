@@ -6,7 +6,7 @@ import { createMeshLayer } from "./layers/mesh";
 import { Line } from "./line";
 import { geodetic, mercator, quadratic } from "./math";
 import { Mesh } from "./mesh";
-import { createPickBuffer } from "./pick-buffer";
+import { createDepthBuffer as createDepthBuffer } from "./depth-buffer";
 import { View, createViewport } from "./viewport";
 
 glMatrix.setMatrixArrayType(Array);
@@ -21,7 +21,7 @@ export type World = {
   destroy: () => void;
 };
 
-const pickScale = 0.5;
+const depthScale = 0.5;
 const minimumDistance = 2;
 
 export const createWorld = (canvas: HTMLCanvasElement) => {
@@ -40,14 +40,14 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
   let layers: Layer[] = [createTerrainLayer(gl)];
 
-  const pickBuffer = createPickBuffer(gl);
+  const depthBuffer = createDepthBuffer(gl);
 
   const resize = (screen: vec2) => {
     view.screen = screen;
     const [width, height] = screen;
     canvas.width = width * devicePixelRatio;
     canvas.height = height * devicePixelRatio;
-    pickBuffer.resize([canvas.width * pickScale, canvas.height * pickScale]);
+    depthBuffer.resize([canvas.width * depthScale, canvas.height * depthScale]);
   };
 
   resize([canvas.clientWidth, canvas.clientHeight]);
@@ -70,7 +70,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   };
 
   const depth = () => {
-    let viewport = createViewport(view).scale(pickScale * devicePixelRatio);
+    let viewport = createViewport(view).scale(depthScale * devicePixelRatio);
     clear(viewport.screen);
     layers.forEach((_, index) => _.render({ viewport, depth: true, index }));
   };
@@ -85,14 +85,14 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   const pick = ([screenX, screenY]: vec2) => {
     const { screenToClip, clipToLocal, localToWorld } = createViewport(view);
 
-    pickBuffer.use();
+    depthBuffer.use();
 
     gl.disable(gl.BLEND);
     depth();
 
-    const [z, n] = pickBuffer.read([
-      screenX * devicePixelRatio * pickScale,
-      screenY * devicePixelRatio * pickScale,
+    const [z, n] = depthBuffer.read([
+      screenX * devicePixelRatio * depthScale,
+      screenY * devicePixelRatio * depthScale,
     ]);
 
     console.log(n);
