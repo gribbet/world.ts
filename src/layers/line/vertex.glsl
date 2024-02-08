@@ -21,8 +21,8 @@ out vec4 color_out;
 const int ONE = 1073741824; // 2^30
 const float INV_ONE = 1.f / float(ONE);
 
-vec4 transform(vec3 position) {
-    return projection * model_view * vec4(vec3(ivec3(position * float(ONE)) + center - camera) * INV_ONE, 1.f);
+vec4 transform(vec3 v) {
+    return projection * model_view * vec4(vec3(ivec3(v * float(ONE)) + center - camera) * INV_ONE, 1.f);
 }
 
 void main(void) {
