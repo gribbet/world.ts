@@ -8,6 +8,7 @@ import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import { Viewport } from "../../viewport";
 import fragmentSource from "./fragment.glsl";
+import depthSource from "./depth.glsl";
 import vertexSource from "./vertex.glsl";
 import { Buffer } from "../../buffer";
 import { to } from "../utils";
@@ -29,14 +30,20 @@ export const createLineLayer = (
   const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
   const cornerBuffer = createBuffer({ gl, type: "f32", target: "array" });
 
-  const program = createLineProgram(gl, {
+  const renderProgram = createRenderProgram(gl, {
+    positionBuffer,
+    indexBuffer,
+    cornerBuffer,
+  });
+
+  const depthProgram = createDepthProgram(gl, {
     positionBuffer,
     indexBuffer,
     cornerBuffer,
   });
 
   const render = ({ projection, modelView, camera, screen }: Viewport) =>
-    program.execute({
+    renderProgram.execute({
       projection,
       modelView,
       camera: to(camera),
@@ -49,15 +56,30 @@ export const createLineLayer = (
       maxWidthPixels: maxWidthPixels || Number.MAX_VALUE,
     });
 
-  const depth = () => {
-    // TODO:
+  const depth = (
+    { projection, modelView, camera, screen }: Viewport,
+    index: number
+  ) => {
+    depthProgram.execute({
+      projection,
+      modelView,
+      camera: to(camera),
+      center: to(center),
+      screen,
+      count,
+      width: width / circumference,
+      minWidthPixels: minWidthPixels || 0,
+      maxWidthPixels: maxWidthPixels || Number.MAX_VALUE,
+      index,
+    });
   };
 
   const destroy = () => {
     positionBuffer.destroy();
     indexBuffer.destroy();
     cornerBuffer.destroy();
-    program.destroy();
+    renderProgram.destroy();
+    depthProgram.destroy();
   };
 
   const updatePoints = (points: vec3[]) => {
@@ -118,7 +140,7 @@ export const createLineLayer = (
   } satisfies LineLayer;
 };
 
-const createLineProgram = (
+const createRenderProgram = (
   gl: WebGL2RenderingContext,
   {
     positionBuffer,
@@ -130,7 +152,11 @@ const createLineProgram = (
     cornerBuffer: Buffer;
   }
 ) => {
-  const program = createProgram({ gl, vertexSource, fragmentSource });
+  const program = createProgram({
+    gl,
+    vertexSource,
+    fragmentSource,
+  });
 
   const FLOAT_BYTES = Float32Array.BYTES_PER_ELEMENT;
 
@@ -203,6 +229,103 @@ const createLineProgram = (
     widthUniform.set(width);
     minWidthPixelsUniform.set(minWidthPixels);
     maxWidthPixelsUniform.set(maxWidthPixels);
+
+    indexBuffer.use();
+
+    gl.drawElements(gl.TRIANGLES, count * 3 * 4 - 4, gl.UNSIGNED_SHORT, 0);
+  };
+
+  const destroy = () => program.destroy();
+
+  return { execute, destroy };
+};
+
+const createDepthProgram = (
+  gl: WebGL2RenderingContext,
+  {
+    positionBuffer,
+    indexBuffer,
+    cornerBuffer,
+  }: {
+    positionBuffer: Buffer;
+    indexBuffer: Buffer;
+    cornerBuffer: Buffer;
+  }
+) => {
+  const program = createProgram({
+    gl,
+    vertexSource,
+    fragmentSource: depthSource,
+  });
+
+  const FLOAT_BYTES = Float32Array.BYTES_PER_ELEMENT;
+
+  const previousAttribute = program.attribute3f("previous", positionBuffer, {
+    stride: 3 * FLOAT_BYTES,
+  });
+  const currentAttribute = program.attribute3f("current", positionBuffer, {
+    stride: 3 * FLOAT_BYTES,
+    offset: FLOAT_BYTES * 3 * 4,
+  });
+  const nextAttribute = program.attribute3f("next", positionBuffer, {
+    stride: 3 * FLOAT_BYTES,
+    offset: FLOAT_BYTES * 3 * 4 * 2,
+  });
+  const cornerAttribute = program.attribute2f("corner", cornerBuffer, {
+    stride: FLOAT_BYTES * 2,
+  });
+
+  const projectionUniform = program.uniformMatrix4f("projection");
+  const modelViewUniform = program.uniformMatrix4f("model_view");
+  const cameraUniform = program.uniform3i("camera");
+  const centerUniform = program.uniform3i("center");
+  const screenUniform = program.uniform2f("screen");
+  const widthUniform = program.uniform1f("width");
+  const maxWidthPixelsUniform = program.uniform1f("max_width_pixels");
+  const minWidthPixelsUniform = program.uniform1f("min_width_pixels");
+  const indexUniform = program.uniform1i("index");
+
+  const execute = ({
+    projection,
+    modelView,
+    camera,
+    center,
+    screen,
+    count,
+    width,
+    minWidthPixels,
+    maxWidthPixels,
+    index,
+  }: {
+    projection: mat4;
+    modelView: mat4;
+    camera: vec3;
+    center: vec3;
+    screen: vec2;
+    count: number;
+    width: number;
+    minWidthPixels: number;
+    maxWidthPixels: number;
+    index: number;
+  }) => {
+    if (count == 0) return;
+
+    program.use();
+
+    previousAttribute.use();
+    currentAttribute.use();
+    nextAttribute.use();
+    cornerAttribute.use();
+
+    projectionUniform.set(projection);
+    modelViewUniform.set(modelView);
+    cameraUniform.set(camera);
+    centerUniform.set(center);
+    screenUniform.set(screen);
+    widthUniform.set(width);
+    minWidthPixelsUniform.set(minWidthPixels);
+    maxWidthPixelsUniform.set(maxWidthPixels);
+    indexUniform.set(index);
 
     indexBuffer.use();
 

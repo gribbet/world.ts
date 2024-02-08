@@ -40,9 +40,8 @@ world.addLine({
 const mesh = world.addMesh({
   vertices,
   indices,
-  size: 1,
+  size: 1 / 1000,
   minSizePixels: 32 / 1000,
-  maxSizePixels: 1,
 });
 
 const stem = world.addLine({
