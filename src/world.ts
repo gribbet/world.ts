@@ -105,8 +105,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   const recenter = (center: vec2) => {
     const { camera } = createViewport(view);
     const [target] = pick(center);
-    console.log(target, camera);
-    const distance = vec3.distance(mercator(target), camera);
+    const distance = vec3.distance(mercator(target), camera) * circumference;
     view = {
       ...view,
       center,
