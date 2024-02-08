@@ -95,8 +95,6 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
       screenY * devicePixelRatio * depthScale,
     ]);
 
-    console.log(n);
-
     const [x, y] = screenToClip([screenX, screenY]);
     const p = geodetic(localToWorld(clipToLocal([x, y, z, 1])));
     return [p, n] as const;

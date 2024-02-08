@@ -5,6 +5,7 @@ import { createWorld } from "./world";
 
 /**
  * TODO:
+ * drag example
  * mercator elevation
  * smooth transition
  * subdivide const
