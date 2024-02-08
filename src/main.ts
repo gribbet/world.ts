@@ -5,11 +5,9 @@ import { createWorld } from "./world";
 
 /**
  * TODO:
- * object class
  * mercator elevation
  * smooth transition
  * subdivide const
- * offset instead of center?
  * labels
  */
 
