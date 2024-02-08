@@ -3,7 +3,7 @@ import { vec2 } from "gl-matrix";
 export type PickBuffer = {
   use: () => void;
   resize: (size: vec2) => void;
-  read: (pixel: vec2) => number;
+  read: (pixel: vec2) => readonly [z: number, n: number];
   destroy: () => void;
 };
 
@@ -71,11 +71,12 @@ export const createPickBuffer: (gl: WebGL2RenderingContext) => PickBuffer = (
     gl.readPixels(x, height - y, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, buffer);
     gl.bindFramebuffer(gl.FRAMEBUFFER, null);
 
-    const [r, g] = buffer;
+    const [r, g, b, a] = buffer;
     const zo = (r * 256 + g) / (256 * 256 - 1);
     const z = 2 * zo - 1;
+    const n = b * 256 + a;
 
-    return z;
+    return [z, n] as const;
   };
 
   const destroy = () => {

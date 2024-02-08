@@ -64,26 +64,16 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   };
 
-  const scaleViewport = (scale: number) => {
-    const {
-      screen: [width, height],
-      center: [x, y],
-    } = view;
-    const screen: vec2 = [width * scale, height * scale];
-    const center: vec2 = [x * scale, y * scale];
-    return createViewport({ ...view, center, screen });
-  };
-
   const render = () => {
-    let viewport = scaleViewport(devicePixelRatio);
+    let viewport = createViewport(view).scale(devicePixelRatio);
     clear(viewport.screen);
     layers.forEach((_) => _.render(viewport));
   };
 
   const depth = () => {
-    let viewport = scaleViewport(pickScale * devicePixelRatio);
+    let viewport = createViewport(view).scale(pickScale * devicePixelRatio);
     clear(viewport.screen);
-    layers.forEach((_) => _.depth(viewport));
+    layers.forEach((_, i) => _.depth(viewport, i));
   };
 
   const frame = () => {
@@ -99,13 +89,14 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
     pickBuffer.use();
     depth();
 
-    const z = pickBuffer.read([
+    const [z, n] = pickBuffer.read([
       screenX * devicePixelRatio * pickScale,
       screenY * devicePixelRatio * pickScale,
     ]);
 
     const [x, y] = screenToClip([screenX, screenY]);
-    return geodetic(localToWorld(clipToLocal([x, y, z, 1])));
+    const p = geodetic(localToWorld(clipToLocal([x, y, z, 1])));
+    return [p, n] as const;
   };
 
   const destroy = () => {
@@ -115,7 +106,7 @@ export const createWorld: (canvas: HTMLCanvasElement) => World = (canvas) => {
 
   const recenter = (center: vec2) => {
     const { camera } = createViewport(view);
-    const target = pick(center);
+    const [target] = pick(center);
     const distance = vec3.distance(mercator(target), camera) * circumference;
     view = {
       ...view,

@@ -17,6 +17,7 @@ export type Viewport = {
   screen: vec2;
   projection: mat4;
   modelView: mat4;
+  scale: (_: number) => Viewport;
   screenToClip: (_: vec2, out?: vec4) => vec4;
   clipToScreen: (_: vec4, out?: vec2) => vec2;
   clipToLocal: (_: vec4, out?: vec3) => vec3;
@@ -55,6 +56,13 @@ export const createViewport: (view: View) => Viewport = (view) => {
   const transform = mat4.multiply(matrix, projection, modelView);
   const inverse = mat4.invert(mat4.create(), transform);
   if (!inverse) throw new Error("Unexpected");
+
+  const scale = (scale: number) => {
+    const [x, y] = view.center;
+    const screen: vec2 = [width * scale, height * scale];
+    const center: vec2 = [x * scale, y * scale];
+    return createViewport({ ...view, center, screen });
+  };
 
   const screenToClip = ([screenX, screenY]: vec2, out = vec4.create()) => {
     const x = (2 * screenX) / width - 1;
@@ -107,6 +115,7 @@ export const createViewport: (view: View) => Viewport = (view) => {
     screen,
     projection,
     modelView,
+    scale,
     screenToClip,
     clipToScreen,
     clipToLocal,
