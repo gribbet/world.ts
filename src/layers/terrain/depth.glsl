@@ -2,14 +2,21 @@
 
 precision highp float;
 
+uniform int index;
+
 out vec4 result;
 
 vec2 pack_depth(in float depth) {
-    float depth_val = depth * (256. * 256. - 1.) / (256. * 256.);
-    vec3 encode = fract(depth_val * vec3(1., 256., 256. * 256.));
-    return encode.xy - encode.yz / 256. + 1. / 512.;
+    float value = depth * (256.f * 256.f - 1.f) / (256.f * 256.f);
+    vec3 encode = fract(value * vec3(1.f, 256.f, 256.f * 256.f));
+    return encode.xy - encode.yz / 256.f + 1.f / 512.f;
+}
+
+vec2 pack_index(in int index) {
+    float value = float(index) / 256.f;
+    return vec2(floor(value) / 255.f, fract(value) * 256.f / 255.f);
 }
 
 void main(void) {
-    result = vec4(pack_depth(gl_FragCoord.z), 0, 1.);
+    result = vec4(pack_depth(gl_FragCoord.z), pack_index(index));
 }
