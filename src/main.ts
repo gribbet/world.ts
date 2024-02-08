@@ -5,6 +5,7 @@ import { createWorld } from "./world";
 
 /**
  * TODO:
+ * cleanup radians/degrees
  * drag example
  * mercator elevation
  * smooth transition
@@ -39,7 +40,7 @@ const mesh = world.addMesh({
   vertices,
   indices,
   size: 1 / 1000,
-  minSizePixels: 32 / 1000,
+  minSizePixels: 64 / 1000,
 });
 
 const stem = world.addLine({
