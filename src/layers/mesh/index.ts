@@ -87,29 +87,29 @@ export const createMeshLayer: (
   return {
     render,
     destroy,
-    set vertices(vertices: vec3[]) {
-      updateVertices(vertices);
+    set vertices(_: vec3[]) {
+      updateVertices(_);
     },
-    set indices(indices: vec3[]) {
-      updateIndices(indices);
+    set indices(_: vec3[]) {
+      updateIndices(_);
     },
-    set position(_position: vec3) {
-      position = _position;
+    set position(_: vec3) {
+      position = _;
     },
-    set orientation(_orientation: quat) {
-      orientation = _orientation;
+    set orientation(_: quat) {
+      orientation = _;
     },
-    set color(_color: vec4) {
-      color = _color;
+    set color(_: vec4) {
+      color = _;
     },
-    set size(_size: number) {
-      size = _size;
+    set size(_: number) {
+      size = _;
     },
-    set minSizePixels(_minSizePixels: number) {
-      minSizePixels = _minSizePixels;
+    set minSizePixels(_: number) {
+      minSizePixels = _;
     },
-    set maxSizePixels(_maxWidthPixels: number) {
-      maxSizePixels = _maxWidthPixels;
+    set maxSizePixels(_: number) {
+      maxSizePixels = _;
     },
   };
 };

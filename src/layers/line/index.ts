@@ -106,20 +106,20 @@ export const createLineLayer = (
   return {
     render,
     destroy,
-    set points(points: vec3[]) {
-      updatePoints(points);
+    set points(_: vec3[]) {
+      updatePoints(_);
     },
-    set color(_color: vec4) {
-      color = _color;
+    set color(_: vec4) {
+      color = _;
     },
-    set width(_width: number) {
-      width = _width;
+    set width(_: number) {
+      width = _;
     },
-    set minWidthPixels(_minWidthPixels: number) {
-      minWidthPixels = _minWidthPixels;
+    set minWidthPixels(_: number) {
+      minWidthPixels = _;
     },
-    set maxWidthPixels(_maxWidthPixels: number) {
-      maxWidthPixels = _maxWidthPixels;
+    set maxWidthPixels(_: number) {
+      maxWidthPixels = _;
     },
   } satisfies LineLayer;
 };

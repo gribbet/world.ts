@@ -12,9 +12,9 @@ import { View, createViewport } from "./viewport";
 glMatrix.setMatrixArrayType(Array);
 
 export type World = {
-  set view(view: View);
+  set view(_: View);
   get view(): View;
-  set draggable(draggable: boolean);
+  set draggable(_: boolean);
   get draggable(): boolean;
   addLine: (line: Partial<Line>) => Line;
   addMesh: (mesh: Partial<Mesh>) => Mesh;
@@ -203,14 +203,14 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     get view() {
       return view;
     },
-    set view(_view: View) {
-      view = _view;
+    set view(_: View) {
+      view = _;
     },
     get draggable() {
       return draggable;
     },
-    set draggable(_draggable: boolean) {
-      draggable = _draggable;
+    set draggable(_: boolean) {
+      draggable = _;
     },
     addLine,
     addMesh,
