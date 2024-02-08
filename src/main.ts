@@ -7,6 +7,7 @@ import { createWorld } from "./world";
 
 /**
  * TODO:
+ * always render pick?
  * drag example
  * mercator elevation
  * smooth transition
@@ -42,18 +43,29 @@ world.addLine({
   minWidthPixels: 4,
 });
 
+let dragging = false;
 world.addTerrain({
   terrainUrl,
   imageryUrl,
   onMouseDown: () => console.log("Terrain"),
+  onMouseMove: (position) => {
+    if (dragging) mesh.position = position
+  },
+  onMouseUp: () => {
+    dragging = false;
+    world.draggable = true;
+  }
 });
 
 const mesh = world.addMesh({
   vertices,
   indices,
+  position,
   size: 1 / 1000,
-  minSizePixels: 64 / 1000,
+  minSizePixels: 0.1,
   onMouseDown: target => {
+    world.draggable = false;
+    dragging = true;
     console.log("Clicked", target);
   },
 });
@@ -73,7 +85,6 @@ const frame = (time: number) => {
   const [lng = 0, lat = 0, alt = 0] = position;
   const newLat = lat + 0.00000001 * delta;
   position = [lng, newLat, alt];
-  mesh.position = position;
   stem.points = [
     [lng, newLat, 0],
     [lng, newLat, alt],

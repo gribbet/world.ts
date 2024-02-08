@@ -31,6 +31,8 @@ export type Line = {
 
 export type LayerEvents = {
   onMouseDown?: (position: vec3) => void;
+  onMouseUp?: (position: vec3) => void;
+  onMouseMove?: (position: vec3) => void;
 };
 
 export type BaseLayer = {

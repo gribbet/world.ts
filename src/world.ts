@@ -40,7 +40,8 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
   const gl = canvas.getContext("webgl2", {
     antialias: true,
-  }) as WebGL2RenderingContext;
+  });
+  if (!gl) throw new Error("No WebGL2")
 
   let layers: Layer[] = [];
 
@@ -127,6 +128,12 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     layers[index - 1]?.onMouseDown?.(position);
   };
 
+  const onMouseUp  =({ x, y }: MouseEvent) => {
+    const [position, index] = pick([x, y]);
+    if (index === 0) return;
+    layers[index - 1]?.onMouseUp?.(position);
+  };
+
   const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
     if (buttons === 1 && draggable)
       view = {
@@ -144,6 +151,9 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
         yaw - (movementX / width) * Math.PI,
       ];
     }
+    const [position, index] = pick([x, y]);
+    if (index === 0) return;
+    layers[index - 1]?.onMouseMove?.(position);
   };
 
   let zooming = false;
@@ -167,10 +177,6 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
   const onContextMenu = (event: MouseEvent) => event.preventDefault();
 
-  canvas.addEventListener("mousedown", onMouseDown);
-  canvas.addEventListener("mousemove", onMouseMove);
-  canvas.addEventListener("wheel", onWheel, { passive: true });
-  canvas.addEventListener("contextmenu", onContextMenu);
 
   const addTerrain = (terrain: Partial<Terrain & LayerEvents>) => {
     const layer = createTerrainLayer(gl, {
@@ -207,6 +213,12 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     return layer;
   };
 
+  canvas.addEventListener("mousedown", onMouseDown);
+  canvas.addEventListener("mouseup", onMouseUp);
+  canvas.addEventListener("mousemove", onMouseMove);
+  canvas.addEventListener("wheel", onWheel, { passive: true });
+  canvas.addEventListener("contextmenu", onContextMenu);
+
   const destroy = () => {
     running = false;
     resizer.unobserve(canvas);
@@ -214,6 +226,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     layers = [];
     depthBuffer.destroy();
     canvas.removeEventListener("mousedown", onMouseDown);
+    canvas.removeEventListener("mouseup", onMouseUp);
     canvas.removeEventListener("mousemove", onMouseMove);
     canvas.removeEventListener("wheel", onWheel);
     canvas.removeEventListener("contextmenu", onContextMenu);
