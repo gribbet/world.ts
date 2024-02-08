@@ -6,7 +6,7 @@ import { imageryUrl, terrainUrl } from "../../constants";
 import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
 import { Viewport } from "../../viewport";
-import depthSource from "./depth.glsl";
+import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import { Texture } from "./texture";
 import { createTileCache } from "./tile-cache";

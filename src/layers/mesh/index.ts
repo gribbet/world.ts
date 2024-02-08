@@ -6,7 +6,7 @@ import { Mesh } from "../../mesh";
 import { createProgram } from "../../program";
 import { Viewport } from "../../viewport";
 import fragmentSource from "./fragment.glsl";
-import depthSource from "./depth.glsl";
+import depthSource from "../depth.glsl";
 import vertexSource from "./vertex.glsl";
 import { circumference } from "../../constants";
 import { to } from "../utils";
