@@ -93,9 +93,7 @@ export const createTerrainLayer = (gl: WebGL2RenderingContext) => {
 
   const tileShapes = createTileShapes(elevation);
 
-  const renderProgram = createRenderProgram(gl);
-
-  const depthProgram = createDepthProgram(gl);
+  const { renderProgram, depthProgram } = createPrograms(gl);
 
   const q = [0, 1, 2, 3];
   const vec3s = q.map(vec3.create);
@@ -147,20 +145,30 @@ export const createTerrainLayer = (gl: WebGL2RenderingContext) => {
     return divide([0, 0, 0]);
   };
 
-  const render = (viewport: Viewport) => {
-    const { projection, modelView, camera } = viewport;
+  const render = ({
+    viewport,
+    depth = false,
+    index = 0,
+  }: {
+    viewport: Viewport;
+    depth?: boolean;
+    index?: number;
+  }) => {
+    const { projection, modelView, camera, screen } = viewport;
     const visible = calculateVisibleTiles(viewport);
 
     for (const xyz of visible) {
-      const downsampledImagery = imageryDownsampler.get(xyz);
+      const downsampledImagery = depth
+        ? undefined
+        : imageryDownsampler.get(xyz);
       const downsampledTerrain = terrainDownsampler.get(xyz);
-      if (!downsampledImagery || !downsampledTerrain) continue;
-      const { texture: imagery, downsample: downsampleImagery } =
-        downsampledImagery;
+      if ((!depth && !downsampledImagery) || !downsampledTerrain) continue;
       const { texture: terrain, downsample: downsampleTerrain } =
         downsampledTerrain;
+      const { texture: imagery = terrain, downsample: downsampleImagery = 0 } =
+        downsampledImagery ?? {};
 
-      renderProgram.execute({
+      (depth ? depthProgram : renderProgram).execute({
         projection,
         modelView,
         camera: to(camera),
@@ -169,26 +177,6 @@ export const createTerrainLayer = (gl: WebGL2RenderingContext) => {
         terrain,
         downsampleImagery,
         downsampleTerrain,
-      });
-    }
-  };
-
-  const depth = (viewport: Viewport, index: number) => {
-    const { projection, modelView, camera } = viewport;
-    const visible = calculateVisibleTiles(viewport);
-
-    for (const xyz of visible) {
-      const downsampledTerrain = terrainDownsampler.get(xyz);
-      if (!downsampledTerrain) continue;
-      const { texture: terrain, downsample } = downsampledTerrain;
-
-      depthProgram.execute({
-        projection,
-        modelView,
-        camera: to(camera),
-        xyz,
-        terrain,
-        downsample,
         index,
       });
     }
@@ -202,152 +190,90 @@ export const createTerrainLayer = (gl: WebGL2RenderingContext) => {
     elevation.destroy();
   };
 
-  return { render, depth, destroy } satisfies Layer;
+  return { render, destroy } satisfies Layer;
 };
 
-const createRenderProgram = (gl: WebGL2RenderingContext) => {
-  const program = createProgram({
-    gl,
-    vertexSource,
-    fragmentSource,
+const createPrograms = (gl: WebGL2RenderingContext) => {
+  const [renderProgram, depthProgram] = [false, true].map((depth) => {
+    const program = createProgram({
+      gl,
+      vertexSource,
+      fragmentSource: depth ? depthSource : fragmentSource,
+    });
+
+    const uvwBuffer = createBuffer({ gl, type: "f32", target: "array" });
+    uvwBuffer.set(uvw.flatMap(([x, y, z]) => [x, y, z]));
+
+    const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
+    indexBuffer.set(indices);
+
+    const uvwAttribute = program.attribute3f("uvw", uvwBuffer);
+
+    const projectionUniform = program.uniformMatrix4f("projection");
+    const modelViewUniform = program.uniformMatrix4f("model_view");
+    const imageryUniform = program.uniform1i("imagery");
+    const terrainUniform = program.uniform1i("terrain");
+    const downsampleImageryUniform = program.uniform1i("downsample_imagery");
+    const downsampleTerrainUniform = program.uniform1i("downsample_terrain");
+    const xyzUniform = program.uniform3i("xyz");
+    const cameraUniform = program.uniform3i("camera");
+    const indexUniform = program.uniform1i("index");
+
+    const execute = ({
+      projection,
+      modelView,
+      camera,
+      xyz,
+      imagery,
+      terrain,
+      downsampleImagery,
+      downsampleTerrain,
+      index,
+    }: {
+      projection: mat4;
+      modelView: mat4;
+      camera: vec3;
+      xyz: vec3;
+      imagery: Texture;
+      terrain: Texture;
+      downsampleImagery: number;
+      downsampleTerrain: number;
+      index: number;
+    }) => {
+      gl.enable(gl.DEPTH_TEST);
+
+      program.use();
+
+      uvwAttribute.use();
+
+      projectionUniform.set(projection);
+      modelViewUniform.set(modelView);
+      xyzUniform.set(xyz);
+      cameraUniform.set(camera);
+      downsampleImageryUniform.set(downsampleImagery);
+      downsampleTerrainUniform.set(downsampleTerrain);
+      indexUniform.set(index);
+
+      gl.activeTexture(gl.TEXTURE0);
+      imageryUniform.set(0);
+      imagery.use();
+
+      gl.activeTexture(gl.TEXTURE1);
+      terrainUniform.set(1);
+      terrain.use();
+
+      indexBuffer.use();
+      gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
+    };
+
+    const destroy = () => {
+      uvwBuffer.destroy();
+      indexBuffer.destroy();
+      program.destroy();
+    };
+
+    return { execute, destroy };
   });
 
-  const uvwBuffer = createBuffer({ gl, type: "f32", target: "array" });
-  uvwBuffer.set(uvw.flatMap(([x, y, z]) => [x, y, z]));
-
-  const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
-  indexBuffer.set(indices);
-
-  const uvwAttribute = program.attribute3f("uvw", uvwBuffer);
-
-  const projectionUniform = program.uniformMatrix4f("projection");
-  const modelViewUniform = program.uniformMatrix4f("model_view");
-  const imageryUniform = program.uniform1i("imagery");
-  const terrainUniform = program.uniform1i("terrain");
-  const downsampleImageryUniform = program.uniform1i("downsample_imagery");
-  const downsampleTerrainUniform = program.uniform1i("downsample_terrain");
-  const xyzUniform = program.uniform3i("xyz");
-  const cameraUniform = program.uniform3i("camera");
-
-  const execute = ({
-    projection,
-    modelView,
-    camera,
-    xyz,
-    imagery,
-    terrain,
-    downsampleImagery,
-    downsampleTerrain,
-  }: {
-    projection: mat4;
-    modelView: mat4;
-    camera: vec3;
-    xyz: vec3;
-    imagery: Texture;
-    terrain: Texture;
-    downsampleImagery: number;
-    downsampleTerrain: number;
-  }) => {
-    gl.enable(gl.DEPTH_TEST);
-
-    program.use();
-
-    uvwAttribute.use();
-
-    projectionUniform.set(projection);
-    modelViewUniform.set(modelView);
-    xyzUniform.set(xyz);
-    cameraUniform.set(camera);
-    downsampleImageryUniform.set(downsampleImagery);
-    downsampleTerrainUniform.set(downsampleTerrain);
-
-    gl.activeTexture(gl.TEXTURE0);
-    imageryUniform.set(0);
-    imagery.use();
-
-    gl.activeTexture(gl.TEXTURE1);
-    terrainUniform.set(1);
-    terrain.use();
-
-    indexBuffer.use();
-    gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
-  };
-
-  const destroy = () => {
-    uvwBuffer.destroy();
-    indexBuffer.destroy();
-    program.destroy();
-  };
-
-  return { execute, destroy };
-};
-
-const createDepthProgram = (gl: WebGL2RenderingContext) => {
-  const program = createProgram({
-    gl,
-    vertexSource,
-    fragmentSource: depthSource,
-  });
-
-  const uvwBuffer = createBuffer({ gl, type: "f32", target: "array" });
-  uvwBuffer.set(uvw.flatMap(([x, y, z]) => [x, y, z]));
-
-  const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
-  indexBuffer.set(indices);
-
-  const uvwAttribute = program.attribute3f("uvw", uvwBuffer);
-
-  const projectionUniform = program.uniformMatrix4f("projection");
-  const modelViewUniform = program.uniformMatrix4f("model_view");
-  const terrainUniform = program.uniform1i("terrain");
-  const downsampleTerrainUniform = program.uniform1i("downsample_terrain");
-  const xyzUniform = program.uniform3i("xyz");
-  const cameraUniform = program.uniform3i("camera");
-  const indexUniform = program.uniform1i("index");
-
-  const execute = ({
-    projection,
-    modelView,
-    camera,
-    xyz,
-    terrain,
-    downsample,
-    index,
-  }: {
-    projection: mat4;
-    modelView: mat4;
-    camera: vec3;
-    xyz: vec3;
-    terrain: Texture;
-    downsample: number;
-    index: number;
-  }) => {
-    gl.enable(gl.DEPTH_TEST);
-
-    program.use();
-
-    uvwAttribute.use();
-
-    projectionUniform.set(projection);
-    modelViewUniform.set(modelView);
-    xyzUniform.set(xyz);
-    cameraUniform.set(camera);
-    downsampleTerrainUniform.set(downsample);
-    indexUniform.set(index);
-
-    gl.activeTexture(gl.TEXTURE1);
-    terrainUniform.set(1);
-    terrain.use();
-
-    indexBuffer.use();
-    gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
-  };
-
-  const destroy = () => {
-    uvwBuffer.destroy();
-    indexBuffer.destroy();
-    program.destroy();
-  };
-
-  return { execute, destroy };
+  return { renderProgram, depthProgram };
 };

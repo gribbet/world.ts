@@ -66,13 +66,13 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   const render = () => {
     let viewport = createViewport(view).scale(devicePixelRatio);
     clear(viewport.screen);
-    layers.forEach((_) => _.render(viewport));
+    layers.forEach((_) => _.render({ viewport }));
   };
 
   const depth = () => {
     let viewport = createViewport(view).scale(pickScale * devicePixelRatio);
     clear(viewport.screen);
-    layers.forEach((_, index) => _.depth(viewport, index));
+    layers.forEach((_, index) => _.render({ viewport, depth: true, index }));
   };
 
   const frame = () => {

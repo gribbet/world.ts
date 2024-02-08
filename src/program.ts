@@ -72,11 +72,10 @@ export const createProgram = ({
     f: (location: WebGLUniformLocation, value: T) => void
   ) => {
     const location = gl.getUniformLocation(program, name);
-    if (!location) throw new Error(`Missing uniform: ${name}`);
     let cached: T | undefined;
     const set = (value: T) => {
       if (value === cached) return;
-      f(location, value);
+      if (location) f(location, value);
       cached = value;
     };
     return { set };
