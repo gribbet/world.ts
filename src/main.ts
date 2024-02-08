@@ -21,7 +21,6 @@ const world = createWorld(
 world.draggable = false;
 world.view = {
   ...world.view,
-  distance: 100,
 };
 
 const n = 100;
@@ -67,9 +66,14 @@ const frame = (time: number) => {
   ];
   const roll = time / 100;
   const pitch = Math.sin(time * 0.001) * 5;
+  const fieldOfView = (time / 1000) % 50;
   world.view = {
     ...world.view,
     target: position,
+    fieldOfView,
+    distance:
+      (1000 * Math.tan(((45 / 180) * Math.PI) / 2)) /
+      Math.tan(((fieldOfView / 180) * Math.PI) / 2),
   };
   mesh.orientation = quat.fromEuler(quat.create(), pitch, roll, 0);
   requestAnimationFrame(frame);
