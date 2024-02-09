@@ -7,11 +7,11 @@ import { createWorld } from "./world";
 
 /**
  * TODO:
- * always render pick?
+ * billboard
+ * labels
  * mercator elevation
  * smooth transition
  * subdivide const
- * labels
  */
 
 export const imageryUrl =
