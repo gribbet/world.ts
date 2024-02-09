@@ -1,5 +1,4 @@
-import type { vec3 } from "gl-matrix";
-import { quat } from "gl-matrix";
+import { quat, vec2, vec3 } from "gl-matrix";
 
 import { range } from "./common";
 import { indices, vertices } from "./k1000";
@@ -21,7 +20,7 @@ export const imageryUrl =
 export const terrainUrl =
   "https://api.mapbox.com/v4/mapbox.terrain-rgb/{z}/{x}/{y}.png?access_token=pk.eyJ1IjoiZ3JhaGFtZ2liYm9ucyIsImEiOiJja3Qxb3Q5bXQwMHB2MnBwZzVyNzgyMnZ6In0.4qLjlbLm6ASuJ5v5gN6FHQ";
 
-let position: vec3 = [-121, 38, 100];
+let position: vec3 = [-121, 38, 10000];
 
 const canvas = document.querySelector("canvas") as HTMLCanvasElement;
 
@@ -45,7 +44,7 @@ world.addLine({
   minWidthPixels: 4,
 });
 
-let dragging = false;
+let dragging: vec3 | undefined;
 world.addTerrain({
   terrainUrl,
   imageryUrl,
@@ -56,7 +55,7 @@ const mesh = world.addMesh({
   indices,
   position,
   size: 1 / 1000,
-  minSizePixels: 0.1,
+  minSizePixels: 0.2,
 });
 
 world.onMouseDown(({ position, layer }) => {
@@ -64,16 +63,16 @@ world.onMouseDown(({ position, layer }) => {
   if (layer === mesh) {
     control.enabled = false;
     mesh.pickable = false;
-    dragging = true;
+    dragging = vec3.sub(vec3.create(), position, mesh.position);
   }
 });
 
 world.onMouseMove(({ position }) => {
-  if (dragging) mesh.position = position;
+  if (dragging) mesh.position = vec3.sub(vec3.create(), position, dragging);
 });
 
 world.onMouseUp(() => {
-  dragging = false;
+  dragging = undefined;
   control.enabled = true;
   mesh.pickable = true;
 });

@@ -10,11 +10,13 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
   let zooming = false;
 
   const onMouseDown = ({ x, y }: MouseEvent) => {
-    if (enabled) world.recenter([x, y]);
+    if (!enabled) return;
+    world.recenter([x, y]);
   };
 
   const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
-    if (buttons === 1 && enabled)
+    if (!enabled) return;
+    if (buttons === 1)
       world.view = {
         ...world.view,
         center: [x, y],
@@ -39,7 +41,8 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
   const clearZooming = debounce(() => (zooming = false), 100);
 
   const onWheel = ({ x, y, deltaY }: WheelEvent) => {
-    if (!zooming && enabled) {
+    if (!enabled) return;
+    if (!zooming) {
       world.recenter([x, y]);
       zooming = true;
     }
