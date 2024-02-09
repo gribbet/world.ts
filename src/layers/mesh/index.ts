@@ -99,7 +99,6 @@ export const createMeshLayer: (
   return {
     render,
     destroy,
-    ...mesh,
     get vertices() {
       return vertices;
     },

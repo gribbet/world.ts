@@ -6,8 +6,8 @@ import type { MeshLayer } from "./mesh";
 import type { TerrainLayer } from "./terrain";
 
 export type Terrain = {
-  terrainUrl: string;
-  imageryUrl: string;
+  readonly terrainUrl: string;
+  readonly imageryUrl: string;
 };
 
 export type Mesh = {

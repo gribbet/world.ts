@@ -25,11 +25,10 @@ type PickHandler = (_: Pick) => void;
 export type World = {
   set view(_: View);
   get view(): View;
-  set draggable(_: boolean);
-  get draggable(): boolean;
-  addTerrain: (terrain: Partial<Terrain>) => Terrain;
-  addMesh: (mesh: Partial<Mesh>) => Mesh;
-  addLine: (line: Partial<Line>) => Line;
+  addTerrain: (_: Partial<Terrain>) => Terrain;
+  addMesh: (_: Partial<Mesh>) => Mesh;
+  addLine: (_: Partial<Line>) => Line;
+  recenter: ([x, y]: [number, number]) => void;
   pick: ([x, y]: [number, number]) => Pick;
   onMouseDown: (_: PickHandler) => void;
   onMouseUp: (_: PickHandler) => void;
@@ -38,7 +37,6 @@ export type World = {
 };
 
 const depthScale = 0.5;
-const minimumDistance = 2;
 
 export const createWorld = (canvas: HTMLCanvasElement) => {
   let running = true;
@@ -140,59 +138,9 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   const [onMouseUp, mouseUp] = createSubscriber<Pick>();
   const [onMouseMove, mouseMove] = createSubscriber<Pick>();
 
-  const onCanvasMouseDown = ({ x, y }: MouseEvent) => {
-    if (draggable) recenter([x, y]);
-    mouseDown(pick([x, y]));
-  };
-
+  const onCanvasMouseDown = ({ x, y }: MouseEvent) => mouseDown(pick([x, y]));
   const onCanvasMouseUp = ({ x, y }: MouseEvent) => mouseUp(pick([x, y]));
-
-  const onCanvasMouseMove = ({
-    buttons,
-    movementX,
-    movementY,
-    x,
-    y,
-  }: MouseEvent) => {
-    if (buttons === 1 && draggable)
-      view = {
-        ...view,
-        center: [x, y],
-      };
-    else if (buttons === 2) {
-      const {
-        screen: [width = 0, height = 0],
-        orientation: [pitch, roll, yaw],
-      } = view;
-      view.orientation = [
-        pitch - (movementY / height) * Math.PI,
-        roll,
-        yaw - (movementX / width) * Math.PI,
-      ];
-    }
-    mouseMove(pick([x, y]));
-  };
-
-  let zooming = false;
-  const clearZooming = debounce(() => (zooming = false), 100);
-
-  const onWheel = ({ x, y, deltaY }: WheelEvent) => {
-    if (!zooming && draggable) {
-      recenter([x, y]);
-      zooming = true;
-    }
-    const distance = Math.min(
-      Math.max(view.distance * Math.exp(deltaY * 0.001), minimumDistance),
-      circumference
-    );
-    view = {
-      ...view,
-      distance,
-    };
-    clearZooming();
-  };
-
-  const onContextMenu = (event: MouseEvent) => event.preventDefault();
+  const onCanvasMouseMove = ({ x, y }: MouseEvent) => mouseMove(pick([x, y]));
 
   const addTerrain = (terrain: Partial<Terrain>) => {
     const layer = createTerrainLayer(gl, terrain);
@@ -215,8 +163,6 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   canvas.addEventListener("mousedown", onCanvasMouseDown);
   canvas.addEventListener("mouseup", onCanvasMouseUp);
   canvas.addEventListener("mousemove", onCanvasMouseMove);
-  canvas.addEventListener("wheel", onWheel, { passive: true });
-  canvas.addEventListener("contextmenu", onContextMenu);
 
   const destroy = () => {
     running = false;
@@ -227,8 +173,6 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     canvas.removeEventListener("mousedown", onCanvasMouseDown);
     canvas.removeEventListener("mouseup", onCanvasMouseUp);
     canvas.removeEventListener("mousemove", onCanvasMouseMove);
-    canvas.removeEventListener("wheel", onWheel);
-    canvas.removeEventListener("contextmenu", onContextMenu);
   };
 
   return {
@@ -238,15 +182,10 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     set view(_: View) {
       view = _;
     },
-    get draggable() {
-      return draggable;
-    },
-    set draggable(_: boolean) {
-      draggable = _;
-    },
     addTerrain,
     addMesh,
     addLine,
+    recenter,
     pick,
     onMouseDown,
     onMouseUp,

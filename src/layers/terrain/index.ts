@@ -58,7 +58,7 @@ const uvw = range(0, n + 1).flatMap(y =>
   })
 );
 
-export type TerrainLayer = BaseLayer;
+export type TerrainLayer = BaseLayer & Terrain;
 
 export const createTerrainLayer = (
   gl: WebGL2RenderingContext,
@@ -205,7 +205,12 @@ export const createTerrainLayer = (
     elevation.destroy();
   };
 
-  return { render, destroy, ...terrain } satisfies TerrainLayer;
+  return {
+    terrainUrl,
+    imageryUrl,
+    render,
+    destroy,
+  } satisfies TerrainLayer;
 };
 
 const createPrograms = (gl: WebGL2RenderingContext) => {

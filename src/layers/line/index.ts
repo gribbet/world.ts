@@ -112,7 +112,6 @@ export const createLineLayer = (
   return {
     render,
     destroy,
-    ...line,
     get points() {
       return points;
     },

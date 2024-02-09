@@ -4,6 +4,7 @@ import { quat } from "gl-matrix";
 import { range } from "./common";
 import { indices, vertices } from "./k1000";
 import { createWorld } from "./world";
+import { createMouseControl } from "./control";
 
 /**
  * TODO:
@@ -22,10 +23,11 @@ export const terrainUrl =
 
 let position: vec3 = [-121, 38, 100];
 
-const world = createWorld(
-  document.querySelector("canvas") as HTMLCanvasElement
-);
-//world.draggable = false;
+const canvas = document.querySelector("canvas") as HTMLCanvasElement;
+
+const world = createWorld(canvas);
+const control = createMouseControl(canvas, world);
+
 world.view = {
   ...world.view,
   distance: 100000,
@@ -60,7 +62,7 @@ const mesh = world.addMesh({
 world.onMouseDown(({ position, layer }) => {
   console.log("MouseDown", layer);
   if (layer === mesh) {
-    world.draggable = false;
+    control.enabled = false;
     mesh.pickable = false;
     dragging = true;
   }
@@ -72,7 +74,7 @@ world.onMouseMove(({ position }) => {
 
 world.onMouseUp(() => {
   dragging = false;
-  world.draggable = true;
+  control.enabled = true;
   mesh.pickable = true;
 });
 
