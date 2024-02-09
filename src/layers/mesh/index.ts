@@ -1,4 +1,4 @@
-import { quat, vec2, vec3, vec4 } from "gl-matrix";
+import type { quat, vec2, vec3, vec4 } from "gl-matrix";
 import { mat4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
@@ -18,7 +18,7 @@ export type MeshLayer = BaseLayer & Mesh;
 
 export const createMeshLayer: (
   gl: WebGL2RenderingContext,
-  mesh: Partial<Mesh>
+  mesh: Partial<Mesh>,
 ) => MeshLayer = (gl, mesh) => {
   let {
     vertices,
@@ -164,7 +164,7 @@ const createPrograms = (
   }: {
     vertexBuffer: Buffer;
     indexBuffer: Buffer;
-  }
+  },
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = createProgram({
@@ -217,6 +217,7 @@ const createPrograms = (
       index: number;
     }) => {
       if (depth) {
+        gl.disable(gl.BLEND);
         if (!pickable) return;
       } else {
         gl.enable(gl.BLEND);

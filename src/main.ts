@@ -1,14 +1,13 @@
-import { quat, vec2, vec3 } from "gl-matrix";
+import { quat, vec3 } from "gl-matrix";
 
 import { range } from "./common";
+import { createMouseControl } from "./control";
 import { indices, vertices } from "./k1000";
 import { createWorld } from "./world";
-import { createMouseControl } from "./control";
 
 /**
  * TODO:
  * always render pick?
- * drag example
  * mercator elevation
  * smooth transition
  * subdivide const

@@ -28,7 +28,7 @@ const indices = range(0, n).flatMap(y =>
     y * (n + 1) + x,
     (y + 1) * (n + 1) + x,
     (y + 1) * (n + 1) + x + 1,
-  ])
+  ]),
 );
 
 const skirt = 0.5;
@@ -55,14 +55,14 @@ const uvw = range(0, n + 1).flatMap(y =>
     }
 
     return [u, v, w] as vec3;
-  })
+  }),
 );
 
 export type TerrainLayer = BaseLayer & Terrain;
 
 export const createTerrainLayer = (
   gl: WebGL2RenderingContext,
-  terrain: Partial<Terrain>
+  terrain: Partial<Terrain>,
 ) => {
   const { terrainUrl, imageryUrl } = {
     terrainUrl: "",
@@ -77,7 +77,7 @@ export const createTerrainLayer = (
       gl.texParameteri(
         gl.TEXTURE_2D,
         gl.TEXTURE_MIN_FILTER,
-        gl.LINEAR_MIPMAP_LINEAR
+        gl.LINEAR_MIPMAP_LINEAR,
       );
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
       gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -139,10 +139,10 @@ export const createTerrainLayer = (
           .map(i =>
             vec2.squaredDistance(
               pixels[i] ?? [0, 0],
-              pixels[(i + 1) % pixels.length] ?? [0, 0]
-            )
+              pixels[(i + 1) % pixels.length] ?? [0, 0],
+            ),
           )
-          .reduce((a, b) => a + b, 0) / 4
+          .reduce((a, b) => a + b, 0) / 4,
       );
 
       if (size > 512 && z < maxZ) {
@@ -261,6 +261,11 @@ const createPrograms = (gl: WebGL2RenderingContext) => {
       index: number;
     }) => {
       gl.enable(gl.DEPTH_TEST);
+      if (depth) gl.disable(gl.BLEND);
+      else {
+        gl.enable(gl.BLEND);
+        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+      }
 
       program.use();
 

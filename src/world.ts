@@ -1,7 +1,6 @@
 import type { vec2 } from "gl-matrix";
-import { glMatrix, quat, vec3 } from "gl-matrix";
+import { glMatrix, vec3 } from "gl-matrix";
 
-import { debounce } from "./common";
 import { circumference } from "./constants";
 import { createDepthBuffer } from "./depth-buffer";
 import type { Layer, Line, Mesh, Terrain } from "./layers";
@@ -9,9 +8,9 @@ import { createLineLayer } from "./layers/line";
 import { createMeshLayer } from "./layers/mesh";
 import { createTerrainLayer } from "./layers/terrain";
 import { geodetic, mercator } from "./math";
+import { createSubscriber } from "./subscriber";
 import type { View } from "./viewport";
 import { createViewport } from "./viewport";
-import { createSubscriber } from "./subscriber";
 
 glMatrix.setMatrixArrayType(Array); // Required for precision
 
@@ -36,7 +35,7 @@ export type World = {
   destroy: () => void;
 };
 
-const depthScale = 0.5;
+const depthScale = 0.25;
 
 export const createWorld = (canvas: HTMLCanvasElement) => {
   let running = true;
@@ -46,7 +45,6 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     distance: circumference,
     orientation: [0, 0, 0],
   };
-  let draggable = true;
 
   const gl = canvas.getContext("webgl2", {
     antialias: true,
@@ -105,12 +103,11 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
     depthBuffer.use();
 
-    gl.disable(gl.BLEND);
     depth();
 
     const [z, index] = depthBuffer.read([
-      screenX * devicePixelRatio * depthScale,
-      screenY * devicePixelRatio * depthScale,
+      screenX * depthScale * devicePixelRatio,
+      screenY * depthScale * devicePixelRatio,
     ]);
 
     const [x = 0, y = 0] = screenToClip([screenX, screenY]);

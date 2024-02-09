@@ -1,7 +1,7 @@
 import { debounce } from "./common";
 import { circumference } from "./constants";
-import { Orientation } from "./viewport";
-import { World } from "./world";
+import type { Orientation } from "./viewport";
+import type { World } from "./world";
 
 const minimumDistance = 2;
 
@@ -48,7 +48,7 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
     }
     const distance = Math.min(
       Math.max(world.view.distance * Math.exp(deltaY * 0.001), minimumDistance),
-      circumference
+      circumference,
     );
     world.view = {
       ...world.view,

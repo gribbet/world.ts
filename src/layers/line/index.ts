@@ -18,7 +18,7 @@ export type LineLayer = BaseLayer & Line;
 
 export const createLineLayer = (
   gl: WebGL2RenderingContext,
-  line: Partial<Line>
+  line: Partial<Line>,
 ) => {
   let { points, color, width, minWidthPixels, maxWidthPixels } = {
     points: [],
@@ -99,7 +99,7 @@ export const createLineLayer = (
         [-1, 1],
         [1, 1],
         [1, -1],
-      ].flat()
+      ].flat(),
     );
 
     positionBuffer.set(positionData);
@@ -155,7 +155,7 @@ const createPrograms = (
     positionBuffer: Buffer;
     indexBuffer: Buffer;
     cornerBuffer: Buffer;
-  }
+  },
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = createProgram({
@@ -220,7 +220,8 @@ const createPrograms = (
       if (count === 0) return;
 
       gl.enable(gl.DEPTH_TEST);
-      if (!depth) {
+      if (depth) gl.disable(gl.BLEND);
+      else {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       }

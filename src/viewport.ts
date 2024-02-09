@@ -68,7 +68,7 @@ export const createViewport: (view: View) => Viewport = view => {
 
   const screenToClip = (
     [screenX = 0, screenY = 0]: vec2,
-    out = vec4.create()
+    out = vec4.create(),
   ) => {
     const x = (2 * screenX) / width - 1;
     const y = -((2 * screenY) / height - 1);
@@ -97,7 +97,7 @@ export const createViewport: (view: View) => Viewport = view => {
   const [t1 = 0] = quadratic(
     (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
     ax * (bx - ax) + ay * (by - ay) + az * (bz - az),
-    ax * ax + ay * ay + az * az - (d * d) / circumference / circumference
+    ax * ax + ay * ay + az * az - (d * d) / circumference / circumference,
   );
 
   if (isNaN(t1)) throw new Error("Unexpected");
