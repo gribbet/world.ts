@@ -113,13 +113,32 @@ export const createTerrainLayer = (
   const vec2s = q.map(vec2.create);
 
   const calculateVisibleTiles = (viewport: Viewport) => {
-    const { worldToLocal, localToClip, clipToScreen } = viewport;
+    const { camera, worldToLocal, localToClip, clipToScreen } = viewport;
 
     const divide: (xyz: vec3) => vec3[] = xyz => {
       const [x = 0, y = 0, z = 0] = xyz;
 
-      const clip = tileShapes
-        .get(xyz)
+      const shape = tileShapes.get(xyz);
+
+      const [minX, maxX, minY, maxY] = shape.reduce(
+        ([minX, maxX, minY, maxY], [x = 0, y = 0]) => [
+          Math.min(x, minX),
+          Math.max(x, maxX),
+          Math.min(y, minY),
+          Math.max(y, maxY),
+        ],
+        [1, 0, 1, 0],
+      );
+      const [cx = 0, cy = 0, cz = 0] = camera;
+      const inside =
+        cx > minX &&
+        cx < maxX &&
+        cy > minY &&
+        cy < maxY &&
+        cz > 0 &&
+        cz < maxX - minX;
+
+      const clip = shape
         .map((_, i) => worldToLocal(_, vec3s[i]))
         .map((_, i) => localToClip(_, vec4s[i]));
       if (
@@ -145,14 +164,13 @@ export const createTerrainLayer = (
           .reduce((a, b) => a + b, 0) / 4,
       );
 
-      if (size > 512 && z < maxZ) {
+      if ((size > 512 || inside) && z < maxZ) {
         const divided: vec3[] = [
           [2 * x, 2 * y, z + 1],
           [2 * x + 1, 2 * y, z + 1],
           [2 * x, 2 * y + 1, z + 1],
           [2 * x + 1, 2 * y + 1, z + 1],
         ];
-
         return divided.flatMap(_ => divide(_));
       } else return [xyz];
     };
