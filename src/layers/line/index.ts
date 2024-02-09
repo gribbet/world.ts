@@ -8,7 +8,7 @@ import { circumference } from "../../constants";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import type { BaseLayer, LayerEvents, Line } from "../";
+import type { BaseLayer, Line } from "../";
 import depthSource from "../depth.glsl";
 import { to } from "../utils";
 import fragmentSource from "./fragment.glsl";
@@ -16,10 +16,7 @@ import vertexSource from "./vertex.glsl";
 
 export type LineLayer = BaseLayer & Line;
 
-export const createLineLayer = (
-  gl: WebGL2RenderingContext,
-  line: Line & LayerEvents,
-) => {
+export const createLineLayer = (gl: WebGL2RenderingContext, line: Line) => {
   let { points, color, width, minWidthPixels, maxWidthPixels } = line;
 
   let count = 0;
@@ -94,7 +91,7 @@ export const createLineLayer = (
         [-1, 1],
         [1, 1],
         [1, -1],
-      ].flat(),
+      ].flat()
     );
 
     positionBuffer.set(positionData);
@@ -151,7 +148,7 @@ const createPrograms = (
     positionBuffer: Buffer;
     indexBuffer: Buffer;
     cornerBuffer: Buffer;
-  },
+  }
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = createProgram({

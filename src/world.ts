@@ -4,25 +4,36 @@ import { glMatrix, quat, vec3 } from "gl-matrix";
 import { debounce } from "./common";
 import { circumference } from "./constants";
 import { createDepthBuffer } from "./depth-buffer";
-import type { Layer, LayerEvents, Line, Mesh, Terrain } from "./layers";
+import type { Layer, Line, Mesh, Terrain } from "./layers";
 import { createLineLayer } from "./layers/line";
 import { createMeshLayer } from "./layers/mesh";
 import { createTerrainLayer } from "./layers/terrain";
 import { geodetic, mercator } from "./math";
 import type { View } from "./viewport";
 import { createViewport } from "./viewport";
+import { createSubscriber } from "./subscriber";
 
 glMatrix.setMatrixArrayType(Array); // Required for precision
+
+type Pick = {
+  position: vec3;
+  layer: Layer | undefined;
+};
+
+type PickHandler = (_: Pick) => void;
 
 export type World = {
   set view(_: View);
   get view(): View;
   set draggable(_: boolean);
   get draggable(): boolean;
-  addTerrain: (terrain: Partial<Terrain & LayerEvents>) => Terrain;
-  addMesh: (mesh: Partial<Mesh & LayerEvents>) => Mesh;
-  addLine: (line: Partial<Line & LayerEvents>) => Line;
-  pick: ([x, y]: [number, number]) => [vec3, Layer | undefined];
+  addTerrain: (terrain: Partial<Terrain>) => Terrain;
+  addMesh: (mesh: Partial<Mesh>) => Mesh;
+  addLine: (line: Partial<Line>) => Line;
+  pick: ([x, y]: [number, number]) => Pick;
+  onMouseDown: (_: PickHandler) => void;
+  onMouseUp: (_: PickHandler) => void;
+  onMouseMove: (_: PickHandler) => void;
   destroy: () => void;
 };
 
@@ -105,16 +116,16 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     ]);
 
     const [x = 0, y = 0] = screenToClip([screenX, screenY]);
-    const p = geodetic(localToWorld(clipToLocal([x, y, z, 1])));
+    const position = geodetic(localToWorld(clipToLocal([x, y, z, 1])));
 
     const layer = index === 0 ? undefined : layers[index - 1];
 
-    return [p, layer] satisfies [vec3, Layer | undefined];
+    return { position, layer };
   };
 
   const recenter = (center: vec2) => {
     const { camera } = createViewport(view);
-    const [target, layer] = pick(center);
+    const { position: target, layer } = pick(center);
     if (!layer) return;
     const distance = vec3.distance(mercator(target), camera) * circumference;
     view = {
@@ -125,18 +136,24 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     };
   };
 
-  const onMouseDown = ({ x, y }: MouseEvent) => {
+  const [onMouseDown, mouseDown] = createSubscriber<Pick>();
+  const [onMouseUp, mouseUp] = createSubscriber<Pick>();
+  const [onMouseMove, mouseMove] = createSubscriber<Pick>();
+
+  const onCanvasMouseDown = ({ x, y }: MouseEvent) => {
     if (draggable) recenter([x, y]);
-    const [position, layer] = pick([x, y]);
-    layer?.onMouseDown?.(position);
+    mouseDown(pick([x, y]));
   };
 
-  const onMouseUp = ({ x, y }: MouseEvent) => {
-    const [position, layer] = pick([x, y]);
-    layer?.onMouseUp?.(position);
-  };
+  const onCanvasMouseUp = ({ x, y }: MouseEvent) => mouseUp(pick([x, y]));
 
-  const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
+  const onCanvasMouseMove = ({
+    buttons,
+    movementX,
+    movementY,
+    x,
+    y,
+  }: MouseEvent) => {
     if (buttons === 1 && draggable)
       view = {
         ...view,
@@ -153,8 +170,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
         yaw - (movementX / width) * Math.PI,
       ];
     }
-    const [position, layer] = pick([x, y]);
-    layer?.onMouseMove?.(position);
+    mouseMove(pick([x, y]));
   };
 
   let zooming = false;
@@ -178,7 +194,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
   const onContextMenu = (event: MouseEvent) => event.preventDefault();
 
-  const addTerrain = (terrain: Partial<Terrain & LayerEvents>) => {
+  const addTerrain = (terrain: Partial<Terrain>) => {
     const layer = createTerrainLayer(gl, {
       terrainUrl: "",
       imageryUrl: "",
@@ -188,7 +204,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     return layer;
   };
 
-  const addMesh = (mesh: Partial<Mesh & LayerEvents>) => {
+  const addMesh = (mesh: Partial<Mesh>) => {
     const layer = createMeshLayer(gl, {
       vertices: [],
       indices: [],
@@ -203,7 +219,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     return layer;
   };
 
-  const addLine = (line: Partial<Line & LayerEvents>) => {
+  const addLine = (line: Partial<Line>) => {
     const layer = createLineLayer(gl, {
       points: [],
       color: [1, 1, 1, 1],
@@ -214,9 +230,9 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     return layer;
   };
 
-  canvas.addEventListener("mousedown", onMouseDown);
-  canvas.addEventListener("mouseup", onMouseUp);
-  canvas.addEventListener("mousemove", onMouseMove);
+  canvas.addEventListener("mousedown", onCanvasMouseDown);
+  canvas.addEventListener("mouseup", onCanvasMouseUp);
+  canvas.addEventListener("mousemove", onCanvasMouseMove);
   canvas.addEventListener("wheel", onWheel, { passive: true });
   canvas.addEventListener("contextmenu", onContextMenu);
 
@@ -226,9 +242,9 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     layers.forEach(_ => _.destroy());
     layers = [];
     depthBuffer.destroy();
-    canvas.removeEventListener("mousedown", onMouseDown);
-    canvas.removeEventListener("mouseup", onMouseUp);
-    canvas.removeEventListener("mousemove", onMouseMove);
+    canvas.removeEventListener("mousedown", onCanvasMouseDown);
+    canvas.removeEventListener("mouseup", onCanvasMouseUp);
+    canvas.removeEventListener("mousemove", onCanvasMouseMove);
     canvas.removeEventListener("wheel", onWheel);
     canvas.removeEventListener("contextmenu", onContextMenu);
   };
@@ -250,6 +266,9 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     addMesh,
     addLine,
     pick,
+    onMouseDown,
+    onMouseUp,
+    onMouseMove,
     destroy,
   } satisfies World;
 };

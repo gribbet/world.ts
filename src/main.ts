@@ -47,15 +47,6 @@ let dragging = false;
 world.addTerrain({
   terrainUrl,
   imageryUrl,
-  onMouseDown: () => console.log("Terrain"),
-  onMouseMove: position => {
-    if (dragging) mesh.position = position;
-  },
-  onMouseUp: () => {
-    dragging = false;
-    world.draggable = true;
-    mesh.pickable = true;
-  },
 });
 
 const mesh = world.addMesh({
@@ -64,12 +55,25 @@ const mesh = world.addMesh({
   position,
   size: 1 / 1000,
   minSizePixels: 0.1,
-  onMouseDown: target => {
+});
+
+world.onMouseDown(({ position, layer }) => {
+  console.log("MouseDown", layer);
+  if (layer === mesh) {
     world.draggable = false;
     mesh.pickable = false;
     dragging = true;
-    console.log("Clicked", target);
-  },
+  }
+});
+
+world.onMouseMove(({ position }) => {
+  if (dragging) mesh.position = position;
+});
+
+world.onMouseUp(() => {
+  dragging = false;
+  world.draggable = true;
+  mesh.pickable = true;
 });
 
 const stem = world.addLine({

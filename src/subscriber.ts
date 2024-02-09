@@ -13,8 +13,5 @@ export const createSubscriber = <T>() => {
 
   const emit = (msg: T) => handlers.forEach(handler => handler(msg));
 
-  return {
-    subscribe,
-    emit,
-  };
+  return [subscribe, emit] as const;
 };

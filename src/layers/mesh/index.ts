@@ -8,7 +8,7 @@ import type { Mesh } from "../../layers";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import type { BaseLayer, LayerEvents } from "..";
+import type { BaseLayer } from "..";
 import depthSource from "../depth.glsl";
 import { to } from "../utils";
 import fragmentSource from "./fragment.glsl";
@@ -18,7 +18,7 @@ export type MeshLayer = BaseLayer & Mesh;
 
 export const createMeshLayer: (
   gl: WebGL2RenderingContext,
-  mesh: Mesh & LayerEvents
+  mesh: Mesh
 ) => MeshLayer = (gl, mesh) => {
   let {
     vertices,

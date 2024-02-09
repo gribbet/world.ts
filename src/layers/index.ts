@@ -30,15 +30,9 @@ export type Line = {
   maxWidthPixels?: number | undefined;
 };
 
-export type LayerEvents = {
-  onMouseDown?: (position: vec3) => void;
-  onMouseUp?: (position: vec3) => void;
-  onMouseMove?: (position: vec3) => void;
-};
-
 export type BaseLayer = {
   render: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;
   destroy: () => void;
-} & LayerEvents;
+};
 
 export type Layer = TerrainLayer | MeshLayer | LineLayer;
