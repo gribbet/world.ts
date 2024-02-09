@@ -3,6 +3,9 @@
   "type": "module",
   "main": "dist/world.js",
   "types": "dist/index.d.ts",
+  "files": [
+    "/dist"
+  ],
   "scripts": {
     "build": "vite build",
     "lint": "eslint --max-warnings 0 --cache --cache-strategy content src"
