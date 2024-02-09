@@ -62,9 +62,13 @@ export type TerrainLayer = BaseLayer;
 
 export const createTerrainLayer = (
   gl: WebGL2RenderingContext,
-  terrain: Terrain
+  terrain: Partial<Terrain>
 ) => {
-  const { terrainUrl, imageryUrl } = terrain;
+  const { terrainUrl, imageryUrl } = {
+    terrainUrl: "",
+    imageryUrl: "",
+    ...terrain,
+  } satisfies Terrain;
 
   const imageryCache = createTileCache({
     gl,

@@ -195,37 +195,19 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   const onContextMenu = (event: MouseEvent) => event.preventDefault();
 
   const addTerrain = (terrain: Partial<Terrain>) => {
-    const layer = createTerrainLayer(gl, {
-      terrainUrl: "",
-      imageryUrl: "",
-      ...terrain,
-    });
+    const layer = createTerrainLayer(gl, terrain);
     layers.push(layer);
     return layer;
   };
 
   const addMesh = (mesh: Partial<Mesh>) => {
-    const layer = createMeshLayer(gl, {
-      vertices: [],
-      indices: [],
-      position: [0, 0, 0],
-      orientation: quat.identity(quat.create()),
-      color: [1, 1, 1, 1],
-      size: 1,
-      pickable: true,
-      ...mesh,
-    });
+    const layer = createMeshLayer(gl, mesh);
     layers.push(layer);
     return layer;
   };
 
   const addLine = (line: Partial<Line>) => {
-    const layer = createLineLayer(gl, {
-      points: [],
-      color: [1, 1, 1, 1],
-      width: 1,
-      ...line,
-    });
+    const layer = createLineLayer(gl, line);
     layers.push(layer);
     return layer;
   };

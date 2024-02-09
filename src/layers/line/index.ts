@@ -16,8 +16,16 @@ import vertexSource from "./vertex.glsl";
 
 export type LineLayer = BaseLayer & Line;
 
-export const createLineLayer = (gl: WebGL2RenderingContext, line: Line) => {
-  let { points, color, width, minWidthPixels, maxWidthPixels } = line;
+export const createLineLayer = (
+  gl: WebGL2RenderingContext,
+  line: Partial<Line>
+) => {
+  let { points, color, width, minWidthPixels, maxWidthPixels } = {
+    points: [],
+    color: [1, 1, 1, 1],
+    width: 1,
+    ...line,
+  } satisfies Line;
 
   let count = 0;
 

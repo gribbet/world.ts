@@ -1,4 +1,4 @@
-import type { quat, vec2, vec3, vec4 } from "gl-matrix";
+import { quat, vec2, vec3, vec4 } from "gl-matrix";
 import { mat4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
@@ -18,7 +18,7 @@ export type MeshLayer = BaseLayer & Mesh;
 
 export const createMeshLayer: (
   gl: WebGL2RenderingContext,
-  mesh: Mesh
+  mesh: Partial<Mesh>
 ) => MeshLayer = (gl, mesh) => {
   let {
     vertices,
@@ -30,7 +30,16 @@ export const createMeshLayer: (
     minSizePixels,
     maxSizePixels,
     pickable,
-  } = mesh;
+  } = {
+    vertices: [],
+    indices: [],
+    position: [0, 0, 0],
+    orientation: [0, 0, 0, 1],
+    color: [1, 1, 1, 1],
+    size: 1,
+    pickable: true,
+    ...mesh,
+  } satisfies Mesh;
   let count = 0;
 
   const vertexBuffer = createBuffer({ gl, type: "f32", target: "array" });
