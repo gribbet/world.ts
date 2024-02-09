@@ -22,6 +22,7 @@ export type World = {
   addTerrain: (terrain: Partial<Terrain & LayerEvents>) => Terrain;
   addMesh: (mesh: Partial<Mesh & LayerEvents>) => Mesh;
   addLine: (line: Partial<Line & LayerEvents>) => Line;
+  pick: ([x, y]: [number, number]) => [vec3, Layer | undefined];
   destroy: () => void;
 };
 
@@ -105,13 +106,16 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
     const [x = 0, y = 0] = screenToClip([screenX, screenY]);
     const p = geodetic(localToWorld(clipToLocal([x, y, z, 1])));
-    return [p, index] as const;
+
+    const layer = index === 0 ? undefined : layers[index - 1];
+
+    return [p, layer] satisfies [vec3, Layer | undefined];
   };
 
   const recenter = (center: vec2) => {
     const { camera } = createViewport(view);
-    const [target, index] = pick(center);
-    if (index === 0) return;
+    const [target, layer] = pick(center);
+    if (!layer) return;
     const distance = vec3.distance(mercator(target), camera) * circumference;
     view = {
       ...view,
@@ -123,15 +127,13 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
   const onMouseDown = ({ x, y }: MouseEvent) => {
     if (draggable) recenter([x, y]);
-    const [position, index] = pick([x, y]);
-    if (index === 0) return;
-    layers[index - 1]?.onMouseDown?.(position);
+    const [position, layer] = pick([x, y]);
+    layer?.onMouseDown?.(position);
   };
 
   const onMouseUp = ({ x, y }: MouseEvent) => {
-    const [position, index] = pick([x, y]);
-    if (index === 0) return;
-    layers[index - 1]?.onMouseUp?.(position);
+    const [position, layer] = pick([x, y]);
+    layer?.onMouseUp?.(position);
   };
 
   const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
@@ -151,9 +153,8 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
         yaw - (movementX / width) * Math.PI,
       ];
     }
-    const [position, index] = pick([x, y]);
-    if (index === 0) return;
-    layers[index - 1]?.onMouseMove?.(position);
+    const [position, layer] = pick([x, y]);
+    layer?.onMouseMove?.(position);
   };
 
   let zooming = false;
@@ -248,6 +249,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     addTerrain,
     addMesh,
     addLine,
+    pick,
     destroy,
   } satisfies World;
 };
