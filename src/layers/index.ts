@@ -19,6 +19,7 @@ export type Mesh = {
   size: number;
   minSizePixels?: number;
   maxSizePixels?: number;
+  pickable: boolean;
 };
 
 export type Line = {

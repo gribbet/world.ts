@@ -41,7 +41,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   const gl = canvas.getContext("webgl2", {
     antialias: true,
   });
-  if (!gl) throw new Error("No WebGL2")
+  if (!gl) throw new Error("No WebGL2");
 
   let layers: Layer[] = [];
 
@@ -128,7 +128,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     layers[index - 1]?.onMouseDown?.(position);
   };
 
-  const onMouseUp  =({ x, y }: MouseEvent) => {
+  const onMouseUp = ({ x, y }: MouseEvent) => {
     const [position, index] = pick([x, y]);
     if (index === 0) return;
     layers[index - 1]?.onMouseUp?.(position);
@@ -166,7 +166,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     }
     const distance = Math.min(
       Math.max(view.distance * Math.exp(deltaY * 0.001), minimumDistance),
-      circumference,
+      circumference
     );
     view = {
       ...view,
@@ -176,7 +176,6 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   };
 
   const onContextMenu = (event: MouseEvent) => event.preventDefault();
-
 
   const addTerrain = (terrain: Partial<Terrain & LayerEvents>) => {
     const layer = createTerrainLayer(gl, {
@@ -196,6 +195,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
       orientation: quat.identity(quat.create()),
       color: [1, 1, 1, 1],
       size: 1,
+      pickable: true,
       ...mesh,
     });
     layers.push(layer);

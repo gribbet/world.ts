@@ -23,7 +23,7 @@ export const terrainUrl =
 let position: vec3 = [-121, 38, 100];
 
 const world = createWorld(
-  document.querySelector("canvas") as HTMLCanvasElement,
+  document.querySelector("canvas") as HTMLCanvasElement
 );
 //world.draggable = false;
 world.view = {
@@ -48,13 +48,14 @@ world.addTerrain({
   terrainUrl,
   imageryUrl,
   onMouseDown: () => console.log("Terrain"),
-  onMouseMove: (position) => {
-    if (dragging) mesh.position = position
+  onMouseMove: position => {
+    if (dragging) mesh.position = position;
   },
   onMouseUp: () => {
     dragging = false;
     world.draggable = true;
-  }
+    mesh.pickable = true;
+  },
 });
 
 const mesh = world.addMesh({
@@ -65,6 +66,7 @@ const mesh = world.addMesh({
   minSizePixels: 0.1,
   onMouseDown: target => {
     world.draggable = false;
+    mesh.pickable = false;
     dragging = true;
     console.log("Clicked", target);
   },

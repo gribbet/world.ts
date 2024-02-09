@@ -18,7 +18,7 @@ export type MeshLayer = BaseLayer & Mesh;
 
 export const createMeshLayer: (
   gl: WebGL2RenderingContext,
-  mesh: Mesh & LayerEvents,
+  mesh: Mesh & LayerEvents
 ) => MeshLayer = (gl, mesh) => {
   let {
     vertices,
@@ -29,6 +29,7 @@ export const createMeshLayer: (
     size,
     minSizePixels,
     maxSizePixels,
+    pickable,
   } = mesh;
   let count = 0;
 
@@ -61,6 +62,7 @@ export const createMeshLayer: (
       size: size / circumference,
       minSizePixels: minSizePixels || 0,
       maxSizePixels: maxSizePixels || Number.MAX_VALUE,
+      pickable,
       index,
     });
 
@@ -137,6 +139,12 @@ export const createMeshLayer: (
     set maxSizePixels(_: number | undefined) {
       maxSizePixels = _;
     },
+    get pickable() {
+      return pickable;
+    },
+    set pickable(_: boolean) {
+      pickable = _;
+    },
   };
 };
 
@@ -148,7 +156,7 @@ const createPrograms = (
   }: {
     vertexBuffer: Buffer;
     indexBuffer: Buffer;
-  },
+  }
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = createProgram({
@@ -183,6 +191,7 @@ const createPrograms = (
       size,
       minSizePixels,
       maxSizePixels,
+      pickable,
       index,
     }: {
       projection: mat4;
@@ -196,13 +205,16 @@ const createPrograms = (
       size: number;
       minSizePixels: number;
       maxSizePixels: number;
+      pickable: boolean;
       index: number;
     }) => {
-      gl.enable(gl.DEPTH_TEST);
-      if (!depth) {
+      if (depth) {
+        if (!pickable) return;
+      } else {
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       }
+      gl.enable(gl.DEPTH_TEST);
 
       program.use();
 
