@@ -1,6 +1,6 @@
-import imageLoadWorker from "./image-load-worker?worker&inline";
+import createImageLoadWorker from "./image-load-worker?worker&inline";
 
-const worker = new Worker(imageLoadWorker);
+const worker = createImageLoadWorker();
 
 export type ImageLoad = {
   loaded: boolean;

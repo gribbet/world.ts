@@ -1,4 +1,4 @@
 declare module "*?worker&inline" {
-  const url: string;
-  export default url;
+  const factory: () => Worker;
+  export default factory;
 }
