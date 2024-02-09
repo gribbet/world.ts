@@ -1,14 +1,13 @@
 {
-  "name": "world",
+  "name": "world.ts",
   "type": "module",
+  "main": "dist/world.js",
+  "types": "dist/index.d.ts",
   "scripts": {
-    "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview",
     "lint": "eslint --max-warnings 0 --cache --cache-strategy content src"
   },
   "devDependencies": {
-    "@parcel/transformer-css": "^2.11.0",
     "@types/lru-cache": "^7.5.0",
     "@typescript-eslint/eslint-plugin": "^6.15.0",
     "eslint": "^8.56.0",
@@ -19,6 +18,7 @@
     "eslint-plugin-unused-imports": "^3.0.0",
     "typescript": "^5.3.3",
     "vite": "^5.1.0",
+    "vite-plugin-dts": "^3.7.2",
     "vite-plugin-glsl": "^1.2.1"
   },
   "dependencies": {
