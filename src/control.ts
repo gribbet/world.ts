@@ -7,10 +7,11 @@ const minimumDistance = 2;
 
 export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
   let enabled = true;
+  let draggable = true;
   let zooming = false;
 
   const onMouseDown = ({ x, y }: MouseEvent) => {
-    if (!enabled) return;
+    if (!enabled || !draggable) return;
     world.recenter([x, y]);
   };
 
@@ -43,7 +44,7 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
   const onWheel = ({ x, y, deltaY }: WheelEvent) => {
     if (!enabled) return;
     if (!zooming) {
-      world.recenter([x, y]);
+      if (draggable) world.recenter([x, y]);
       zooming = true;
     }
     const distance = Math.min(
@@ -77,6 +78,12 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
     },
     set enabled(_: boolean) {
       enabled = _;
+    },
+    get draggable() {
+      return draggable;
+    },
+    set draggable(_: boolean) {
+      draggable = _;
     },
     destroy,
   };
