@@ -23,11 +23,11 @@ const maxZ = 22;
 const indices = range(0, n).flatMap(y =>
   range(0, n).flatMap(x => [
     y * (n + 1) + x,
-    (y + 1) * (n + 1) + x + 1,
     y * (n + 1) + x + 1,
-    y * (n + 1) + x,
-    (y + 1) * (n + 1) + x,
     (y + 1) * (n + 1) + x + 1,
+    y * (n + 1) + x,
+    (y + 1) * (n + 1) + x + 1,
+    (y + 1) * (n + 1) + x,
   ]),
 );
 
