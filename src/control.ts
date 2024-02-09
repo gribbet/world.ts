@@ -17,7 +17,7 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
 
   const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
     if (!enabled) return;
-    if (buttons === 1)
+    if (buttons === 1 && draggable)
       world.view = {
         ...world.view,
         center: [x, y],
