@@ -1,6 +1,6 @@
-const worker = new Worker(new URL("./image-load-worker.ts", import.meta.url), {
-  type: "module",
-});
+import imageLoadWorker from "./image-load-worker?worker&inline";
+
+const worker = new Worker(imageLoadWorker);
 
 export type ImageLoad = {
   loaded: boolean;
