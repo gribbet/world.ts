@@ -41,8 +41,8 @@ export const createViewport: (view: View) => Viewport = view => {
   const [width = 0, height = 0] = screen;
   const [x = 0, y = 0] = view.center ?? [width / 2, height / 2];
   const z = distance / circumference;
-  const near = z / 1000;
-  const far = z * 1000;
+  const near = z / 100;
+  const far = z * 1000000;
   const defaultFieldOfView = 45;
   const fieldOfView = view.fieldOfView ?? defaultFieldOfView;
 
