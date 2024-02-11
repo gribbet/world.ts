@@ -9,9 +9,11 @@ uniform ivec3 camera;
 uniform sampler2D terrain;
 uniform int downsample_imagery;
 uniform int downsample_terrain;
+uniform vec4 color;
 
 in vec3 uvw;
 out vec2 uv;
+out vec4 color_out;
 
 const int ONE = 1073741824; // 2^30
 const float INV_ONE = 1. / float(ONE);
@@ -31,4 +33,5 @@ void main(void) {
     gl_Position = projection * model_view * vec4(vec3(q - camera) * INV_ONE, 1.);
 
     uv = downsample(downsample_imagery);
+    color_out = color;
 }

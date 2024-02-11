@@ -12,6 +12,7 @@ export type LayerOptions = {
 export type Terrain = LayerOptions & {
   readonly terrainUrl: string;
   readonly imageryUrl: string;
+  color: vec4;
 };
 
 export type Mesh = LayerOptions & {

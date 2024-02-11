@@ -64,10 +64,11 @@ export const createTerrainLayer = (
   gl: WebGL2RenderingContext,
   terrain: Partial<Terrain>,
 ) => {
-  let { pickable, terrainUrl, imageryUrl } = {
+  let { pickable, terrainUrl, imageryUrl, color } = {
     pickable: true,
     terrainUrl: "",
     imageryUrl: "",
+    color: [1, 1, 1, 1],
     ...terrain,
   } satisfies Terrain;
 
@@ -173,6 +174,7 @@ export const createTerrainLayer = (
         terrain,
         downsampleImagery,
         downsampleTerrain,
+        color,
         index,
       });
     }
@@ -207,6 +209,12 @@ export const createTerrainLayer = (
     set imageryUrl(_: string) {
       imageryUrl = _;
     },
+    get color() {
+      return color;
+    },
+    set color(_: vec4) {
+      color = _;
+    },
   } satisfies TerrainLayer;
 };
 
@@ -232,6 +240,7 @@ const createPrograms = (gl: WebGL2RenderingContext) => {
     const terrainUniform = program.uniform1i("terrain");
     const downsampleImageryUniform = program.uniform1i("downsample_imagery");
     const downsampleTerrainUniform = program.uniform1i("downsample_terrain");
+    const colorUniform = program.uniform4f("color");
     const xyzUniform = program.uniform3i("xyz");
     const cameraUniform = program.uniform3i("camera");
     const indexUniform = program.uniform1i("index");
@@ -245,6 +254,7 @@ const createPrograms = (gl: WebGL2RenderingContext) => {
       terrain,
       downsampleImagery,
       downsampleTerrain,
+      color,
       index,
     }: {
       projection: mat4;
@@ -255,15 +265,9 @@ const createPrograms = (gl: WebGL2RenderingContext) => {
       terrain: Texture;
       downsampleImagery: number;
       downsampleTerrain: number;
+      color: vec4;
       index: number;
     }) => {
-      gl.enable(gl.DEPTH_TEST);
-      if (depth) gl.disable(gl.BLEND);
-      else {
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      }
-
       program.use();
 
       uvwAttribute.use();
@@ -274,6 +278,7 @@ const createPrograms = (gl: WebGL2RenderingContext) => {
       cameraUniform.set(camera);
       downsampleImageryUniform.set(downsampleImagery);
       downsampleTerrainUniform.set(downsampleTerrain);
+      colorUniform.set(color);
       indexUniform.set(index);
 
       gl.activeTexture(gl.TEXTURE0);
