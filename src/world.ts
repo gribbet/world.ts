@@ -77,19 +77,19 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   resizer.observe(canvas);
 
   const clear = ([width = 0, height = 0]: vec2) => {
-    gl.viewport(0, 0, width, height);
+    gl.viewport(0, 0, width * devicePixelRatio, height * devicePixelRatio);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
   };
 
   const render = () => {
-    const viewport = createViewport(view).scale(devicePixelRatio);
+    const viewport = createViewport(view);
     clear(viewport.screen);
 
     layers.forEach(_ => _.render({ viewport }));
   };
 
   const depth = () => {
-    const viewport = createViewport(view).scale(depthScale * devicePixelRatio);
+    const viewport = createViewport(view).scale(depthScale);
     clear(viewport.screen);
     layers.forEach((_, i) => _.render({ viewport, depth: true, index: i + 1 }));
   };
