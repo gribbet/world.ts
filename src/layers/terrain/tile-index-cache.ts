@@ -15,7 +15,7 @@ export type CreateTileIndexCacheOptions<T> = {
   dispose?: (value: T, key: vec3) => void;
 };
 
-export const createTileIndexCache = <T extends object>(
+export const createTileIndexCache = <T extends NonNullable<unknown>>(
   options: CreateTileIndexCacheOptions<T>,
 ) => {
   const cache = new LRUCache<number, T>({
