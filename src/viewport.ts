@@ -76,7 +76,7 @@ export const createViewport: (view: View) => Viewport = view => {
   };
 
   const clipToScreen = ([x = 0, y = 0, , w = 0]: vec4, out = vec2.create()) =>
-    vec2.set(out, (x / w + 1) * width * 0.5, (1 - y / w) * height * 0.5);
+    vec2.set(out, (1 + x / w) * width * 0.5, (1 - y / w) * height * 0.5);
 
   const clipToLocal = (v: vec4, out = vec3.create()) => {
     const [x = 0, y = 0, z = 0, w = 0] = vec4.transformMat4(vector, v, inverse);
