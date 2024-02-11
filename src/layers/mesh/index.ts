@@ -8,8 +8,8 @@ import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { BaseLayer } from "..";
+import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
-import { to } from "../utils";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
@@ -20,6 +20,7 @@ export const createMeshLayer: (
   mesh: Partial<Mesh>,
 ) => MeshLayer = (gl, mesh) => {
   let {
+    pickable,
     vertices,
     indices,
     position,
@@ -28,15 +29,14 @@ export const createMeshLayer: (
     size,
     minSizePixels,
     maxSizePixels,
-    pickable,
   } = {
+    pickable: true,
     vertices: [],
     indices: [],
     position: [0, 0, 0],
     orientation: [0, 0, 0, 1],
     color: [1, 1, 1, 1],
     size: 1,
-    pickable: true,
     ...mesh,
   } satisfies Mesh;
   let count = 0;
@@ -57,8 +57,10 @@ export const createMeshLayer: (
     viewport: Viewport;
     depth?: boolean;
     index?: number;
-  }) =>
-    (depth ? depthProgram : renderProgram).execute({
+  }) => {
+    if (configure(gl, { depth, pickable })) return;
+    const program = depth ? depthProgram : renderProgram;
+    program.execute({
       projection,
       modelView,
       camera: to(camera),
@@ -70,9 +72,10 @@ export const createMeshLayer: (
       size,
       minSizePixels: minSizePixels || 0,
       maxSizePixels: maxSizePixels || Number.MAX_VALUE,
-      pickable,
       index,
+      pickable,
     });
+  };
 
   const destroy = () => {
     vertexBuffer.destroy();
@@ -98,6 +101,12 @@ export const createMeshLayer: (
   return {
     render,
     destroy,
+    get pickable() {
+      return pickable;
+    },
+    set pickable(_: boolean) {
+      pickable = _;
+    },
     get vertices() {
       return vertices;
     },
@@ -146,12 +155,6 @@ export const createMeshLayer: (
     set maxSizePixels(_: number | undefined) {
       maxSizePixels = _;
     },
-    get pickable() {
-      return pickable;
-    },
-    set pickable(_: boolean) {
-      pickable = _;
-    },
   };
 };
 
@@ -198,7 +201,6 @@ const createPrograms = (
       size,
       minSizePixels,
       maxSizePixels,
-      pickable,
       index,
     }: {
       projection: mat4;
@@ -215,15 +217,6 @@ const createPrograms = (
       pickable: boolean;
       index: number;
     }) => {
-      gl.enable(gl.DEPTH_TEST);
-      if (depth) {
-        gl.disable(gl.BLEND);
-        if (!pickable) return;
-      } else {
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      }
-
       program.use();
 
       vertexAttribute.use();

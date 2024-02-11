@@ -8,8 +8,8 @@ import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { BaseLayer, Line } from "../";
+import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
-import { to } from "../utils";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
@@ -19,7 +19,8 @@ export const createLineLayer = (
   gl: WebGL2RenderingContext,
   line: Partial<Line>,
 ) => {
-  let { points, color, width, minWidthPixels, maxWidthPixels } = {
+  let { points, color, width, minWidthPixels, maxWidthPixels, pickable } = {
+    pickable: true,
     points: [],
     color: [1, 1, 1, 1],
     width: 1,
@@ -48,8 +49,10 @@ export const createLineLayer = (
     viewport: Viewport;
     depth?: boolean;
     index?: number;
-  }) =>
-    (depth ? depthProgram : renderProgram).execute({
+  }) => {
+    if (configure(gl, { depth, pickable })) return;
+    const program = depth ? depthProgram : renderProgram;
+    program.execute({
       projection,
       modelView,
       camera: to(camera),
@@ -62,6 +65,7 @@ export const createLineLayer = (
       maxWidthPixels: maxWidthPixels || Number.MAX_VALUE,
       index,
     });
+  };
 
   const destroy = () => {
     positionBuffer.destroy();
@@ -141,6 +145,12 @@ export const createLineLayer = (
     set maxWidthPixels(_: number | undefined) {
       maxWidthPixels = _;
     },
+    get pickable() {
+      return pickable;
+    },
+    set pickable(_: boolean) {
+      pickable = _;
+    },
   } satisfies LineLayer;
 };
 
@@ -217,13 +227,6 @@ const createPrograms = (
       index: number;
     }) => {
       if (count === 0) return;
-
-      gl.enable(gl.DEPTH_TEST);
-      if (depth) gl.disable(gl.BLEND);
-      else {
-        gl.enable(gl.BLEND);
-        gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
-      }
 
       program.use();
 

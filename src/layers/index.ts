@@ -5,12 +5,16 @@ import type { LineLayer } from "./line";
 import type { MeshLayer } from "./mesh";
 import type { TerrainLayer } from "./terrain";
 
-export type Terrain = {
+export type LayerOptions = {
+  pickable: boolean;
+};
+
+export type Terrain = LayerOptions & {
   readonly terrainUrl: string;
   readonly imageryUrl: string;
 };
 
-export type Mesh = {
+export type Mesh = LayerOptions & {
   vertices: vec3[];
   indices: vec3[];
   position: vec3;
@@ -19,16 +23,15 @@ export type Mesh = {
   size: number;
   minSizePixels?: number;
   maxSizePixels?: number;
-  pickable: boolean;
 };
 
-export type Line = {
+export type Line = LayerOptions & {
   points: vec3[];
   color: vec4;
   width: number;
   minWidthPixels?: number | undefined;
   maxWidthPixels?: number | undefined;
-};
+} & LayerOptions;
 
 export type BaseLayer = {
   render: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;

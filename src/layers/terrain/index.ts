@@ -7,8 +7,8 @@ import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { BaseLayer, Terrain } from "..";
+import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
-import { to } from "../utils";
 import fragmentSource from "./fragment.glsl";
 import type { Texture } from "./texture";
 import { createTileCache } from "./tile-cache";
@@ -64,7 +64,8 @@ export const createTerrainLayer = (
   gl: WebGL2RenderingContext,
   terrain: Partial<Terrain>,
 ) => {
-  const { terrainUrl, imageryUrl } = {
+  let { pickable, terrainUrl, imageryUrl } = {
+    pickable: true,
     terrainUrl: "",
     imageryUrl: "",
     ...terrain,
@@ -147,6 +148,8 @@ export const createTerrainLayer = (
     depth?: boolean;
     index?: number;
   }) => {
+    if (configure(gl, { depth, pickable })) return;
+    const program = depth ? depthProgram : renderProgram;
     const { projection, modelView, camera } = viewport;
     const visible = calculateVisibleTiles(viewport);
 
@@ -161,7 +164,7 @@ export const createTerrainLayer = (
       const { texture: imagery = terrain, downsample: downsampleImagery = 0 } =
         downsampledImagery ?? {};
 
-      (depth ? depthProgram : renderProgram).execute({
+      program.execute({
         projection,
         modelView,
         camera: to(camera),
@@ -184,10 +187,26 @@ export const createTerrainLayer = (
   };
 
   return {
-    terrainUrl,
-    imageryUrl,
     render,
     destroy,
+    get pickable() {
+      return pickable;
+    },
+    set pickable(_: boolean) {
+      pickable = _;
+    },
+    get terrainUrl() {
+      return terrainUrl;
+    },
+    set terrainUrl(_: string) {
+      terrainUrl = _;
+    },
+    get imageryUrl() {
+      return imageryUrl;
+    },
+    set imageryUrl(_: string) {
+      imageryUrl = _;
+    },
   } satisfies TerrainLayer;
 };
 

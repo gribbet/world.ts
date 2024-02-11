@@ -1,2 +1,2 @@
-export * from "./world";
 export * from "./control";
+export * from "./world";
