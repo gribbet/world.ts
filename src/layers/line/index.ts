@@ -4,7 +4,6 @@ import { vec3 } from "gl-matrix";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import { range } from "../../common";
-import { circumference } from "../../constants";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
@@ -58,7 +57,7 @@ export const createLineLayer = (
       screen,
       count,
       color,
-      width: width / circumference,
+      width,
       minWidthPixels: minWidthPixels || 0,
       maxWidthPixels: maxWidthPixels || Number.MAX_VALUE,
       index,

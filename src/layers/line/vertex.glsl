@@ -20,6 +20,7 @@ out vec4 color_out;
 
 const int ONE = 1073741824; // 2^30
 const float INV_ONE = 1.f / float(ONE);
+const float CIRCUMFERENCE = 40075017.;
 
 vec4 transform(vec3 v) {
     return projection * model_view * vec4(vec3(ivec3(v * float(ONE)) + center - camera) * INV_ONE, 1.f);
@@ -55,7 +56,7 @@ void main(void) {
     }
 
     float pixel_size = projected_current.w / screen.y;
-    float scale = clamp(width * -projection[1][1], min_width_pixels * pixel_size, max_width_pixels * pixel_size);
+    float scale = clamp(width / CIRCUMFERENCE * -projection[1][1], min_width_pixels * pixel_size, max_width_pixels * pixel_size);
 
     gl_Position = projected_current + vec4(scale * offset, 0.f, 0.f);
 

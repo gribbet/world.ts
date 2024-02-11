@@ -3,7 +3,6 @@ import { mat4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
-import { circumference } from "../../constants";
 import type { Mesh } from "../../layers";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
@@ -68,7 +67,7 @@ export const createMeshLayer: (
       position: to(mercator(position)),
       orientation: mat4.fromQuat(mat4.create(), orientation),
       color,
-      size: size / circumference,
+      size,
       minSizePixels: minSizePixels || 0,
       maxSizePixels: maxSizePixels || Number.MAX_VALUE,
       pickable,
