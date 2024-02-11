@@ -7,6 +7,12 @@ import type { TerrainLayer } from "./terrain";
 
 export type LayerOptions = {
   pickable: boolean;
+  noDepth: boolean;
+};
+
+export const defaultLayerOptions = {
+  pickable: true,
+  noDepth: false,
 };
 
 export type Terrain = LayerOptions & {

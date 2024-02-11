@@ -6,9 +6,14 @@ export const to = ([x = 0, y = 0, z = 0]: vec3) =>
 
 export const configure = (
   gl: WebGL2RenderingContext,
-  { depth, pickable }: { depth: boolean; pickable: boolean },
+  {
+    depth,
+    pickable,
+    noDepth,
+  }: { depth: boolean; pickable: boolean; noDepth: boolean },
 ) => {
   gl.enable(gl.DEPTH_TEST);
+  if (noDepth) gl.disable(gl.DEPTH_TEST);
   if (depth) {
     gl.disable(gl.BLEND);
     if (!pickable) return true;

@@ -6,7 +6,7 @@ import { range } from "../../common";
 import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import type { BaseLayer, Terrain } from "..";
+import { type BaseLayer, defaultLayerOptions, type Terrain } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -64,8 +64,8 @@ export const createTerrainLayer = (
   gl: WebGL2RenderingContext,
   terrain: Partial<Terrain>,
 ) => {
-  let { pickable, terrainUrl, imageryUrl, color } = {
-    pickable: true,
+  let { pickable, noDepth, terrainUrl, imageryUrl, color } = {
+    ...defaultLayerOptions,
     terrainUrl: "",
     imageryUrl: "",
     color: [1, 1, 1, 1],
@@ -196,6 +196,12 @@ export const createTerrainLayer = (
     },
     set pickable(_: boolean) {
       pickable = _;
+    },
+    get noDepth() {
+      return noDepth;
+    },
+    set noDepth(_: boolean) {
+      noDepth = _;
     },
     get terrainUrl() {
       return terrainUrl;

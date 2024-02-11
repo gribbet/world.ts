@@ -3,7 +3,7 @@ import { mat4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
-import type { Mesh } from "../../layers";
+import { defaultLayerOptions, type Mesh } from "../../layers";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
@@ -21,6 +21,7 @@ export const createMeshLayer: (
 ) => MeshLayer = (gl, mesh) => {
   let {
     pickable,
+    noDepth,
     vertices,
     indices,
     position,
@@ -30,7 +31,7 @@ export const createMeshLayer: (
     minSizePixels,
     maxSizePixels,
   } = {
-    pickable: true,
+    ...defaultLayerOptions,
     vertices: [],
     indices: [],
     position: [0, 0, 0],
@@ -58,7 +59,7 @@ export const createMeshLayer: (
     depth?: boolean;
     index?: number;
   }) => {
-    if (configure(gl, { depth, pickable })) return;
+    if (configure(gl, { depth, pickable, noDepth })) return;
     const program = depth ? depthProgram : renderProgram;
     program.execute({
       projection,
@@ -106,6 +107,12 @@ export const createMeshLayer: (
     },
     set pickable(_: boolean) {
       pickable = _;
+    },
+    get noDepth() {
+      return noDepth;
+    },
+    set noDepth(_: boolean) {
+      noDepth = _;
     },
     get vertices() {
       return vertices;
