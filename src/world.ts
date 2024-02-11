@@ -18,6 +18,7 @@ import { createViewport } from "./viewport";
 glMatrix.setMatrixArrayType(Array); // Required for precision
 
 type Pick = {
+  screen: vec2;
   position: vec3;
   layer: Layer | undefined;
 };
@@ -30,6 +31,8 @@ export type World = {
   addTerrain: (_: Partial<Terrain>) => TerrainLayer;
   addMesh: (_: Partial<Mesh>) => MeshLayer;
   addLine: (_: Partial<Line>) => LineLayer;
+  project: (_: vec3) => vec2;
+  unproject: (_: vec2) => vec3;
   recenter: ([x, y]: [number, number]) => void;
   pick: ([x, y]: [number, number]) => Pick;
   onMouseDown: (_: PickHandler) => void;
@@ -105,7 +108,18 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
   requestAnimationFrame(frame);
 
-  const pick = ([screenX = 0, screenY = 0]: vec2) => {
+  const project = (_: vec3) => {
+    const { worldToLocal, localToClip, clipToScreen } = createViewport(view);
+    return clipToScreen(localToClip(worldToLocal(mercator(_))));
+  };
+
+  const unproject = (_: vec2) => {
+    const { localToWorld, clipToLocal, screenToClip } = createViewport(view);
+    return geodetic(localToWorld(clipToLocal(screenToClip(_))));
+  };
+
+  const pick = (screen: vec2) => {
+    const [screenX = 0, screenY = 0] = screen;
     const { screenToClip, clipToLocal, localToWorld } = createViewport(view);
 
     depthBuffer.use();
@@ -122,7 +136,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
     const layer = index === 0 ? undefined : layers[index - 1];
 
-    return { position, layer };
+    return { screen, position, layer };
   };
 
   const recenter = (center: vec2) => {
@@ -189,6 +203,8 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     addTerrain,
     addMesh,
     addLine,
+    project,
+    unproject,
     recenter,
     pick,
     onMouseDown,
