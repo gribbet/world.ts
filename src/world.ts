@@ -11,7 +11,6 @@ import { createMeshLayer } from "./layers/mesh";
 import type { TerrainLayer } from "./layers/terrain";
 import { createTerrainLayer } from "./layers/terrain";
 import { geodetic, mercator } from "./math";
-import { createSubscriber } from "./subscriber";
 import type { View } from "./viewport";
 import { createViewport } from "./viewport";
 
@@ -23,8 +22,6 @@ type Pick = {
   layer: Layer | undefined;
 };
 
-type PickHandler = (_: Pick) => void;
-
 export type World = {
   set view(_: View);
   get view(): View;
@@ -35,9 +32,6 @@ export type World = {
   unproject: (_: vec2) => vec3;
   recenter: ([x, y]: [number, number]) => void;
   pick: ([x, y]: [number, number]) => Pick;
-  onMouseDown: (_: PickHandler) => void;
-  onMouseUp: (_: PickHandler) => void;
-  onMouseMove: (_: PickHandler) => void;
   destroy: () => void;
 };
 
@@ -152,14 +146,6 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     };
   };
 
-  const [onMouseDown, mouseDown] = createSubscriber<Pick>();
-  const [onMouseUp, mouseUp] = createSubscriber<Pick>();
-  const [onMouseMove, mouseMove] = createSubscriber<Pick>();
-
-  const onCanvasMouseDown = ({ x, y }: MouseEvent) => mouseDown(pick([x, y]));
-  const onCanvasMouseUp = ({ x, y }: MouseEvent) => mouseUp(pick([x, y]));
-  const onCanvasMouseMove = ({ x, y }: MouseEvent) => mouseMove(pick([x, y]));
-
   const addTerrain = (terrain: Partial<Terrain>) => {
     const layer = createTerrainLayer(gl, terrain);
     layers.push(layer);
@@ -178,19 +164,12 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     return layer;
   };
 
-  canvas.addEventListener("mousedown", onCanvasMouseDown);
-  canvas.addEventListener("mouseup", onCanvasMouseUp);
-  canvas.addEventListener("mousemove", onCanvasMouseMove);
-
   const destroy = () => {
     running = false;
     resizer.unobserve(canvas);
     layers.forEach(_ => _.destroy());
     layers = [];
     depthBuffer.destroy();
-    canvas.removeEventListener("mousedown", onCanvasMouseDown);
-    canvas.removeEventListener("mouseup", onCanvasMouseUp);
-    canvas.removeEventListener("mousemove", onCanvasMouseMove);
   };
 
   return {
@@ -207,9 +186,6 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     unproject,
     recenter,
     pick,
-    onMouseDown,
-    onMouseUp,
-    onMouseMove,
     destroy,
   } satisfies World;
 };
