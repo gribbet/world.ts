@@ -215,6 +215,7 @@ const createPrograms = (
       pickable: boolean;
       index: number;
     }) => {
+      gl.enable(gl.DEPTH_TEST);
       if (depth) {
         gl.disable(gl.BLEND);
         if (!pickable) return;
@@ -222,7 +223,6 @@ const createPrograms = (
         gl.enable(gl.BLEND);
         gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
       }
-      gl.enable(gl.DEPTH_TEST);
 
       program.use();
 
