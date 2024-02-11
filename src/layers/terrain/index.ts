@@ -150,8 +150,6 @@ export const createTerrainLayer = (
     const { projection, modelView, camera } = viewport;
     const visible = calculateVisibleTiles(viewport);
 
-    if (!depth) console.log(visible.length);
-
     for (const xyz of visible) {
       const downsampledImagery = depth
         ? undefined
