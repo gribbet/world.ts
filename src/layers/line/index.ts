@@ -89,16 +89,16 @@ export const createLineLayer = (
     const indexData = range(0, count * 2).flatMap(i => {
       const [a = 0, b = 0, c = 0, d = 0] = range(i * 2, i * 2 + 4);
       return [
-        [a, b, c],
-        [a, c, d],
+        [a, b, d],
+        [a, d, c],
       ].flat();
     });
     const cornerData = range(0, count + 1).flatMap(() =>
       [
         [-1, -1],
         [-1, 1],
-        [1, 1],
         [1, -1],
+        [1, 1],
       ].flat(),
     );
 
