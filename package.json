@@ -1,5 +1,6 @@
 {
   "name": "world.ts",
+  "version": "0.1.6",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -27,6 +28,5 @@
   "dependencies": {
     "gl-matrix": "^3.4.3",
     "lru-cache": "^10.2.0"
-  },
-  "version": "0.1.6"
+  }
 }
