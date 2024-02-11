@@ -149,7 +149,7 @@ export const createTerrainLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    if (configure(gl, { depth, pickable })) return;
+    if (configure(gl, { depth, pickable, noDepth })) return;
     const program = depth ? depthProgram : renderProgram;
     const { projection, modelView, camera } = viewport;
     const visible = calculateVisibleTiles(viewport);
