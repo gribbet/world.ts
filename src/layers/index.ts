@@ -7,21 +7,19 @@ import type { TerrainLayer } from "./terrain";
 
 export type LayerOptions = {
   pickable: boolean;
-  noDepth: boolean;
+  depth: boolean;
+  polygonOffset: number;
 };
 
-export const defaultLayerOptions = {
-  pickable: true,
-  noDepth: false,
-};
-
-export type Terrain = LayerOptions & {
+export type Terrain = {
+  options: Partial<LayerOptions>;
   readonly terrainUrl: string;
   readonly imageryUrl: string;
   color: vec4;
 };
 
-export type Mesh = LayerOptions & {
+export type Mesh = {
+  options: Partial<LayerOptions>;
   vertices: vec3[];
   indices: vec3[];
   position: vec3;
@@ -32,13 +30,14 @@ export type Mesh = LayerOptions & {
   maxSizePixels?: number;
 };
 
-export type Line = LayerOptions & {
+export type Line = {
+  options: Partial<LayerOptions>;
   points: vec3[];
   color: vec4;
   width: number;
   minWidthPixels?: number | undefined;
   maxWidthPixels?: number | undefined;
-} & LayerOptions;
+};
 
 export type BaseLayer = {
   render: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;

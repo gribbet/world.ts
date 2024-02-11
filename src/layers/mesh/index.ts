@@ -3,11 +3,11 @@ import { mat4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
-import { defaultLayerOptions, type Mesh } from "../../layers";
+import { type Mesh } from "../../layers";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import type { BaseLayer } from "..";
+import type { BaseLayer, LayerOptions } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -20,8 +20,7 @@ export const createMeshLayer: (
   mesh: Partial<Mesh>,
 ) => MeshLayer = (gl, mesh) => {
   let {
-    pickable,
-    noDepth,
+    options,
     vertices,
     indices,
     position,
@@ -31,7 +30,7 @@ export const createMeshLayer: (
     minSizePixels,
     maxSizePixels,
   } = {
-    ...defaultLayerOptions,
+    options: {},
     vertices: [],
     indices: [],
     position: [0, 0, 0],
@@ -59,7 +58,7 @@ export const createMeshLayer: (
     depth?: boolean;
     index?: number;
   }) => {
-    if (configure(gl, { depth, pickable, noDepth })) return;
+    if (configure(gl, depth, options)) return;
     const program = depth ? depthProgram : renderProgram;
     program.execute({
       projection,
@@ -74,7 +73,6 @@ export const createMeshLayer: (
       minSizePixels: minSizePixels || 0,
       maxSizePixels: maxSizePixels || Number.MAX_VALUE,
       index,
-      pickable,
     });
   };
 
@@ -102,17 +100,11 @@ export const createMeshLayer: (
   return {
     render,
     destroy,
-    get pickable() {
-      return pickable;
+    get options() {
+      return options;
     },
-    set pickable(_: boolean) {
-      pickable = _;
-    },
-    get noDepth() {
-      return noDepth;
-    },
-    set noDepth(_: boolean) {
-      noDepth = _;
+    set options(_: Partial<LayerOptions>) {
+      options = _;
     },
     get vertices() {
       return vertices;
@@ -221,7 +213,6 @@ const createPrograms = (
       size: number;
       minSizePixels: number;
       maxSizePixels: number;
-      pickable: boolean;
       index: number;
     }) => {
       program.use();

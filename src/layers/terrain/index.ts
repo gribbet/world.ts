@@ -6,7 +6,8 @@ import { range } from "../../common";
 import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import { type BaseLayer, defaultLayerOptions, type Terrain } from "..";
+import type { LayerOptions } from "..";
+import { type BaseLayer, type Terrain } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -64,8 +65,8 @@ export const createTerrainLayer = (
   gl: WebGL2RenderingContext,
   terrain: Partial<Terrain>,
 ) => {
-  let { pickable, noDepth, terrainUrl, imageryUrl, color } = {
-    ...defaultLayerOptions,
+  let { options, terrainUrl, imageryUrl, color } = {
+    options: {},
     terrainUrl: "",
     imageryUrl: "",
     color: [1, 1, 1, 1],
@@ -149,7 +150,7 @@ export const createTerrainLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    if (configure(gl, { depth, pickable, noDepth })) return;
+    if (configure(gl, depth, options)) return;
     const program = depth ? depthProgram : renderProgram;
     const { projection, modelView, camera } = viewport;
     const visible = calculateVisibleTiles(viewport);
@@ -191,17 +192,11 @@ export const createTerrainLayer = (
   return {
     render,
     destroy,
-    get pickable() {
-      return pickable;
+    get options() {
+      return options;
     },
-    set pickable(_: boolean) {
-      pickable = _;
-    },
-    get noDepth() {
-      return noDepth;
-    },
-    set noDepth(_: boolean) {
-      noDepth = _;
+    set options(_: Partial<LayerOptions>) {
+      options = _;
     },
     get terrainUrl() {
       return terrainUrl;
