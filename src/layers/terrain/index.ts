@@ -125,7 +125,7 @@ export const createTerrainLayer = (
           .map((_, i) => localToClip(_, vec4s[i]));
         if (clipped(clip)) return [];
         const size = screenSize(clip.map((_, i) => clipToScreen(_, vec2s[i])));
-        split = size > 512;
+        split = size > 512 / devicePixelRatio;
       }
       if (split && z < maxZ) {
         const divided: vec3[] = [
