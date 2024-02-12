@@ -34,7 +34,10 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
         orientation: [pitch, roll, yaw],
       } = world.view;
       const orientation = [
-        pitch - (movementY / height) * Math.PI,
+        Math.min(
+          Math.PI / 2,
+          Math.max(0, pitch - (movementY / height) * Math.PI),
+        ),
         roll,
         yaw - (movementX / width) * Math.PI,
       ] satisfies Orientation;
