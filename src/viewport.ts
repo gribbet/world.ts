@@ -29,7 +29,7 @@ export const createViewport: (view: View) => Viewport = view => {
     orientation: [pitch, roll, yaw],
   } = view;
   const [width = 0, height = 0] = screen;
-  const [x = 0, y = 0] = view.center ?? [width / 2, height / 2];
+  const [ox = 0, oy = 0] = view.offset;
   const z = distance / circumference;
   const near = z / 100;
   const far = z * 1000000;
@@ -52,8 +52,8 @@ export const createViewport: (view: View) => Viewport = view => {
 
   const scale = (scale: number) => {
     const screen: vec2 = [width * scale, height * scale];
-    const center: vec2 = [x * scale, y * scale];
-    return createViewport({ ...view, center, screen });
+    const offset: vec2 = [ox * scale, oy * scale];
+    return createViewport({ ...view, offset, screen });
   };
 
   const screenToClip = (
@@ -76,7 +76,7 @@ export const createViewport: (view: View) => Viewport = view => {
   const localToClip = ([x = 0, y = 0, z = 0]: vec3, out = vec4.create()) =>
     vec4.transformMat4(out, vec4.set(out, x, y, z, 1), transform);
 
-  const [cx = 0, cy = 0] = screenToClip([x, y]);
+  const [cx = 0, cy = 0] = screenToClip([ox + width / 2, oy + height / 2]);
   const [ax = 0, ay = 0, az = 0] = clipToLocal([cx, cy, -1, 1]);
   const [bx = 0, by = 0, bz = 0] = clipToLocal([cx, cy, 1.00001, 1]);
 

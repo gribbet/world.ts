@@ -23,9 +23,10 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
         world.recenter([x, y]);
         recentered = true;
       }
+      const [width = 0, height = 0] = world.view.screen;
       world.view = {
         ...world.view,
-        center: [x, y],
+        offset: [x - width / 2, y - height / 2],
       };
     } else if (buttons === 2) {
       const {

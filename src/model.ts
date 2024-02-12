@@ -4,7 +4,7 @@ export type Orientation = [pitch: number, roll: number, yaw: number];
 
 export type View = {
   target: vec3;
-  center?: vec2;
+  offset: vec2;
   screen: vec2;
   distance: number;
   orientation: Orientation;

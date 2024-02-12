@@ -43,6 +43,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   let view: View = {
     target: [0, 0, 0],
     screen: [0, 0],
+    offset: [0, 0],
     distance: circumference,
     orientation: [0, 0, 0],
   };
@@ -134,14 +135,16 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     return { screen, position, layer };
   };
 
-  const recenter = (center: vec2) => {
+  const recenter = ([cx = 0, cy = 0]: vec2) => {
     const { camera } = createViewport(view);
-    const { position: target, layer } = pick(center);
+    const { position: target, layer } = pick([cx, cy]);
     if (!layer) return;
     const distance = vec3.distance(mercator(target), camera) * circumference;
+    const [width = 0, height = 0] = view.screen;
+    const offset: vec2 = [cx - width / 2, cy - height / 2];
     view = {
       ...view,
-      center,
+      offset,
       target,
       distance,
     };
