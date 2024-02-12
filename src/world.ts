@@ -167,7 +167,6 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     running = false;
     resizer.unobserve(canvas);
     layers.forEach(_ => _.destroy());
-    layers = [];
     depthBuffer.destroy();
   };
 
