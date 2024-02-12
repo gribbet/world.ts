@@ -1,5 +1,7 @@
 import createImageLoadWorker from "./image-load-worker?worker&inline";
 
+const worker = createImageLoadWorker();
+
 export type ImageLoad = {
   loaded: boolean;
   cancel: () => void;
@@ -13,8 +15,6 @@ export const createImageLoad = ({
   onLoad: (image: ImageBitmap | undefined) => void;
 }) => {
   let loaded = false;
-
-  const worker = createImageLoadWorker();
 
   const handler = ({ data }: MessageEvent) => {
     if (canceled || url !== data.url) return;

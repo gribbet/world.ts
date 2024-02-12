@@ -28,14 +28,11 @@ export const createImageTexture: (_: {
         gl.UNSIGNED_BYTE,
         image,
       );
-      image.close();
       onLoad?.();
     },
   });
 
-  const use = () => texture.use();
-
-  const attach = () => texture.attach();
+  const { use, attach } = texture;
 
   const destroy = () => {
     imageLoad.cancel();
