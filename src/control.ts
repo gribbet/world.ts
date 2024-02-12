@@ -18,11 +18,11 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
 
   const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
     if (!enabled) return;
+    if (draggable && !recentered) {
+      world.recenter([x, y]);
+      recentered = true;
+    }
     if (buttons === 1 && draggable) {
-      if (!recentered) {
-        world.recenter([x, y]);
-        recentered = true;
-      }
       const [width = 0, height = 0] = world.view.screen;
       world.view = {
         ...world.view,
