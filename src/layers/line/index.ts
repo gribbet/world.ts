@@ -78,7 +78,7 @@ export const createLineLayer = (
 
   const updatePoints = (_: vec3[]) => {
     points = _;
-    count = _.length;
+    count = (_.length * 4 - 2) * 3;
 
     const [first] = _;
     const [last] = _.slice(-1);
@@ -249,7 +249,7 @@ const createPrograms = (
 
       indexBuffer.use();
 
-      gl.drawElements(gl.TRIANGLES, count * 3 * 4 - 4, gl.UNSIGNED_SHORT, 0);
+      gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
     };
 
     const destroy = () => program.destroy();
