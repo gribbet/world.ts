@@ -32,7 +32,7 @@ export type Mesh = {
 
 export type Line = {
   options: Partial<LayerOptions>;
-  points: vec3[];
+  points: vec3[][];
   color: vec4;
   width: number;
   minWidthPixels?: number | undefined;

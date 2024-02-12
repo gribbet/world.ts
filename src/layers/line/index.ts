@@ -76,34 +76,53 @@ export const createLineLayer = (
     depthProgram.destroy();
   };
 
-  const updatePoints = (_: vec3[]) => {
+  const updatePoints = (_: vec3[][]) => {
     points = _;
-    count = (_.length * 4 - 2) * 3;
+    count = _.map(_ => (_.length * 4 - 2) * 3).reduce((a, b) => a + b, 0);
 
-    const [first] = _;
-    const [last] = _.slice(-1);
-
-    if (!first || !last) return;
-
+    const [[first] = []] = _;
+    if (!first) return;
     center = mercator(first);
 
-    const positionData = [first, ..._, last]
-      .map(_ => vec3.sub(vec3.create(), mercator(_), center))
-      .flatMap(_ => [..._, ..._, ..._, ..._]);
-    const indexData = range(0, count * 2).flatMap(i => {
-      const [a = 0, b = 0, c = 0, d = 0] = range(i * 2, i * 2 + 4);
-      return [
-        [a, b, d],
-        [a, d, c],
-      ].flat();
+    const positionData = _.flatMap(_ => {
+      const [first] = _;
+      const [last] = _.slice(-1);
+
+      if (!first || !last) return [];
+
+      return [first, ..._, last]
+        .map(_ => vec3.sub(vec3.create(), mercator(_), center))
+        .flatMap(_ => [..._, ..._, ..._, ..._]);
     });
-    const cornerData = range(0, count + 1).flatMap(() =>
-      [
-        [-1, -1],
-        [-1, 1],
-        [1, -1],
-        [1, 1],
-      ].flat(),
+
+    const { indexData } = _.reduce<{ indexData: number[]; count: number }>(
+      ({ indexData, count }, _) => {
+        indexData = indexData.concat(
+          range(0, _.length * 2 - 1).flatMap(i => {
+            const [a = 0, b = 0, c = 0, d = 0] = range(
+              i * 2 + count,
+              i * 2 + 4 + count,
+            );
+            return [
+              [a, b, d],
+              [a, d, c],
+            ].flat();
+          }),
+        );
+        count += (_.length + 2) * 4;
+        return { indexData, count };
+      },
+      { indexData: [], count: 0 },
+    );
+    const cornerData = _.flatMap(_ =>
+      range(0, _.length * 2 - 1).flatMap(() =>
+        [
+          [-1, -1],
+          [-1, 1],
+          [1, -1],
+          [1, 1],
+        ].flat(),
+      ),
     );
 
     positionBuffer.set(positionData);
@@ -125,7 +144,7 @@ export const createLineLayer = (
     get points() {
       return points;
     },
-    set points(_: vec3[]) {
+    set points(_: vec3[][]) {
       updatePoints(_);
     },
     get color() {
