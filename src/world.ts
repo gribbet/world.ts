@@ -23,6 +23,7 @@ type Pick = {
 };
 
 export type World = {
+  readonly canvas: HTMLCanvasElement;
   set view(_: View);
   get view(): View;
   addTerrain: (_: Partial<Terrain>) => TerrainLayer;
@@ -173,6 +174,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   };
 
   return {
+    canvas,
     get view() {
       return view;
     },
