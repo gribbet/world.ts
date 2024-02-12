@@ -8,8 +8,7 @@ import type { LineLayer } from "./layers/line";
 import { createLineLayer } from "./layers/line";
 import type { MeshLayer } from "./layers/mesh";
 import { createMeshLayer } from "./layers/mesh";
-import type { TerrainLayer } from "./layers/terrain";
-import { createTerrainLayer } from "./layers/terrain";
+import { createTerrainLayer, type TerrainLayer } from "./layers/terrain";
 import { geodetic, mercator } from "./math";
 import type { View } from "./model";
 import { createViewport } from "./viewport";
@@ -150,23 +149,19 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     };
   };
 
-  const addTerrain = (terrain: Partial<Terrain>) => {
-    const layer = createTerrainLayer(gl, terrain);
-    layers.push(layer);
+  const add = <T extends Layer>(layer: T) => {
+    const { destroy } = layer;
+    layer.destroy = () => {
+      layers = layers.filter(_ => _ !== layer);
+      destroy();
+    };
+    layers = [...layers, layer];
     return layer;
   };
-
-  const addMesh = (mesh: Partial<Mesh>) => {
-    const layer = createMeshLayer(gl, mesh);
-    layers.push(layer);
-    return layer;
-  };
-
-  const addLine = (line: Partial<Line>) => {
-    const layer = createLineLayer(gl, line);
-    layers.push(layer);
-    return layer;
-  };
+  const addTerrain = (terrain: Partial<Terrain>) =>
+    add(createTerrainLayer(gl, terrain));
+  const addMesh = (mesh: Partial<Mesh>) => add(createMeshLayer(gl, mesh));
+  const addLine = (line: Partial<Line>) => add(createLineLayer(gl, line));
 
   const destroy = () => {
     running = false;
