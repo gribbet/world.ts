@@ -11,7 +11,7 @@ import { createMeshLayer } from "./layers/mesh";
 import type { TerrainLayer } from "./layers/terrain";
 import { createTerrainLayer } from "./layers/terrain";
 import { geodetic, mercator } from "./math";
-import type { View } from "./viewport";
+import type { View } from "./model";
 import { createViewport } from "./viewport";
 
 glMatrix.setMatrixArrayType(Array); // Required for precision
