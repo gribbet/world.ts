@@ -1,6 +1,6 @@
 import { debounce } from "./common";
 import { circumference } from "./constants";
-import type { Orientation } from "./viewport";
+import type { Orientation } from "./model";
 import type { World } from "./world";
 
 const minimumDistance = 2;
@@ -9,20 +9,25 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
   let enabled = true;
   let draggable = true;
   let zooming = false;
+  let recentered = false;
 
-  const onMouseDown = ({ x, y }: MouseEvent) => {
+  const onMouseDown = () => {
+    recentered = false;
     if (!enabled || !draggable) return;
-    world.recenter([x, y]);
   };
 
   const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
     if (!enabled) return;
-    if (buttons === 1 && draggable)
+    if (buttons === 1 && draggable) {
+      if (!recentered) {
+        world.recenter([x, y]);
+        recentered = true;
+      }
       world.view = {
         ...world.view,
         center: [x, y],
       };
-    else if (buttons === 2) {
+    } else if (buttons === 2) {
       const {
         screen: [width = 0, height = 0],
         orientation: [pitch, roll, yaw],
