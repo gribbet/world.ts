@@ -1,6 +1,6 @@
 import { earclip } from "earclip";
 import type { mat4, vec2, vec4 } from "gl-matrix";
-import { vec3 } from "gl-matrix";
+import type { vec3 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
@@ -29,8 +29,6 @@ export const createPolygonLayer = (
 
   let count = 0;
 
-  const center: vec3 = [0, 0, 0];
-
   const positionBuffer = createBuffer({ gl, type: "f32", target: "array" });
   const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
 
@@ -54,7 +52,6 @@ export const createPolygonLayer = (
       projection,
       modelView,
       camera: to(camera),
-      center: to(center),
       screen,
       count,
       color,
@@ -75,9 +72,7 @@ export const createPolygonLayer = (
       _.map(_ => {
         const [first] = _;
         if (!first) return [];
-        return [..._, first].map(_ => [
-          ...vec3.sub(vec3.create(), mercator(_), center),
-        ]);
+        return [..._, first].map(_ => [...mercator(_)]);
       }),
     );
     positionBuffer.set(vertices);
@@ -135,7 +130,6 @@ const createPrograms = (
     const projectionUniform = program.uniformMatrix4f("projection");
     const modelViewUniform = program.uniformMatrix4f("model_view");
     const cameraUniform = program.uniform3i("camera");
-    const centerUniform = program.uniform3i("center");
     const screenUniform = program.uniform2f("screen");
     const colorUniform = program.uniform4f("color");
     const indexUniform = program.uniform1i("index");
@@ -144,7 +138,6 @@ const createPrograms = (
       projection,
       modelView,
       camera,
-      center,
       screen,
       count,
       color,
@@ -153,7 +146,6 @@ const createPrograms = (
       projection: mat4;
       modelView: mat4;
       camera: vec3;
-      center: vec3;
       screen: vec2;
       count: number;
       color: vec4;
@@ -168,7 +160,6 @@ const createPrograms = (
       projectionUniform.set(projection);
       modelViewUniform.set(modelView);
       cameraUniform.set(camera);
-      centerUniform.set(center);
       screenUniform.set(screen);
       colorUniform.set(color);
       indexUniform.set(index);
