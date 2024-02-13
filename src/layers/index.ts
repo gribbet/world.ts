@@ -1,6 +1,7 @@
 import type { quat, vec3, vec4 } from "gl-matrix";
 
 import type { Viewport } from "../viewport";
+import type { BillboardLayer } from "./billboard";
 import type { LineLayer } from "./line";
 import type { MeshLayer } from "./mesh";
 import type { PolygonLayer } from "./polygon";
@@ -19,18 +20,6 @@ export type Terrain = {
   color: vec4;
 };
 
-export type Mesh = {
-  options: Partial<LayerOptions>;
-  vertices: vec3[];
-  indices: vec3[];
-  position: vec3;
-  orientation: quat;
-  color: vec4;
-  size: number;
-  minSizePixels?: number;
-  maxSizePixels?: number;
-};
-
 export type Line = {
   options: Partial<LayerOptions>;
   points: vec3[][];
@@ -46,9 +35,36 @@ export type Polygon = {
   color: vec4;
 };
 
+export type Mesh = {
+  options: Partial<LayerOptions>;
+  vertices: vec3[];
+  indices: vec3[];
+  position: vec3;
+  orientation: quat;
+  color: vec4;
+  size: number;
+  minSizePixels?: number;
+  maxSizePixels?: number;
+};
+
+export type Billboard = {
+  options: Partial<LayerOptions>;
+  url: string;
+  position: vec3;
+  color: vec4;
+  size: number;
+  minSizePixels?: number;
+  maxSizePixels?: number;
+};
+
+export type Layer =
+  | TerrainLayer
+  | LineLayer
+  | PolygonLayer
+  | MeshLayer
+  | BillboardLayer;
+
 export type BaseLayer = {
   render: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;
   destroy: () => void;
 };
-
-export type Layer = TerrainLayer | LineLayer | PolygonLayer | MeshLayer;

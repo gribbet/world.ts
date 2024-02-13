@@ -196,14 +196,14 @@ const createPrograms = (
     const FLOAT_BYTES = Float32Array.BYTES_PER_ELEMENT;
 
     const previousAttribute = program.attribute3f("previous", positionBuffer, {
-      stride: 3 * FLOAT_BYTES,
+      stride: FLOAT_BYTES * 3,
     });
     const currentAttribute = program.attribute3f("current", positionBuffer, {
-      stride: 3 * FLOAT_BYTES,
+      stride: FLOAT_BYTES * 3,
       offset: FLOAT_BYTES * 3 * 4,
     });
     const nextAttribute = program.attribute3f("next", positionBuffer, {
-      stride: 3 * FLOAT_BYTES,
+      stride: FLOAT_BYTES * 3,
       offset: FLOAT_BYTES * 3 * 4 * 2,
     });
     const cornerAttribute = program.attribute2f("corner", cornerBuffer, {
@@ -271,7 +271,7 @@ const createPrograms = (
       gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
     };
 
-    const destroy = () => program.destroy();
+    const { destroy } = program;
 
     return { execute, destroy };
   };

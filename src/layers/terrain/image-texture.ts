@@ -8,11 +8,15 @@ export type ImageTexture = {
   destroy: () => void;
 };
 
-export const createImageTexture: (_: {
+export const createImageTexture = ({
+  gl,
+  url,
+  onLoad,
+}: {
   gl: WebGL2RenderingContext;
   url: string;
-  onLoad?: () => void;
-}) => ImageTexture = ({ gl, url, onLoad }) => {
+  onLoad?: (_: ImageBitmap) => void;
+}) => {
   const texture = createTexture(gl);
 
   const imageLoad = createImageLoad({
@@ -28,7 +32,7 @@ export const createImageTexture: (_: {
         gl.UNSIGNED_BYTE,
         image,
       );
-      onLoad?.();
+      onLoad?.(image);
     },
   });
 
@@ -46,5 +50,5 @@ export const createImageTexture: (_: {
     use,
     attach,
     destroy,
-  };
+  } satisfies ImageTexture;
 };

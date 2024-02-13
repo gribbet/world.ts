@@ -3,7 +3,8 @@ import { glMatrix, vec3 } from "gl-matrix";
 
 import { circumference } from "./constants";
 import { createDepthBuffer } from "./depth-buffer";
-import type { Layer, Line, Mesh, Polygon, Terrain } from "./layers";
+import type { Billboard, Layer, Line, Mesh, Polygon, Terrain } from "./layers";
+import { type BillboardLayer, createBillboardLayer } from "./layers/billboard";
 import type { LineLayer } from "./layers/line";
 import { createLineLayer } from "./layers/line";
 import type { MeshLayer } from "./layers/mesh";
@@ -28,9 +29,10 @@ export type World = {
   set view(_: View);
   get view(): View;
   addTerrain: (_: Partial<Terrain>) => TerrainLayer;
-  addMesh: (_: Partial<Mesh>) => MeshLayer;
   addLine: (_: Partial<Line>) => LineLayer;
   addPolygon: (_: Partial<Polygon>) => PolygonLayer;
+  addMesh: (_: Partial<Mesh>) => MeshLayer;
+  addBillboard: (_: Partial<Billboard>) => BillboardLayer;
   project: (_: vec3) => vec2;
   unproject: (_: vec2) => vec3;
   recenter: ([x, y]: [number, number]) => void;
@@ -167,6 +169,8 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   const addPolygon = (polygon: Partial<Polygon>) =>
     add(createPolygonLayer(gl, polygon));
   const addMesh = (mesh: Partial<Mesh>) => add(createMeshLayer(gl, mesh));
+  const addBillboard = (billboard: Partial<Billboard>) =>
+    add(createBillboardLayer(gl, billboard));
 
   const destroy = () => {
     running = false;
@@ -187,6 +191,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     addPolygon,
     addLine,
     addMesh,
+    addBillboard,
     project,
     unproject,
     recenter,

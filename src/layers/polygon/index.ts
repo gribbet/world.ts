@@ -178,7 +178,7 @@ const createPrograms = (
       gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
     };
 
-    const destroy = () => program.destroy();
+    const { destroy } = program;
 
     return { execute, destroy };
   };
