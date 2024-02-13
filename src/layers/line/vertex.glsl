@@ -5,7 +5,6 @@ precision highp float;
 uniform mat4 projection;
 uniform mat4 model_view;
 uniform ivec3 camera;
-uniform ivec3 center;
 uniform vec2 screen;
 uniform vec4 color;
 uniform float width;
@@ -23,7 +22,7 @@ const float INV_ONE = 1.f / float(ONE);
 const float CIRCUMFERENCE = 40075017.;
 
 vec4 transform(vec3 v) {
-    return projection * model_view * vec4(vec3(ivec3(v * float(ONE)) + center - camera) * INV_ONE, 1.f);
+    return projection * model_view * vec4(vec3(ivec3(v * float(ONE)) - camera) * INV_ONE, 1.f);
 }
 
 void main(void) {
