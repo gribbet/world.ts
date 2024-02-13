@@ -13,11 +13,13 @@ export type ViewTransition = {
 export const createViewTransition = (world: World) => {
   let running = true;
   let goal: Partial<View> = {};
-  let last = 0;
+  let last: number | undefined;
 
   const frame = (time: number) => {
-    if (running) requestAnimationFrame(frame);
-    const dt = (time - last) / 1000;
+    if (!running) return;
+    requestAnimationFrame(frame);
+
+    const dt = (time - (last ?? time)) / 1000;
     last = time;
 
     const epsilon = 1e-3;
