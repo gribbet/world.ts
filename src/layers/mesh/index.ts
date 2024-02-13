@@ -59,6 +59,8 @@ export const createMeshLayer: (
     index?: number;
   }) => {
     if (configure(gl, depth, options)) return;
+    gl.enable(gl.CULL_FACE);
+    gl.cullFace(gl.FRONT);
     const program = depth ? depthProgram : renderProgram;
     program.execute({
       projection,
@@ -74,6 +76,7 @@ export const createMeshLayer: (
       maxSizePixels: maxSizePixels || Number.MAX_VALUE,
       index,
     });
+    gl.disable(gl.CULL_FACE);
   };
 
   const dispose = () => {
