@@ -69,11 +69,7 @@ export const createPolygonLayer = (
   const updatePoints = (_: vec3[][]) => {
     points = _;
     const { vertices, indices } = earclip(
-      _.map(_ => {
-        const [first] = _;
-        if (!first) return [];
-        return [..._, first].map(_ => [...to(mercator(_))]);
-      }),
+      _.map(_ => _.map(_ => [...to(mercator(_))])),
     );
     positionBuffer.set(vertices);
     indexBuffer.set(indices);
