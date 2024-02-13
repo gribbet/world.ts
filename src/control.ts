@@ -8,6 +8,7 @@ const minimumDistance = 2;
 export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
   let enabled = true;
   let draggable = true;
+  let rotatable = true;
   let zooming = false;
   let recentered = false;
 
@@ -28,7 +29,7 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
         ...world.view,
         offset: [x - width / 2, y - height / 2],
       };
-    } else if (buttons === 2) {
+    } else if (buttons === 2 && rotatable) {
       const {
         screen: [width = 0, height = 0],
         orientation: [pitch, roll, yaw],
@@ -93,6 +94,12 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
     },
     set draggable(_: boolean) {
       draggable = _;
+    },
+    get rotatable() {
+      return rotatable;
+    },
+    set rotatable(_: boolean) {
+      rotatable = _;
     },
     dispose,
   };

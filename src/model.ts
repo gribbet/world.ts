@@ -8,5 +8,5 @@ export type View = {
   screen: vec2;
   distance: number;
   orientation: Orientation;
-  fieldOfView?: number;
+  fieldOfView: number;
 };

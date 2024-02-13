@@ -9,6 +9,7 @@ export type Viewport = {
   screen: vec2;
   projection: mat4;
   modelView: mat4;
+  fieldScale: number;
   scale: (_: number) => Viewport;
   screenToClip: (_: vec2, out?: vec4) => vec4;
   clipToScreen: (_: vec4, out?: vec2) => vec2;
@@ -25,16 +26,16 @@ export const createViewport: (view: View) => Viewport = view => {
   const {
     target,
     screen,
-    distance,
     orientation: [pitch, roll, yaw],
+    fieldOfView,
   } = view;
   const [width = 0, height = 0] = screen;
   const [ox = 0, oy = 0] = view.offset;
-  const z = distance / circumference;
+  const fieldScale =
+    Math.tan(radians(45) / 2) / Math.tan(radians(fieldOfView) / 2);
+  const z = (view.distance / circumference) * fieldScale;
   const near = z / 100;
   const far = z * 1000000;
-  const defaultFieldOfView = 45;
-  const fieldOfView = view.fieldOfView ?? defaultFieldOfView;
 
   const projection = mat4.create();
   mat4.identity(projection);
@@ -80,14 +81,15 @@ export const createViewport: (view: View) => Viewport = view => {
   const [ax = 0, ay = 0, az = 0] = clipToLocal([cx, cy, -1, 1]);
   const [bx = 0, by = 0, bz = 0] = clipToLocal([cx, cy, 1.00001, 1]);
 
-  const d =
-    (distance * Math.tan(radians(defaultFieldOfView) / 2)) /
-    Math.tan(radians(fieldOfView) / 2);
-
   const [t1 = 0] = quadratic(
     (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
     ax * (bx - ax) + ay * (by - ay) + az * (bz - az),
-    ax * ax + ay * ay + az * az - (d * d) / circumference / circumference,
+    ax * ax +
+      ay * ay +
+      az * az -
+      ((view.distance * view.distance) / circumference / circumference) *
+        fieldScale *
+        fieldScale,
   );
 
   if (isNaN(t1)) throw new Error("Unexpected");
@@ -111,6 +113,7 @@ export const createViewport: (view: View) => Viewport = view => {
     screen,
     projection,
     modelView,
+    fieldScale,
     scale,
     screenToClip,
     clipToScreen,

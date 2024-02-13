@@ -50,6 +50,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     offset: [0, 0],
     distance: circumference,
     orientation: [0, 0, 0],
+    fieldOfView: 45,
   };
 
   const gl = canvas.getContext("webgl2", {
@@ -137,10 +138,11 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   };
 
   const recenter = ([cx = 0, cy = 0]: vec2) => {
-    const { camera } = createViewport(view);
+    const { camera, fieldScale } = createViewport(view);
     const { position: target, layer } = pick([cx, cy]);
     if (!layer) return;
-    const distance = vec3.distance(mercator(target), camera) * circumference;
+    const distance =
+      (vec3.distance(mercator(target), camera) * circumference) / fieldScale;
     const [width = 0, height = 0] = view.screen;
     const offset: vec2 = [cx - width / 2, cy - height / 2];
     view = {
