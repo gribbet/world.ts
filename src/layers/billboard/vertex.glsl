@@ -27,9 +27,9 @@ void main(void) {
     vec4 projected = projection * model_view * vec4(vec3(position - camera) * INV_ONE, 1.f);
 
     float pixel_size = projected.w / screen.y;
-    float scale = clamp(size / CIRCUMFERENCE * -projection[1][1], min_size_pixels * pixel_size, max_size_pixels * pixel_size) * 0.5;
+    float scale = clamp(size / CIRCUMFERENCE * -projection[1][1], min_size_pixels * pixel_size, max_size_pixels * pixel_size);
 
-    gl_Position = projected + scale * vec4(corner * image_size / screen, 0.f, 0.f);
+    gl_Position = projected + 0.5 * scale * screen.y / image_size.y * vec4(corner * image_size / screen, 0.f, 0.0f);
 
     uv_out = uv;
     color_out = color;
