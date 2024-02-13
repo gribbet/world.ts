@@ -3,6 +3,7 @@ import type { quat, vec3, vec4 } from "gl-matrix";
 import type { Viewport } from "../viewport";
 import type { LineLayer } from "./line";
 import type { MeshLayer } from "./mesh";
+import type { PolygonLayer } from "./polygon";
 import type { TerrainLayer } from "./terrain";
 
 export type LayerOptions = {
@@ -39,9 +40,15 @@ export type Line = {
   maxWidthPixels?: number | undefined;
 };
 
+export type Polygon = {
+  options: Partial<LayerOptions>;
+  points: vec3[][];
+  color: vec4;
+};
+
 export type BaseLayer = {
   render: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;
   destroy: () => void;
 };
 
-export type Layer = TerrainLayer | MeshLayer | LineLayer;
+export type Layer = TerrainLayer | LineLayer | PolygonLayer | MeshLayer;

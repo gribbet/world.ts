@@ -3,11 +3,13 @@ import { glMatrix, vec3 } from "gl-matrix";
 
 import { circumference } from "./constants";
 import { createDepthBuffer } from "./depth-buffer";
-import type { Layer, Line, Mesh, Terrain } from "./layers";
+import type { Layer, Line, Mesh, Polygon, Terrain } from "./layers";
 import type { LineLayer } from "./layers/line";
 import { createLineLayer } from "./layers/line";
 import type { MeshLayer } from "./layers/mesh";
 import { createMeshLayer } from "./layers/mesh";
+import type { PolygonLayer } from "./layers/polygon";
+import { createPolygonLayer } from "./layers/polygon";
 import { createTerrainLayer, type TerrainLayer } from "./layers/terrain";
 import { geodetic, mercator } from "./math";
 import type { View } from "./model";
@@ -28,6 +30,7 @@ export type World = {
   addTerrain: (_: Partial<Terrain>) => TerrainLayer;
   addMesh: (_: Partial<Mesh>) => MeshLayer;
   addLine: (_: Partial<Line>) => LineLayer;
+  addPolygon: (_: Partial<Polygon>) => PolygonLayer;
   project: (_: vec3) => vec2;
   unproject: (_: vec2) => vec3;
   recenter: ([x, y]: [number, number]) => void;
@@ -160,8 +163,10 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   };
   const addTerrain = (terrain: Partial<Terrain>) =>
     add(createTerrainLayer(gl, terrain));
-  const addMesh = (mesh: Partial<Mesh>) => add(createMeshLayer(gl, mesh));
   const addLine = (line: Partial<Line>) => add(createLineLayer(gl, line));
+  const addPolygon = (polygon: Partial<Polygon>) =>
+    add(createPolygonLayer(gl, polygon));
+  const addMesh = (mesh: Partial<Mesh>) => add(createMeshLayer(gl, mesh));
 
   const destroy = () => {
     running = false;
@@ -179,8 +184,9 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
       view = _;
     },
     addTerrain,
-    addMesh,
+    addPolygon,
     addLine,
+    addMesh,
     project,
     unproject,
     recenter,
