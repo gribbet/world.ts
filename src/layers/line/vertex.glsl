@@ -11,9 +11,9 @@ uniform float width;
 uniform float min_width_pixels;
 uniform float max_width_pixels;
 
-in vec3 previous;
-in vec3 current;
-in vec3 next;
+in ivec3 previous;
+in ivec3 current;
+in ivec3 next;
 in vec2 corner;
 out vec4 color_out;
 
@@ -21,8 +21,8 @@ const int ONE = 1073741824; // 2^30
 const float INV_ONE = 1.f / float(ONE);
 const float CIRCUMFERENCE = 40075017.;
 
-vec4 transform(vec3 v) {
-    return projection * model_view * vec4(vec3(ivec3(v * float(ONE)) - camera) * INV_ONE, 1.f);
+vec4 transform(ivec3 v) {
+    return projection * model_view * vec4(vec3(v - camera) * INV_ONE, 1.f);
 }
 
 void main(void) {
