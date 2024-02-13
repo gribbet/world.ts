@@ -1,6 +1,7 @@
+import type { vec3 } from "gl-matrix";
+
 import { debounce } from "./common";
 import { circumference } from "./constants";
-import type { Orientation } from "./model";
 import type { World } from "./world";
 
 const minimumDistance = 2;
@@ -32,7 +33,7 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
     } else if (buttons === 2 && rotatable) {
       const {
         screen: [width = 0, height = 0],
-        orientation: [pitch, roll, yaw],
+        orientation: [pitch = 0, roll = 0, yaw = 0],
       } = world.view;
       const orientation = [
         Math.min(
@@ -41,7 +42,7 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
         ),
         roll,
         yaw - (movementX / width) * Math.PI,
-      ] satisfies Orientation;
+      ] satisfies vec3;
       world.view = {
         ...world.view,
         orientation,

@@ -23,14 +23,10 @@ const matrix = mat4.create();
 const vector = vec4.create();
 
 export const createViewport: (view: View) => Viewport = view => {
-  const {
-    target,
-    screen,
-    orientation: [pitch, roll, yaw],
-    fieldOfView,
-  } = view;
+  const { target, offset, screen, orientation, fieldOfView } = view;
   const [width = 0, height = 0] = screen;
-  const [ox = 0, oy = 0] = view.offset;
+  const [ox = 0, oy = 0] = offset;
+  const [pitch = 0, roll = 0, yaw = 0] = orientation;
   const fieldScale =
     Math.tan(radians(45) / 2) / Math.tan(radians(fieldOfView) / 2);
   const z = (view.distance / circumference) * fieldScale;
