@@ -66,5 +66,5 @@ export type Layer =
 
 export type BaseLayer = {
   render: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;
-  destroy: () => void;
+  dispose: () => void;
 };

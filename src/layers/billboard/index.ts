@@ -61,7 +61,7 @@ export const createBillboardLayer = (
   let image: Texture | undefined;
 
   const update = () => {
-    image?.destroy();
+    image?.dispose();
     image = createImageTexture({
       gl,
       url,
@@ -111,18 +111,18 @@ export const createBillboardLayer = (
     });
   };
 
-  const destroy = () => {
-    cornerBuffer.destroy();
-    uvBuffer.destroy();
-    indexBuffer.destroy();
-    renderProgram.destroy();
-    depthProgram.destroy();
-    image?.destroy();
+  const dispose = () => {
+    cornerBuffer.dispose();
+    uvBuffer.dispose();
+    indexBuffer.dispose();
+    renderProgram.dispose();
+    depthProgram.dispose();
+    image?.dispose();
   };
 
   return {
     render,
-    destroy,
+    dispose,
     get options() {
       return options;
     },
@@ -261,9 +261,9 @@ const createPrograms = (
       gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
     };
 
-    const { destroy } = program;
+    const { dispose } = program;
 
-    return { execute, destroy };
+    return { execute, dispose };
   };
 
   const renderProgram = createRenderProgram();

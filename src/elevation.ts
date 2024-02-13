@@ -10,7 +10,7 @@ const size = 256;
 
 export type Elevation = {
   get: ([lng, lat]: vec2, z?: number) => number;
-  destroy: () => void;
+  dispose: () => void;
 };
 
 export const createElevation = ({
@@ -67,9 +67,9 @@ export const createElevation = ({
     return value;
   };
 
-  const destroy = () => {
+  const dispose = () => {
     gl.deleteFramebuffer(framebuffer);
   };
 
-  return { get, destroy } satisfies Elevation;
+  return { get, dispose } satisfies Elevation;
 };

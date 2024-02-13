@@ -5,7 +5,7 @@ export type ImageTexture = {
   loaded: boolean;
   use: () => void;
   attach: () => void;
-  destroy: () => void;
+  dispose: () => void;
 };
 
 export const createImageTexture = ({
@@ -38,9 +38,9 @@ export const createImageTexture = ({
 
   const { use, attach } = texture;
 
-  const destroy = () => {
+  const dispose = () => {
     imageLoad.cancel();
-    texture.destroy();
+    texture.dispose();
   };
 
   return {
@@ -49,6 +49,6 @@ export const createImageTexture = ({
     },
     use,
     attach,
-    destroy,
+    dispose,
   } satisfies ImageTexture;
 };

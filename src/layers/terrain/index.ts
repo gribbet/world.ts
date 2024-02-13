@@ -181,17 +181,17 @@ export const createTerrainLayer = (
     }
   };
 
-  const destroy = () => {
-    depthProgram.destroy();
-    renderProgram.destroy();
-    imageryCache.destroy();
-    terrainCache.destroy();
-    elevation.destroy();
+  const dispose = () => {
+    depthProgram.dispose();
+    renderProgram.dispose();
+    imageryCache.dispose();
+    terrainCache.dispose();
+    elevation.dispose();
   };
 
   return {
     render,
-    destroy,
+    dispose,
     get options() {
       return options;
     },
@@ -294,13 +294,13 @@ const createPrograms = (gl: WebGL2RenderingContext) => {
       gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
     };
 
-    const destroy = () => {
-      uvwBuffer.destroy();
-      indexBuffer.destroy();
-      program.destroy();
+    const dispose = () => {
+      uvwBuffer.dispose();
+      indexBuffer.dispose();
+      program.dispose();
     };
 
-    return { execute, destroy };
+    return { execute, dispose };
   };
 
   const renderProgram = createRenderProgram();

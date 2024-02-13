@@ -7,7 +7,7 @@ import { createTileIndexCache } from "./tile-index-cache";
 
 export type TileCache = {
   get: (xyz: vec3) => Texture | undefined;
-  destroy: () => void;
+  dispose: () => void;
 };
 
 export const createTileCache = ({
@@ -21,7 +21,7 @@ export const createTileCache = ({
 }) => {
   const tiles = createTileIndexCache<ImageTexture>({
     max: 10000,
-    dispose: tile => tile.destroy(),
+    dispose: tile => tile.dispose(),
   });
   const loading = createTileIndexCache<true>({
     max: 10000,
@@ -64,10 +64,10 @@ export const createTileCache = ({
 
   const interval = setInterval(() => loading.purgeStale(), 200);
 
-  const destroy = () => {
+  const dispose = () => {
     clearInterval(interval);
     tiles.clear();
   };
 
-  return { get, destroy } satisfies TileCache;
+  return { get, dispose } satisfies TileCache;
 };

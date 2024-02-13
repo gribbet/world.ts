@@ -28,7 +28,7 @@ export type Program = {
     buffer: Buffer,
     _?: { stride?: number; offset?: number },
   ) => Attribute;
-  destroy: () => void;
+  dispose: () => void;
 };
 
 export type Uniform<T> = {
@@ -181,7 +181,7 @@ export const createProgram = ({
     options: { stride?: number; offset?: number } = {},
   ) => attribute({ name, buffer, size: 3, type: "i32", ...options });
 
-  const destroy = () => {
+  const dispose = () => {
     gl.deleteProgram(program);
     gl.deleteShader(vertexShader);
     gl.deleteShader(fragmentShader);
@@ -201,7 +201,7 @@ export const createProgram = ({
     attribute2f,
     attribute3f,
     attribute3i,
-    destroy,
+    dispose,
   } satisfies Program;
 };
 

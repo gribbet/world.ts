@@ -37,7 +37,7 @@ export type World = {
   unproject: (_: vec2) => vec3;
   recenter: ([x, y]: [number, number]) => void;
   pick: ([x, y]: [number, number]) => Pick;
-  destroy: () => void;
+  dispose: () => void;
 };
 
 const depthScale = 0.25;
@@ -155,10 +155,10 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   };
 
   const add = <T extends Layer>(layer: T) => {
-    const { destroy } = layer;
-    layer.destroy = () => {
+    const { dispose } = layer;
+    layer.dispose = () => {
       layers = layers.filter(_ => _ !== layer);
-      destroy();
+      dispose();
     };
     layers = [...layers, layer];
     return layer;
@@ -172,11 +172,11 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   const addBillboard = (billboard: Partial<Billboard>) =>
     add(createBillboardLayer(gl, billboard));
 
-  const destroy = () => {
+  const dispose = () => {
     running = false;
     resizer.unobserve(canvas);
-    layers.forEach(_ => _.destroy());
-    depthBuffer.destroy();
+    layers.forEach(_ => _.dispose());
+    depthBuffer.dispose();
   };
 
   return {
@@ -196,6 +196,6 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     unproject,
     recenter,
     pick,
-    destroy,
+    dispose,
   } satisfies World;
 };

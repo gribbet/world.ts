@@ -4,7 +4,7 @@ export type DepthBuffer = {
   use: () => void;
   resize: (size: vec2) => void;
   read: (pixel: vec2) => readonly [z: number, n: number];
-  destroy: () => void;
+  dispose: () => void;
 };
 
 export const createDepthBuffer = (gl: WebGL2RenderingContext) => {
@@ -77,7 +77,7 @@ export const createDepthBuffer = (gl: WebGL2RenderingContext) => {
     return [z, n] as const;
   };
 
-  const destroy = () => {
+  const dispose = () => {
     gl.deleteTexture(targetTexture);
     gl.deleteFramebuffer(framebuffer);
     gl.deleteRenderbuffer(renderbuffer);
@@ -87,6 +87,6 @@ export const createDepthBuffer = (gl: WebGL2RenderingContext) => {
     use,
     resize,
     read,
-    destroy,
+    dispose,
   } satisfies DepthBuffer;
 };

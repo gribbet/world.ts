@@ -1,7 +1,7 @@
 export type Buffer = {
   set: (value: number[]) => void;
   use: () => void;
-  destroy: () => void;
+  dispose: () => void;
 };
 
 export const createBuffer = ({
@@ -35,6 +35,6 @@ export const createBuffer = ({
       );
     },
     use,
-    destroy: () => gl.deleteBuffer(buffer),
+    dispose: () => gl.deleteBuffer(buffer),
   } satisfies Buffer;
 };

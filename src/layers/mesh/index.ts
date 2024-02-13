@@ -76,11 +76,11 @@ export const createMeshLayer: (
     });
   };
 
-  const destroy = () => {
-    vertexBuffer.destroy();
-    indexBuffer.destroy();
-    renderProgram.destroy();
-    depthProgram.destroy();
+  const dispose = () => {
+    vertexBuffer.dispose();
+    indexBuffer.dispose();
+    renderProgram.dispose();
+    depthProgram.dispose();
   };
 
   const updateVertices = (_: vec3[]) => {
@@ -99,7 +99,7 @@ export const createMeshLayer: (
 
   return {
     render,
-    destroy,
+    dispose,
     get options() {
       return options;
     },
@@ -236,9 +236,9 @@ const createPrograms = (
       gl.drawElements(gl.TRIANGLES, count * 3, gl.UNSIGNED_SHORT, 0);
     };
 
-    const { destroy } = program;
+    const { dispose } = program;
 
-    return { execute, destroy };
+    return { execute, dispose };
   };
 
   const renderProgram = createRenderProgram();

@@ -65,12 +65,12 @@ export const createLineLayer = (
     });
   };
 
-  const destroy = () => {
-    positionBuffer.destroy();
-    indexBuffer.destroy();
-    cornerBuffer.destroy();
-    renderProgram.destroy();
-    depthProgram.destroy();
+  const dispose = () => {
+    positionBuffer.dispose();
+    indexBuffer.dispose();
+    cornerBuffer.dispose();
+    renderProgram.dispose();
+    depthProgram.dispose();
   };
 
   const updatePoints = (_: vec3[][]) => {
@@ -130,7 +130,7 @@ export const createLineLayer = (
 
   return {
     render,
-    destroy,
+    dispose,
     get options() {
       return options;
     },
@@ -264,9 +264,9 @@ const createPrograms = (
       gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
     };
 
-    const { destroy } = program;
+    const { dispose } = program;
 
-    return { execute, destroy };
+    return { execute, dispose };
   };
 
   const renderProgram = createRenderProgram();

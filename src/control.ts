@@ -74,7 +74,7 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
   canvas.addEventListener("wheel", onWheel, { passive: true });
   canvas.addEventListener("contextmenu", onContextMenu);
 
-  const destroy = () => {
+  const dispose = () => {
     canvas.removeEventListener("mousedown", onMouseDown);
     canvas.removeEventListener("mousemove", onMouseMove);
     canvas.removeEventListener("wheel", onWheel);
@@ -94,6 +94,6 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
     set draggable(_: boolean) {
       draggable = _;
     },
-    destroy,
+    dispose,
   };
 };
