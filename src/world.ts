@@ -63,8 +63,10 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   const depthBuffer = createDepthBuffer(gl);
 
   const resize = (screen: vec2) => {
-    view.screen = screen;
-    const [width = 0, height = 0] = screen;
+    let [width = 0, height = 0] = screen;
+    width = width || 1;
+    height = height || 1;
+    view.screen = [width, height];
     canvas.width = width * devicePixelRatio;
     canvas.height = height * devicePixelRatio;
     depthBuffer.resize([canvas.width * depthScale, canvas.height * depthScale]);
