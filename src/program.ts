@@ -13,12 +13,17 @@ export type Program = {
   uniform4f: (name: string) => Uniform<vec4>;
   uniform4i: (name: string) => Uniform<vec4>;
   uniformMatrix4f: (name: string) => Uniform<mat4>;
+  attribute2f: (
+    name: string,
+    buffer: Buffer,
+    _?: { stride?: number; offset?: number },
+  ) => Attribute;
   attribute3f: (
     name: string,
     buffer: Buffer,
     _?: { stride?: number; offset?: number },
   ) => Attribute;
-  attribute2f: (
+  attribute3i: (
     name: string,
     buffer: Buffer,
     _?: { stride?: number; offset?: number },
@@ -126,7 +131,7 @@ export const createProgram = ({
     name: string;
     buffer: Buffer;
     size: number;
-    type: "f32" | "u16";
+    type: "f32" | "i32" | "u16";
     stride?: number;
     offset?: number;
   }) => {
@@ -136,14 +141,23 @@ export const createProgram = ({
     const use = () => {
       buffer.use();
       gl.enableVertexAttribArray(location);
-      gl.vertexAttribPointer(
-        location,
-        size,
-        type === "u16" ? gl.UNSIGNED_SHORT : gl.FLOAT,
-        false,
-        stride || 0,
-        offset || 0,
-      );
+      if (["u16", "i32"].includes(type))
+        gl.vertexAttribIPointer(
+          location,
+          size,
+          type === "u16" ? gl.UNSIGNED_SHORT : gl.INT,
+          stride || 0,
+          offset || 0,
+        );
+      else
+        gl.vertexAttribPointer(
+          location,
+          size,
+          gl.FLOAT,
+          false,
+          stride || 0,
+          offset || 0,
+        );
     };
 
     return { use } satisfies Attribute;
@@ -160,6 +174,12 @@ export const createProgram = ({
     buffer: Buffer,
     options: { stride?: number; offset?: number } = {},
   ) => attribute({ name, buffer, size: 3, type: "f32", ...options });
+
+  const attribute3i = (
+    name: string,
+    buffer: Buffer,
+    options: { stride?: number; offset?: number } = {},
+  ) => attribute({ name, buffer, size: 3, type: "i32", ...options });
 
   const destroy = () => {
     gl.deleteProgram(program);
@@ -180,6 +200,7 @@ export const createProgram = ({
     uniformMatrix4f,
     attribute2f,
     attribute3f,
+    attribute3i,
     destroy,
   } satisfies Program;
 };

@@ -29,7 +29,7 @@ export const createPolygonLayer = (
 
   let count = 0;
 
-  const positionBuffer = createBuffer({ gl, type: "f32", target: "array" });
+  const positionBuffer = createBuffer({ gl, type: "i32", target: "array" });
   const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
 
   const { renderProgram, depthProgram } = createPrograms(gl, {
@@ -72,7 +72,7 @@ export const createPolygonLayer = (
       _.map(_ => {
         const [first] = _;
         if (!first) return [];
-        return [..._, first].map(_ => [...mercator(_)]);
+        return [..._, first].map(_ => [...to(mercator(_))]);
       }),
     );
     positionBuffer.set(vertices);
@@ -123,8 +123,8 @@ const createPrograms = (
       fragmentSource: depth ? depthSource : fragmentSource,
     });
 
-    const positionAttribute = program.attribute3f("position", positionBuffer, {
-      stride: 3 * Float32Array.BYTES_PER_ELEMENT,
+    const positionAttribute = program.attribute3i("position", positionBuffer, {
+      stride: 3 * Int32Array.BYTES_PER_ELEMENT,
     });
 
     const projectionUniform = program.uniformMatrix4f("projection");

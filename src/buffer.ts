@@ -10,7 +10,7 @@ export const createBuffer = ({
   target,
 }: {
   gl: WebGL2RenderingContext;
-  type: "f32" | "u16";
+  type: "f32" | "u16" | "i32";
   target: "array" | "element";
 }) => {
   const buffer = gl.createBuffer();
@@ -26,7 +26,11 @@ export const createBuffer = ({
       use();
       gl.bufferData(
         glTarget,
-        type === "u16" ? new Uint16Array(value) : new Float32Array(value),
+        type === "u16"
+          ? new Uint16Array(value)
+          : type === "i32"
+            ? new Int32Array(value)
+            : new Float32Array(value),
         gl.DYNAMIC_DRAW,
       );
     },
