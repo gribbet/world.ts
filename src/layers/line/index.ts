@@ -30,7 +30,7 @@ export const createLineLayer = (
 
   let count = 0;
 
-  const positionBuffer = createBuffer({ gl, type: "f32", target: "array" });
+  const positionBuffer = createBuffer({ gl, type: "i32", target: "array" });
   const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
   const cornerBuffer = createBuffer({ gl, type: "f32", target: "array" });
 
@@ -87,7 +87,7 @@ export const createLineLayer = (
       if (!first || !last) return [];
 
       return [first, ..._, last]
-        .map(_ => mercator(_))
+        .map(_ => to(mercator(_)))
         .flatMap(_ => [..._, ..._, ..._, ..._]);
     });
 
@@ -190,17 +190,18 @@ const createPrograms = (
     });
 
     const FLOAT_BYTES = Float32Array.BYTES_PER_ELEMENT;
+    const INT_BYTES = Int32Array.BYTES_PER_ELEMENT;
 
-    const previousAttribute = program.attribute3f("previous", positionBuffer, {
-      stride: FLOAT_BYTES * 3,
+    const previousAttribute = program.attribute3i("previous", positionBuffer, {
+      stride: INT_BYTES * 3,
     });
-    const currentAttribute = program.attribute3f("current", positionBuffer, {
-      stride: FLOAT_BYTES * 3,
-      offset: FLOAT_BYTES * 3 * 4,
+    const currentAttribute = program.attribute3i("current", positionBuffer, {
+      stride: INT_BYTES * 3,
+      offset: INT_BYTES * 3 * 4,
     });
-    const nextAttribute = program.attribute3f("next", positionBuffer, {
-      stride: FLOAT_BYTES * 3,
-      offset: FLOAT_BYTES * 3 * 4 * 2,
+    const nextAttribute = program.attribute3i("next", positionBuffer, {
+      stride: INT_BYTES * 3,
+      offset: INT_BYTES * 3 * 4 * 2,
     });
     const cornerAttribute = program.attribute2f("corner", cornerBuffer, {
       stride: FLOAT_BYTES * 2,
