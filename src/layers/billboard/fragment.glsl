@@ -9,4 +9,5 @@ out vec4 result;
 
 void main() {
    result = texture(image, uv_out) * color_out;
+   if (result.a == 0.f) discard;
 }
