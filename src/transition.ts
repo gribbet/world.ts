@@ -4,38 +4,35 @@ import { geodetic, mercator } from "./math";
 
 const k = 1;
 
-export type PositionTransition = {
-  position: vec3;
+export type Transition<T> = {
+  value: T;
   dispose: () => void;
 };
 
-export const createPositionTransition = () => {
+const createTransition = <T>(
+  step: (_: { time: number; current: T; target: T }) => T,
+) => {
   let running = true;
-  let position: vec3 = [0, 0, 0];
-  let current: vec3 | undefined;
+  let target: T | undefined;
+  let current: T | undefined;
   let last: number | undefined;
 
-  const frame = (time: number) => {
+  const frame = (_time: number) => {
     if (!running) return;
     requestAnimationFrame(frame);
 
-    const dt = (time - (last ?? time)) / 1000;
-    last = time;
+    const time = (_time - (last ?? _time)) / 1000;
+    last = _time;
 
-    if (dt > 1) current = undefined;
-    if (!current) return;
+    if (time > 1) {
+      current = target;
+      return;
+    }
 
-    current = vec3.add(
-      current,
-      current,
-      vec3.scale(
-        vec3.create(),
-        vec3.sub(vec3.create(), position, current),
-        k * dt,
-      ),
-    );
+    if (!current || !target) return;
+
+    current = step({ time, current, target });
   };
-
   requestAnimationFrame(frame);
 
   const dispose = () => {
@@ -43,98 +40,83 @@ export const createPositionTransition = () => {
   };
 
   return {
-    set position(_: vec3) {
-      _ = mercator(_);
-      if (!current) {
-        position = _;
-        current = _;
-        return;
-      }
+    get value() {
+      return current;
     },
-    get position() {
-      return geodetic(current ?? position);
+    set value(_: T | undefined) {
+      if (!current) current = _;
+      target = _;
     },
     dispose,
-  } satisfies PositionTransition;
+  };
 };
 
-export type PositionVelocityTransition = {
-  position: vec3 | undefined;
-  dispose: () => void;
-};
+export const createNumberTransition = (update: (_: number) => void) =>
+  createTransition<number>(({ time, current, target }) => {
+    current = current + (target - current) * k * time;
+    update(current);
+    return current;
+  });
 
-export const createPositionVelocityTransition = () => {
-  let running = true;
-  let position: vec3 = [0, 0, 0];
-  let current: vec3 | undefined;
+export const createPositionTransition = (update?: (_: vec3) => void) =>
+  createTransition<vec3>(({ time, current, target }) => {
+    current = geodetic(
+      vec3.add(
+        vec3.create(),
+        mercator(current),
+        vec3.scale(
+          vec3.create(),
+          vec3.sub(vec3.create(), mercator(target), mercator(current)),
+          k * time,
+        ),
+      ),
+    );
+    update?.(current);
+    return current;
+  });
+
+export const createPositionVelocityTransition = (
+  update?: (_: vec3) => void,
+) => {
   let velocity: vec3 = [0, 0, 0];
   let targetVelocity: vec3 = [0, 0, 0];
-  let last: number | undefined;
-  let lastTarget: number | undefined;
+  let last: vec3 | undefined;
 
-  const frame = (time: number) => {
-    if (!running) return;
-    requestAnimationFrame(frame);
-
-    const dt = (time - (last ?? time)) / 1000;
-    last = time;
-
-    if (dt > 1) current = undefined;
-    if (!current) return;
-
+  return createTransition<vec3>(({ time, current, target }) => {
+    if (last)
+      targetVelocity = vec3.scale(
+        vec3.create(),
+        vec3.sub(vec3.create(), mercator(current), mercator(last)),
+        1 / time,
+      );
+    last = current;
     velocity = vec3.add(
       velocity,
       velocity,
       vec3.scale(
         vec3.create(),
         vec3.sub(vec3.create(), targetVelocity, velocity),
-        k * dt,
+        k * time,
       ),
     );
-    current = vec3.add(
-      current,
-      current,
+    current = geodetic(
       vec3.add(
         vec3.create(),
-        vec3.scale(vec3.create(), velocity, dt),
-        vec3.scale(
+        mercator(current),
+        vec3.add(
           vec3.create(),
-          vec3.sub(vec3.create(), position, current),
-          k * dt,
+          vec3.scale(vec3.create(), velocity, time),
+          vec3.scale(
+            vec3.create(),
+            vec3.sub(vec3.create(), mercator(target), mercator(current)),
+            k * time,
+          ),
         ),
       ),
     );
-  };
-  requestAnimationFrame(frame);
-
-  const dispose = () => {
-    running = false;
-  };
-
-  return {
-    set position(_: vec3) {
-      _ = mercator(_);
-      if (!current) {
-        position = _;
-        current = _;
-        return;
-      }
-      if (lastTarget) {
-        const dt = (performance.now() - lastTarget) / 1000;
-        targetVelocity = vec3.scale(
-          vec3.create(),
-          vec3.sub(vec3.create(), _, position),
-          1 / dt,
-        );
-      }
-      position = _;
-      lastTarget = performance.now();
-    },
-    get position() {
-      return geodetic(current ?? position);
-    },
-    dispose,
-  } satisfies PositionVelocityTransition;
+    update?.(current);
+    return current;
+  });
 };
 
 export type OrientationTransition = {
