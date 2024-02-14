@@ -101,11 +101,19 @@ export const createPositionVelocityTransition = (
   update?: (_: vec3, target: vec3) => void,
 ) => {
   let velocity: vec3 = [0, 0, 0];
+
   let targetVelocity: vec3 = [0, 0, 0];
   let last: vec3 | undefined;
 
   return createTransition<vec3>(({ time, current, target }) => {
-    if (last && target !== current)
+    if (target === current || time > 1) {
+      last = undefined;
+      velocity = [0, 0, 0];
+      targetVelocity = [0, 0, 0];
+      return current;
+    }
+
+    if (last)
       targetVelocity = vec3.scale(
         vec3.create(),
         vec3.sub(vec3.create(), mercator(current), mercator(last)),
@@ -122,6 +130,7 @@ export const createPositionVelocityTransition = (
         time,
       ),
     );
+
     current = geodetic(
       vec3.add(
         vec3.create(),
