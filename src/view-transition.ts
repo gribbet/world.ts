@@ -1,7 +1,7 @@
 import { quat, vec2, vec3 } from "gl-matrix";
 
 import { circumference } from "./constants";
-import { degrees, mercator } from "./math";
+import { mercator } from "./math";
 import type { View } from "./model";
 import type { World } from "./world";
 
@@ -112,8 +112,21 @@ export const createViewTransition = (world: World) => {
   } satisfies ViewTransition;
 };
 
-const toQuaternion = ([pitch = 0, roll = 0, yaw = 0]: vec3) =>
-  quat.fromEuler(quat.create(), degrees(pitch), degrees(yaw), degrees(roll));
+const toQuaternion = ([pitch = 0, yaw = 0, roll = 0]: vec3) => {
+  const cy = Math.cos(yaw * 0.5);
+  const sy = Math.sin(yaw * 0.5);
+  const cp = Math.cos(pitch * 0.5);
+  const sp = Math.sin(pitch * 0.5);
+  const cr = Math.cos(roll * 0.5);
+  const sr = Math.sin(roll * 0.5);
+
+  const w = cr * cp * cy + sr * sp * sy;
+  const x = sr * cp * cy - cr * sp * sy;
+  const y = cr * sp * cy + sr * cp * sy;
+  const z = cr * cp * sy - sr * sp * cy;
+
+  return [x, y, z, w] satisfies quat;
+};
 
 const toOrientation = ([x = 0, y = 0, z = 0, w = 0]: quat) => {
   const roll = Math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y));
