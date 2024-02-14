@@ -75,10 +75,6 @@ export const createLineLayer = (
 
   const updatePoints = (_: vec3[][]) => {
     points = _;
-    count = _.map(_ => (_.length * 4 - 2) * 3).reduce((a, b) => a + b, 0);
-
-    const [[first] = []] = _;
-    if (!first) return;
 
     const positionData = _.flatMap(_ => {
       const [first] = _;
@@ -91,34 +87,40 @@ export const createLineLayer = (
         .flatMap(_ => [..._, ..._, ..._, ..._]);
     });
 
-    const { indexData } = _.reduce<{ indexData: number[]; count: number }>(
+    const { indexData } = _.reduce<{
+      indexData: number[];
+      count: number;
+    }>(
       ({ indexData, count }, _) => {
-        indexData = indexData.concat(
-          range(0, _.length * 2 - 1).flatMap(i => {
-            const [a = 0, b = 0, c = 0, d = 0] = range(
-              i * 2 + count,
-              i * 2 + 4 + count,
-            );
-            return [
-              [a, b, d],
-              [a, d, c],
-            ].flat();
-          }),
-        );
+        if (_.length === 0) return { indexData, count };
+        const indices = range(0, (_.length - 1) * 2).flatMap(i => {
+          const [a = 0, b = 0, c = 0, d = 0] = range(0, 4).map(
+            _ => _ + i * 2 + count,
+          );
+          return [
+            [a, b, d],
+            [a, d, c],
+          ].flat();
+        });
         count += (_.length + 2) * 4;
+        indexData = indexData.concat(indices);
         return { indexData, count };
       },
       { indexData: [], count: 0 },
     );
+    count = indexData.length;
+
     const cornerData = _.flatMap(_ =>
-      range(0, _.length * 2 - 1).flatMap(() =>
-        [
-          [-1, -1],
-          [-1, 1],
-          [1, -1],
-          [1, 1],
-        ].flat(),
-      ),
+      _.length === 0
+        ? []
+        : range(0, (_.length + 1) * 2).flatMap(() =>
+            [
+              [-1, -1],
+              [-1, 1],
+              [1, -1],
+              [1, 1],
+            ].flat(),
+          ),
     );
 
     positionBuffer.set(positionData);
