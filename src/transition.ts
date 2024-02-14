@@ -9,7 +9,7 @@ export type Transition<T> = {
   dispose: () => void;
 };
 
-const createTransition = <T>(
+export const createTransition = <T>(
   step: (_: { time: number; current: T; target: T }) => T,
 ) => {
   let running = true;
@@ -51,14 +51,18 @@ const createTransition = <T>(
   };
 };
 
-export const createNumberTransition = (update: (_: number) => void) =>
+export const createNumberTransition = (
+  update: (_: number, target: number) => void,
+) =>
   createTransition<number>(({ time, current, target }) => {
     current = current + (target - current) * k * time;
-    update(current);
+    update(current, target);
     return current;
   });
 
-export const createPositionTransition = (update?: (_: vec3) => void) =>
+export const createPositionTransition = (
+  update?: (_: vec3, target: vec3) => void,
+) =>
   createTransition<vec3>(({ time, current, target }) => {
     current = geodetic(
       vec3.add(
@@ -71,12 +75,12 @@ export const createPositionTransition = (update?: (_: vec3) => void) =>
         ),
       ),
     );
-    update?.(current);
+    update?.(current, target);
     return current;
   });
 
 export const createPositionVelocityTransition = (
-  update?: (_: vec3) => void,
+  update?: (_: vec3, target: vec3) => void,
 ) => {
   let velocity: vec3 = [0, 0, 0];
   let targetVelocity: vec3 = [0, 0, 0];
@@ -114,59 +118,26 @@ export const createPositionVelocityTransition = (
         ),
       ),
     );
-    update?.(current);
+    update?.(current, target);
     return current;
   });
 };
 
-export type OrientationTransition = {
-  orientation: vec3;
-  dispose: () => void;
-};
-
-export const createOrientationTransition = () => {
-  let running = true;
-  let orientation: vec3 = [0, 0, 0];
-  let current: vec3 | undefined;
-  let last: number | undefined;
-
-  const frame = (time: number) => {
-    if (!running) return;
-    requestAnimationFrame(frame);
-
-    const dt = (time - (last ?? time)) / 1000;
-    last = time;
-
-    if (dt > 1) current = undefined;
-    if (!current) return;
-
-    current = toOrientation(
+export const createOrientationTransition = (
+  update?: (_: vec3, target: vec3) => void,
+) =>
+  createTransition<vec3>(({ time, current, target }) => {
+    const value = toOrientation(
       quat.slerp(
         quat.create(),
         toQuaternion(current),
-        toQuaternion(orientation),
-        Math.PI * k * dt,
+        toQuaternion(target),
+        Math.PI * k * time,
       ),
     );
-  };
-
-  requestAnimationFrame(frame);
-
-  const dispose = () => {
-    running = false;
-  };
-
-  return {
-    set orientation(_: vec3) {
-      orientation = _;
-      if (!current) current = _;
-    },
-    get orientation() {
-      return current ?? orientation;
-    },
-    dispose,
-  } satisfies OrientationTransition;
-};
+    update?.(value, target);
+    return value;
+  });
 
 const toQuaternion = ([pitch = 0, yaw = 0, roll = 0]: vec3) => {
   const cy = Math.cos(yaw * 0.5);
