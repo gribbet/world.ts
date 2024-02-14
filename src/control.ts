@@ -1,10 +1,17 @@
 import type { vec3 } from "gl-matrix";
 
 import { debounce } from "./common";
-import { circumference } from "./constants";
+import { circumference } from "./math";
 import type { World } from "./world";
 
 const minimumDistance = 2;
+
+export type MouseControl = {
+  enabled: boolean;
+  draggable: boolean;
+  rotatable: boolean;
+  dispose: () => void;
+};
 
 export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
   let enabled = true;
@@ -103,5 +110,5 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
       rotatable = _;
     },
     dispose,
-  };
+  } satisfies MouseControl;
 };

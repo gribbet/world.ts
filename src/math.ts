@@ -1,7 +1,7 @@
 import type { quat } from "gl-matrix";
 import { vec3 } from "gl-matrix";
 
-import { circumference } from "./constants";
+export const circumference = 40075017;
 
 export const radians = (_: number) => (_ / 180) * Math.PI;
 

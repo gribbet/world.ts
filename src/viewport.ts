@@ -1,7 +1,6 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
-import { circumference } from "./constants";
-import { mercator, quadratic, radians } from "./math";
+import { circumference, mercator, quadratic, radians } from "./math";
 import type { View } from "./model";
 
 export type Viewport = {

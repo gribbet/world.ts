@@ -1,7 +1,6 @@
 import type { vec2 } from "gl-matrix";
 import { glMatrix, vec3 } from "gl-matrix";
 
-import { circumference } from "./constants";
 import { createDepthBuffer } from "./depth-buffer";
 import type { Billboard, Layer, Line, Mesh, Polygon, Terrain } from "./layers";
 import { type BillboardLayer, createBillboardLayer } from "./layers/billboard";
@@ -12,7 +11,7 @@ import { createMeshLayer } from "./layers/mesh";
 import type { PolygonLayer } from "./layers/polygon";
 import { createPolygonLayer } from "./layers/polygon";
 import { createTerrainLayer, type TerrainLayer } from "./layers/terrain";
-import { geodetic, mercator } from "./math";
+import { circumference, geodetic, mercator } from "./math";
 import type { View } from "./model";
 import { createViewport } from "./viewport";
 

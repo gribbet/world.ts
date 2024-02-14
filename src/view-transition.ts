@@ -1,7 +1,6 @@
 import { quat, vec2, vec3 } from "gl-matrix";
 
-import { circumference } from "./constants";
-import { mercator, toOrientation, toQuaternion } from "./math";
+import { circumference, mercator, toOrientation, toQuaternion } from "./math";
 import type { View } from "./model";
 import type { World } from "./world";
 

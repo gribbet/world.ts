@@ -2,7 +2,7 @@ import { quat, vec3, vec4 } from "gl-matrix";
 
 import { geodetic, mercator, toOrientation, toQuaternion } from "./math";
 
-const k = 1;
+const k = 10;
 
 export type Transition<T> = {
   value: T;
@@ -26,7 +26,7 @@ export const createTransition = <T>(
 
     if (time > 1) {
       current = target;
-      return;
+      target = undefined;
     }
 
     if (!current || !target) return;
@@ -44,7 +44,7 @@ export const createTransition = <T>(
       return current;
     },
     set value(_: T | undefined) {
-      if (!current) current = _;
+      if (!current || !_) current = _;
       target = _;
     },
     dispose,
@@ -70,7 +70,7 @@ export const createColorTransition = (
       vec4.scale(
         vec4.create(),
         vec4.sub(vec4.create(), target, current),
-        10 * k * time,
+        k * time,
       ),
     );
     update?.(current, target);
@@ -81,6 +81,7 @@ export const createPositionTransition = (
   update?: (_: vec3, target: vec3) => void,
 ) =>
   createTransition<vec3>(({ time, current, target }) => {
+    if (time > 1) console.log(time);
     current = geodetic(
       vec3.add(
         vec3.create(),
@@ -104,20 +105,21 @@ export const createPositionVelocityTransition = (
   let last: vec3 | undefined;
 
   return createTransition<vec3>(({ time, current, target }) => {
-    if (last)
+    if (last && target !== current)
       targetVelocity = vec3.scale(
         vec3.create(),
         vec3.sub(vec3.create(), mercator(current), mercator(last)),
         1 / time,
       );
     last = current;
+
     velocity = vec3.add(
-      velocity,
+      vec3.create(),
       velocity,
       vec3.scale(
         vec3.create(),
         vec3.sub(vec3.create(), targetVelocity, velocity),
-        k * time,
+        time,
       ),
     );
     current = geodetic(
@@ -130,7 +132,7 @@ export const createPositionVelocityTransition = (
           vec3.scale(
             vec3.create(),
             vec3.sub(vec3.create(), mercator(target), mercator(current)),
-            k * time,
+            time,
           ),
         ),
       ),
@@ -149,7 +151,7 @@ export const createOrientationTransition = (
         quat.create(),
         toQuaternion(current),
         toQuaternion(target),
-        Math.PI * k * time,
+        2 * time,
       ),
     );
     update?.(value, target);
