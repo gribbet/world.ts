@@ -29,8 +29,6 @@ export type World = {
   dispose: () => void;
 };
 
-const depthScale = 0.25;
-
 export const createWorld = (canvas: HTMLCanvasElement) => {
   let running = true;
   let view: View = {
@@ -58,7 +56,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     view.screen = [width, height];
     canvas.width = width * devicePixelRatio;
     canvas.height = height * devicePixelRatio;
-    depthBuffer.resize([canvas.width * depthScale, canvas.height * depthScale]);
+    depthBuffer.resize([canvas.width, canvas.height]);
   };
 
   resize([canvas.clientWidth, canvas.clientHeight]);
@@ -84,7 +82,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   };
 
   const depth = () => {
-    const viewport = createViewport(view).scale(depthScale);
+    const viewport = createViewport(view);
     clear(viewport.screen);
     layers.forEach((_, i) => _.render({ viewport, depth: true, index: i + 1 }));
   };
@@ -116,8 +114,8 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     depth();
 
     const [z, index] = depthBuffer.read([
-      screenX * depthScale * devicePixelRatio,
-      screenY * depthScale * devicePixelRatio,
+      screenX * devicePixelRatio,
+      screenY * devicePixelRatio,
     ]);
 
     const [x = 0, y = 0] = screenToClip([screenX, screenY]);
