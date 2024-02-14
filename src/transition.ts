@@ -1,6 +1,6 @@
 import { quat, vec3 } from "gl-matrix";
 
-import { geodetic, mercator } from "./math";
+import { geodetic, mercator, toOrientation, toQuaternion } from "./math";
 
 const k = 1;
 
@@ -17,12 +17,12 @@ export const createTransition = <T>(
   let current: T | undefined;
   let last: number | undefined;
 
-  const frame = (_time: number) => {
+  const frame = (tick: number) => {
     if (!running) return;
     requestAnimationFrame(frame);
 
-    const time = (_time - (last ?? _time)) / 1000;
-    last = _time;
+    const time = (tick - (last ?? tick)) / 1000;
+    last = tick;
 
     if (time > 1) {
       current = target;
@@ -138,26 +138,3 @@ export const createOrientationTransition = (
     update?.(value, target);
     return value;
   });
-
-const toQuaternion = ([pitch = 0, yaw = 0, roll = 0]: vec3) => {
-  const cy = Math.cos(yaw * 0.5);
-  const sy = Math.sin(yaw * 0.5);
-  const cp = Math.cos(pitch * 0.5);
-  const sp = Math.sin(pitch * 0.5);
-  const cr = Math.cos(roll * 0.5);
-  const sr = Math.sin(roll * 0.5);
-
-  const w = cr * cp * cy + sr * sp * sy;
-  const x = sr * cp * cy - cr * sp * sy;
-  const y = cr * sp * cy + sr * cp * sy;
-  const z = cr * cp * sy - sr * sp * cy;
-
-  return [x, y, z, w] satisfies quat;
-};
-
-const toOrientation = ([x = 0, y = 0, z = 0, w = 0]: quat) => {
-  const roll = Math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y));
-  const pitch = Math.asin(2 * (w * y - z * x));
-  const yaw = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
-  return [pitch, yaw, roll] satisfies vec3;
-};
