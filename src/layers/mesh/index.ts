@@ -94,7 +94,7 @@ export const createMeshLayer: (
   const updateIndices = (_: vec3[]) => {
     indices = _;
     indexBuffer.set(_.flatMap(_ => [..._]));
-    count = _.length;
+    count = _.length * 3;
   };
 
   updateVertices(vertices);
@@ -236,7 +236,7 @@ const createPrograms = (
 
       indexBuffer.use();
 
-      gl.drawElements(gl.TRIANGLES, count * 3, gl.UNSIGNED_SHORT, 0);
+      gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
     };
 
     const { dispose } = program;
