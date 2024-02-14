@@ -7,6 +7,7 @@ import { range } from "../../common";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
+import type { World } from "../../world";
 import type { LayerOptions } from "../";
 import { type BaseLayer, type Line } from "../";
 import { configure, to } from "../common";
@@ -16,10 +17,8 @@ import vertexSource from "./vertex.glsl";
 
 export type LineLayer = BaseLayer & Line;
 
-export const createLineLayer = (
-  gl: WebGL2RenderingContext,
-  line: Partial<Line>,
-) => {
+export const createLineLayer = (world: World, line: Partial<Line> = {}) => {
+  const { gl } = world;
   let { options, points, color, width, minWidthPixels, maxWidthPixels } = {
     options: {},
     points: [],
@@ -63,14 +62,6 @@ export const createLineLayer = (
       maxWidthPixels: maxWidthPixels || Number.MAX_VALUE,
       index,
     });
-  };
-
-  const dispose = () => {
-    positionBuffer.dispose();
-    indexBuffer.dispose();
-    cornerBuffer.dispose();
-    renderProgram.dispose();
-    depthProgram.dispose();
   };
 
   const updatePoints = (_: vec3[][]) => {
@@ -130,7 +121,16 @@ export const createLineLayer = (
 
   updatePoints(points);
 
-  return {
+  const dispose = () => {
+    positionBuffer.dispose();
+    indexBuffer.dispose();
+    cornerBuffer.dispose();
+    renderProgram.dispose();
+    depthProgram.dispose();
+    world.remove(layer);
+  };
+
+  const layer = {
     render,
     dispose,
     get options() {
@@ -170,6 +170,10 @@ export const createLineLayer = (
       maxWidthPixels = _;
     },
   } satisfies LineLayer;
+
+  world.add(layer);
+
+  return layer;
 };
 
 const createPrograms = (

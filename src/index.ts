@@ -1,4 +1,5 @@
 export * from "./control";
+export * from "./layers";
 export * from "./math";
 export * from "./model";
 export * from "./transition";

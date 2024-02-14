@@ -2,15 +2,7 @@ import type { vec2 } from "gl-matrix";
 import { glMatrix, vec3 } from "gl-matrix";
 
 import { createDepthBuffer } from "./depth-buffer";
-import type { Billboard, Layer, Line, Mesh, Polygon, Terrain } from "./layers";
-import { type BillboardLayer, createBillboardLayer } from "./layers/billboard";
-import type { LineLayer } from "./layers/line";
-import { createLineLayer } from "./layers/line";
-import type { MeshLayer } from "./layers/mesh";
-import { createMeshLayer } from "./layers/mesh";
-import type { PolygonLayer } from "./layers/polygon";
-import { createPolygonLayer } from "./layers/polygon";
-import { createTerrainLayer, type TerrainLayer } from "./layers/terrain";
+import type { Layer } from "./layers";
 import { circumference, geodetic, mercator } from "./math";
 import type { View } from "./model";
 import { createViewport } from "./viewport";
@@ -25,13 +17,11 @@ type Pick = {
 
 export type World = {
   readonly canvas: HTMLCanvasElement;
+  readonly gl: WebGL2RenderingContext;
   set view(_: View);
   get view(): View;
-  addTerrain: (_: Partial<Terrain>) => TerrainLayer;
-  addLine: (_: Partial<Line>) => LineLayer;
-  addPolygon: (_: Partial<Polygon>) => PolygonLayer;
-  addMesh: (_: Partial<Mesh>) => MeshLayer;
-  addBillboard: (_: Partial<Billboard>) => BillboardLayer;
+  add: (layer: Layer) => void;
+  remove: (layer: Layer) => void;
   project: (_: vec3) => vec2;
   unproject: (_: vec2) => vec3;
   recenter: ([x, y]: [number, number]) => void;
@@ -154,23 +144,13 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     };
   };
 
-  const add = <T extends Layer>(layer: T) => {
-    const { dispose } = layer;
-    layer.dispose = () => {
-      layers = layers.filter(_ => _ !== layer);
-      dispose();
-    };
+  const add = (layer: Layer) => {
     layers = [...layers, layer];
-    return layer;
   };
-  const addTerrain = (terrain: Partial<Terrain>) =>
-    add(createTerrainLayer(gl, terrain));
-  const addLine = (line: Partial<Line>) => add(createLineLayer(gl, line));
-  const addPolygon = (polygon: Partial<Polygon>) =>
-    add(createPolygonLayer(gl, polygon));
-  const addMesh = (mesh: Partial<Mesh>) => add(createMeshLayer(gl, mesh));
-  const addBillboard = (billboard: Partial<Billboard>) =>
-    add(createBillboardLayer(gl, billboard));
+
+  const remove = (layer: Layer) => {
+    layers = layers.filter(_ => _ !== layer);
+  };
 
   const dispose = () => {
     running = false;
@@ -181,17 +161,15 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
 
   return {
     canvas,
+    gl,
     get view() {
       return view;
     },
     set view(_: View) {
       view = _;
     },
-    addTerrain,
-    addPolygon,
-    addLine,
-    addMesh,
-    addBillboard,
+    add,
+    remove,
     project,
     unproject,
     recenter,

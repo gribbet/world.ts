@@ -7,6 +7,7 @@ import { type Mesh } from "../../layers";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
+import type { World } from "../../world";
 import type { BaseLayer, LayerOptions } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
@@ -15,10 +16,8 @@ import vertexSource from "./vertex.glsl";
 
 export type MeshLayer = BaseLayer & Mesh;
 
-export const createMeshLayer: (
-  gl: WebGL2RenderingContext,
-  mesh: Partial<Mesh>,
-) => MeshLayer = (gl, mesh) => {
+export const createMeshLayer = (world: World, mesh: Partial<Mesh> = {}) => {
+  const { gl } = world;
   let {
     options,
     vertices,
@@ -79,13 +78,6 @@ export const createMeshLayer: (
     gl.disable(gl.CULL_FACE);
   };
 
-  const dispose = () => {
-    vertexBuffer.dispose();
-    indexBuffer.dispose();
-    renderProgram.dispose();
-    depthProgram.dispose();
-  };
-
   const updateVertices = (_: vec3[]) => {
     vertices = _;
     vertexBuffer.set(_.flatMap(_ => [..._]));
@@ -100,7 +92,15 @@ export const createMeshLayer: (
   updateVertices(vertices);
   updateIndices(indices);
 
-  return {
+  const dispose = () => {
+    vertexBuffer.dispose();
+    indexBuffer.dispose();
+    renderProgram.dispose();
+    depthProgram.dispose();
+    world.remove(layer);
+  };
+
+  const layer = {
     render,
     dispose,
     get options() {
@@ -157,7 +157,11 @@ export const createMeshLayer: (
     set maxSizePixels(_: number | undefined) {
       maxSizePixels = _;
     },
-  };
+  } satisfies MeshLayer;
+
+  world.add(layer);
+
+  return layer;
 };
 
 const createPrograms = (

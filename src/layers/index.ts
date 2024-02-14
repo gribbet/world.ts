@@ -6,6 +6,11 @@ import type { LineLayer } from "./line";
 import type { MeshLayer } from "./mesh";
 import type { PolygonLayer } from "./polygon";
 import type { TerrainLayer } from "./terrain";
+export * from "./billboard";
+export * from "./line";
+export * from "./mesh";
+export * from "./polygon";
+export * from "./terrain";
 
 export type LayerOptions = {
   pickable: boolean;

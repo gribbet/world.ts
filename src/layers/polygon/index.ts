@@ -7,6 +7,7 @@ import { createBuffer } from "../../buffer";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
+import type { World } from "../../world";
 import type { LayerOptions } from "..";
 import { type BaseLayer, type Polygon } from "..";
 import { configure, to } from "../common";
@@ -17,9 +18,10 @@ import vertexSource from "./vertex.glsl";
 export type PolygonLayer = BaseLayer & Polygon;
 
 export const createPolygonLayer = (
-  gl: WebGL2RenderingContext,
-  polygon: Partial<Polygon>,
+  world: World,
+  polygon: Partial<Polygon> = {},
 ) => {
+  const { gl } = world;
   let { options, points, color } = {
     options: {},
     points: [],
@@ -59,13 +61,6 @@ export const createPolygonLayer = (
     });
   };
 
-  const dispose = () => {
-    positionBuffer.dispose();
-    indexBuffer.dispose();
-    renderProgram.dispose();
-    depthProgram.dispose();
-  };
-
   const updatePoints = (_: vec3[][]) => {
     points = _;
     const { vertices, indices } = earclip(
@@ -78,7 +73,15 @@ export const createPolygonLayer = (
 
   updatePoints(points);
 
-  return {
+  const dispose = () => {
+    positionBuffer.dispose();
+    indexBuffer.dispose();
+    renderProgram.dispose();
+    depthProgram.dispose();
+    world.remove(layer);
+  };
+
+  const layer = {
     render,
     dispose,
     get options() {
@@ -100,6 +103,10 @@ export const createPolygonLayer = (
       color = _;
     },
   } satisfies PolygonLayer;
+
+  world.add(layer);
+
+  return layer;
 };
 
 const createPrograms = (

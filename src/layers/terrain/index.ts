@@ -6,6 +6,7 @@ import { range } from "../../common";
 import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
+import type { World } from "../../world";
 import type { LayerOptions } from "..";
 import { type BaseLayer, type Terrain } from "..";
 import { configure, to } from "../common";
@@ -62,9 +63,10 @@ const uvw = range(0, n + 1).flatMap(y =>
 export type TerrainLayer = BaseLayer & Terrain;
 
 export const createTerrainLayer = (
-  gl: WebGL2RenderingContext,
-  terrain: Partial<Terrain>,
+  world: World,
+  terrain: Partial<Terrain> = {},
 ) => {
+  const { gl } = world;
   let { options, terrainUrl, imageryUrl, color } = {
     options: {},
     terrainUrl: "",
@@ -187,9 +189,10 @@ export const createTerrainLayer = (
     imageryCache.dispose();
     terrainCache.dispose();
     elevation.dispose();
+    world.remove(layer);
   };
 
-  return {
+  const layer = {
     render,
     dispose,
     get options() {
@@ -217,6 +220,10 @@ export const createTerrainLayer = (
       color = _;
     },
   } satisfies TerrainLayer;
+
+  world.add(layer);
+
+  return layer;
 };
 
 const createPrograms = (gl: WebGL2RenderingContext) => {

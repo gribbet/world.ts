@@ -6,6 +6,7 @@ import { createBuffer } from "../../buffer";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
+import type { World } from "../../world";
 import type { LayerOptions } from "..";
 import { type BaseLayer, type Billboard } from "..";
 import { configure, to } from "../common";
@@ -18,9 +19,10 @@ import vertexSource from "./vertex.glsl";
 export type BillboardLayer = BaseLayer & Billboard;
 
 export const createBillboardLayer = (
-  gl: WebGL2RenderingContext,
-  billboard: Partial<Billboard>,
+  world: World,
+  billboard: Partial<Billboard> = {},
 ) => {
+  const { gl } = world;
   let { options, url, position, color, size, minSizePixels, maxSizePixels } = {
     options: {},
     url: "",
@@ -118,9 +120,10 @@ export const createBillboardLayer = (
     renderProgram.dispose();
     depthProgram.dispose();
     image?.dispose();
+    world.remove(layer);
   };
 
-  return {
+  const layer = {
     render,
     dispose,
     get options() {
@@ -167,6 +170,10 @@ export const createBillboardLayer = (
       maxSizePixels = _;
     },
   } satisfies BillboardLayer;
+
+  world.add(layer);
+
+  return layer;
 };
 
 const createPrograms = (
