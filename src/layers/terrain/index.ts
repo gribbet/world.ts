@@ -79,6 +79,15 @@ export const createTerrainLayer = (
     gl,
     urlPattern: imageryUrl,
     onLoad: () => {
+      const extension = gl.getExtension("EXT_texture_filter_anisotropic");
+      if (extension) {
+        const max = gl.getParameter(extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
+        gl.texParameterf(
+          gl.TEXTURE_2D,
+          extension.TEXTURE_MAX_ANISOTROPY_EXT,
+          max,
+        );
+      }
       gl.texParameteri(
         gl.TEXTURE_2D,
         gl.TEXTURE_MIN_FILTER,
