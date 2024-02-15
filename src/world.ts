@@ -126,7 +126,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     const [x = 0, y = 0] = screenToClip([screenX, screenY]);
     const position = geodetic(localToWorld(clipToLocal([x, y, z, 1])));
 
-    const layer = index === 0 ? undefined : layers[index - 1];
+    const layer = index === 0 ? undefined : pickLayer ?? layers[index - 1];
 
     return { screen, position, layer };
   };
