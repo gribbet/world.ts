@@ -16,12 +16,13 @@ export const createViewTransition = (world: World) => {
   let target: Partial<View> = {};
   let last: number | undefined;
 
-  const frame = (tick: number) => {
+  const frame = () => {
     if (!running) return;
     requestAnimationFrame(frame);
 
-    const time = (tick - (last ?? tick)) / 1000;
-    last = tick;
+    const now = performance.now();
+    const time = (now - (last ?? now)) / 1000;
+    last = now;
 
     const epsilon = 1e-3;
 
@@ -30,43 +31,40 @@ export const createViewTransition = (world: World) => {
     if (target.target) {
       if (!target.distance) target.distance = view.distance;
       const delta = vec3.sub(vec3.create(), target.target, view.target);
-      const finished = vec3.length(delta) < epsilon;
-      const _target = finished
+      const finished = vec3.length(delta) * circumference < 1e-3;
+      view.target = finished
         ? target.target
         : vec3.scaleAndAdd(vec3.create(), view.target, delta, k * time);
-      view.target = _target;
       if (finished) target.target = undefined;
     }
 
     if (target.offset) {
       const delta = vec2.sub(vec2.create(), target.offset, view.offset);
       const finished = vec2.length(delta) < epsilon;
-      const offset = finished
+      view.offset = finished
         ? target.offset
         : vec2.scaleAndAdd(vec2.create(), view.offset, delta, k * time);
-      view.offset = offset;
       if (finished) target.offset = undefined;
     }
 
-    const targetDistance =
+    const flyDistance =
       target.target !== undefined
         ? vec3.distance(mercator(target.target), mercator(view.target)) *
           circumference
         : undefined;
 
     const goalDistance = Math.max(
-      ...[targetDistance, target.distance ?? view.distance, 0].filter(
+      ...[flyDistance, target.distance ?? view.distance, 0].filter(
         (_): _ is number => _ !== undefined,
       ),
     );
 
     if (goalDistance) {
       const delta = goalDistance - view.distance;
-      const finished = Math.abs(delta) < epsilon;
-      const distance = finished
+      const finished = Math.abs(delta) / 10000 < epsilon;
+      view.distance = finished
         ? goalDistance
         : view.distance + delta * k * time;
-      view.distance = distance;
       if (finished) target.distance = undefined;
     }
 

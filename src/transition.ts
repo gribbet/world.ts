@@ -17,12 +17,13 @@ export const createTransition = <T>(
   let current: T | undefined;
   let last: number | undefined;
 
-  const frame = (tick: number) => {
+  const frame = () => {
     if (!running) return;
     requestAnimationFrame(frame);
 
-    const time = (tick - (last ?? tick)) / 1000;
-    last = tick;
+    const now = performance.now();
+    const time = (now - (last ?? now)) / 1000;
+    last = now;
 
     if (time > 1) {
       current = target;
@@ -101,9 +102,9 @@ export const createPositionVelocityTransition = (
   update?: (_: vec3, target: vec3) => void,
 ) => {
   let velocity: vec3 = [0, 0, 0];
-
   let targetVelocity: vec3 = [0, 0, 0];
   let last: vec3 | undefined;
+  let lastTime: number | undefined;
 
   return createTransition<vec3>(({ time, current, target }) => {
     if (target === current || time > 1) {
@@ -113,21 +114,26 @@ export const createPositionVelocityTransition = (
       return current;
     }
 
-    if (last)
+    if (!last) {
+      last = target;
+      lastTime = time;
+    } else if (target !== last && lastTime !== undefined) {
       targetVelocity = vec3.scale(
         vec3.create(),
-        vec3.sub(vec3.create(), mercator(current), mercator(last)),
-        1 / time,
+        vec3.sub(vec3.create(), mercator(target), mercator(last)),
+        1000 / (performance.now() - lastTime),
       );
-    last = current;
+      last = target;
+      lastTime = performance.now();
+    }
 
-    velocity = vec3.add(
+    const nextVelocity = vec3.add(
       vec3.create(),
       velocity,
       vec3.scale(
         vec3.create(),
         vec3.sub(vec3.create(), targetVelocity, velocity),
-        time,
+        2 * time,
       ),
     );
 
@@ -137,7 +143,11 @@ export const createPositionVelocityTransition = (
         mercator(current),
         vec3.add(
           vec3.create(),
-          vec3.scale(vec3.create(), velocity, time),
+          vec3.scale(
+            vec3.create(),
+            vec3.add(vec3.create(), velocity, nextVelocity),
+            0.5 * time,
+          ),
           vec3.scale(
             vec3.create(),
             vec3.sub(vec3.create(), mercator(target), mercator(current)),
@@ -146,7 +156,11 @@ export const createPositionVelocityTransition = (
         ),
       ),
     );
+
+    velocity = nextVelocity;
+
     update?.(current, target);
+
     return current;
   });
 };
