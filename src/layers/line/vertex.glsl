@@ -30,9 +30,9 @@ void main(void) {
     vec4 projected_current = transform(current);
     vec4 projected_next = transform(next);
 
-    vec2 screen_previous = projected_previous.xy / projected_previous.w * screen;
-    vec2 screen_current = projected_current.xy / projected_current.w * screen;
-    vec2 screen_next = projected_next.xy / projected_next.w * screen;
+    vec2 screen_previous = projected_previous.xy / abs(projected_previous.w) * screen;
+    vec2 screen_current = projected_current.xy / abs(projected_current.w) * screen;
+    vec2 screen_next = projected_next.xy / abs(projected_next.w) * screen;
 
     vec2 a = normalize(screen_current - screen_previous);
     vec2 b = normalize(screen_next - screen_current);
@@ -54,7 +54,7 @@ void main(void) {
         offset = normal * distance * corner.y;
     }
 
-    float pixel_size = projected_current.w / screen.y;
+    float pixel_size = abs(projected_current.w) / screen.y;
     float scale = clamp(width / CIRCUMFERENCE * -projection[1][1], min_width_pixels * pixel_size, max_width_pixels * pixel_size) ;
 
     gl_Position = projected_current + 0.5 * vec4(scale * offset, 0.f, 0.f);
