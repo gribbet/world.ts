@@ -24,8 +24,8 @@ export type World = {
   remove: (layer: Layer) => void;
   project: (_: vec3) => vec2;
   unproject: (_: vec2) => vec3;
-  recenter: ([x, y]: [number, number]) => void;
-  pick: ([x, y]: [number, number]) => Pick;
+  recenter: ([x, y]: vec2) => void;
+  pick: ([x, y]: vec2, layer?: Layer) => Pick;
   dispose: () => void;
 };
 
@@ -84,10 +84,12 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     layers.forEach(_ => _.render({ viewport }));
   };
 
-  const depth = () => {
+  const depth = (layer?: Layer) => {
     const viewport = createViewport(view);
     clear(viewport.screen);
-    layers.forEach((_, i) => _.render({ viewport, depth: true, index: i + 1 }));
+    (layer ? [layer] : layers).forEach((_, i) =>
+      _.render({ viewport, depth: true, index: i + 1 }),
+    );
   };
 
   const frame = () => {
@@ -108,13 +110,13 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     return geodetic(localToWorld(clipToLocal(screenToClip(_))));
   };
 
-  const pick = (screen: vec2) => {
+  const pick = (screen: vec2, pickLayer?: Layer) => {
     const [screenX = 0, screenY = 0] = screen;
     const { screenToClip, clipToLocal, localToWorld } = createViewport(view);
 
     depthBuffer.use();
 
-    depth();
+    depth(pickLayer);
 
     const [z, index] = depthBuffer.read([
       screenX * devicePixelRatio,
