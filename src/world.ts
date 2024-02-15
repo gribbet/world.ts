@@ -45,6 +45,9 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   });
   if (!gl) throw new Error("No WebGL2");
 
+  gl.enable(gl.CULL_FACE);
+  gl.cullFace(gl.FRONT);
+
   let layers: Layer[] = [];
 
   const depthBuffer = createDepthBuffer(gl);

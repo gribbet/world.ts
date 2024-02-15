@@ -58,8 +58,7 @@ export const createMeshLayer = (world: World, mesh: Partial<Mesh> = {}) => {
     index?: number;
   }) => {
     if (configure(gl, depth, options)) return;
-    gl.enable(gl.CULL_FACE);
-    gl.cullFace(gl.FRONT);
+
     const program = depth ? depthProgram : renderProgram;
     program.execute({
       projection,
@@ -75,7 +74,6 @@ export const createMeshLayer = (world: World, mesh: Partial<Mesh> = {}) => {
       maxSizePixels: maxSizePixels || Number.MAX_VALUE,
       index,
     });
-    gl.disable(gl.CULL_FACE);
   };
 
   const updateVertices = (_: vec3[]) => {
