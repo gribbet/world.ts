@@ -13,8 +13,10 @@ import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import type { Texture } from "./texture";
-import { TileCache, createTileCache } from "./tile-cache";
-import { TileDownsampler, createTileDownsampler } from "./tile-downsampler";
+import type { TileCache } from "./tile-cache";
+import { createTileCache } from "./tile-cache";
+import type { TileDownsampler } from "./tile-downsampler";
+import { createTileDownsampler } from "./tile-downsampler";
 import { createTileShapes } from "./tile-shapes";
 import vertexSource from "./vertex.glsl";
 
@@ -67,13 +69,14 @@ export const createTerrainLayer = (
   terrain: Partial<Terrain> = {},
 ) => {
   const { gl } = world;
-  let { options, terrainUrl, imageryUrl, color } = {
+  let { options, terrainUrl, color } = {
     options: {},
     terrainUrl: "",
     imageryUrl: "",
     color: [1, 1, 1, 1],
     ...terrain,
   } satisfies Terrain;
+  const { imageryUrl = "" } = terrain;
 
   let imageryCache: TileCache | undefined;
   let imageryDownsampler: TileDownsampler | undefined;
