@@ -3,6 +3,7 @@ import { quat, vec3, vec4 } from "gl-matrix";
 import { geodetic, mercator, toOrientation, toQuaternion } from "./math";
 
 const k = 10;
+const epsilon = 1e-3;
 
 export type Transition<T> = {
   value: T;
@@ -57,6 +58,7 @@ export const createNumberTransition = (
 ) =>
   createTransition<number>(({ time, current, target }) => {
     current = current + (target - current) * k * time;
+    if (Math.abs(target - current) < epsilon) current = target;
     update?.(current, target);
     return current;
   });
@@ -74,6 +76,7 @@ export const createColorTransition = (
         k * time,
       ),
     );
+    if (vec4.distance(current, target) < epsilon) current = target;
     update?.(current, target);
     return current;
   });
@@ -82,7 +85,6 @@ export const createPositionTransition = (
   update?: (_: vec3, target: vec3) => void,
 ) =>
   createTransition<vec3>(({ time, current, target }) => {
-    if (time > 1) console.log(time);
     current = geodetic(
       vec3.add(
         vec3.create(),
@@ -94,6 +96,7 @@ export const createPositionTransition = (
         ),
       ),
     );
+    if (vec3.distance(current, target) < epsilon) current = target;
     update?.(current, target);
     return current;
   });
@@ -169,7 +172,7 @@ export const createOrientationTransition = (
   update?: (_: vec3, target: vec3) => void,
 ) =>
   createTransition<vec3>(({ time, current, target }) => {
-    const value = toOrientation(
+    current = toOrientation(
       quat.slerp(
         quat.create(),
         toQuaternion(current),
@@ -177,6 +180,8 @@ export const createOrientationTransition = (
         2 * time,
       ),
     );
-    update?.(value, target);
-    return value;
+    if (quat.getAngle(toQuaternion(current), toQuaternion(target)) < epsilon)
+      target = current;
+    update?.(current, target);
+    return current;
   });
