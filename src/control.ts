@@ -4,7 +4,7 @@ import { debounce } from "./common";
 import { circumference } from "./math";
 import type { World } from "./world";
 
-const minimumDistance = 2;
+const minimumDistance = 100;
 
 export type MouseControl = {
   enabled: boolean;
