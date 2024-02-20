@@ -7,7 +7,6 @@ import { createBuffer } from "../../buffer";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import type { World } from "../../world";
 import type { Layer } from "..";
 import { defaultLayerOptions, type Polygon } from "..";
 import { cache, configure, to } from "../common";
@@ -16,11 +15,9 @@ import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
 export const createPolygonLayer = (
-  world: World,
+  gl: WebGL2RenderingContext,
   properties: Partial<Polygon> = {},
 ) => {
-  const { gl } = world;
-
   let count = 0;
 
   const positionBuffer = createBuffer({ gl, type: "i32", target: "array" });

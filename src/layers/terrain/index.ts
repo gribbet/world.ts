@@ -6,7 +6,6 @@ import { range } from "../../common";
 import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import type { World } from "../../world";
 import { defaultLayerOptions, type Terrain } from "..";
 import { cache, configure, to } from "../common";
 import depthSource from "../depth.glsl";
@@ -62,11 +61,9 @@ const uvw = range(0, n + 1).flatMap(y =>
 );
 
 export const createTerrainLayer = (
-  world: World,
+  gl: WebGL2RenderingContext,
   properties: Partial<Terrain> = {},
 ) => {
-  const { gl } = world;
-
   let imageryCache: TileCache | undefined;
   let imageryDownsampler: TileDownsampler | undefined;
 

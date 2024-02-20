@@ -8,18 +8,15 @@ import { defaultLayerOptions, type Mesh } from "../../layers";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import type { World } from "../../world";
 import { cache, configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
 export const createMeshLayer = (
-  world: World,
+  gl: WebGL2RenderingContext,
   properties: Partial<Mesh> = {},
 ) => {
-  const { gl } = world;
-
   let count = 0;
 
   const vertexBuffer = createBuffer({ gl, type: "f32", target: "array" });

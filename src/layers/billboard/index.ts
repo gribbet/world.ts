@@ -6,7 +6,6 @@ import { createBuffer } from "../../buffer";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import type { World } from "../../world";
 import type { Layer } from "..";
 import { type Billboard, defaultLayerOptions } from "..";
 import { cache, configure, to } from "../common";
@@ -17,11 +16,9 @@ import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
 export const createBillboardLayer = (
-  world: World,
+  gl: WebGL2RenderingContext,
   properties: Partial<Billboard> = {},
 ) => {
-  const { gl } = world;
-
   let image: Texture | undefined;
   let imageSize: vec2 = [0, 0];
 
