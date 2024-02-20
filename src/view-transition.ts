@@ -4,7 +4,7 @@ import { circumference, mercator, toOrientation, toQuaternion } from "./math";
 import type { View } from "./model";
 import type { World } from "./world";
 
-const k = 2;
+const k = 5;
 
 export type ViewTransition = {
   view: Partial<View>;
@@ -37,16 +37,16 @@ export const createViewTransition = (world: World) => {
     if (target.target) {
       if (!target.distance) target.distance = view.distance;
       const delta = vec3.sub(vec3.create(), target.target, view.target);
-      const finished = vec3.length(delta) * circumference < 1e-3;
+      const finished = vec3.length(delta) * circumference < epsilon;
+      const slowdown =
+        view.distance > flyDistance ? 1 : view.distance / flyDistance;
       view.target = finished
         ? target.target
         : vec3.scaleAndAdd(
             vec3.create(),
             view.target,
             delta,
-            k *
-              time *
-              (view.distance > flyDistance ? 1 : view.distance / flyDistance),
+            k * time * slowdown * 0,
           );
       if (finished) target.target = undefined;
     }
@@ -61,9 +61,7 @@ export const createViewTransition = (world: World) => {
     }
 
     const goalDistance = Math.max(
-      ...[flyDistance, target.distance ?? view.distance, 0].filter(
-        (_): _ is number => _ !== undefined,
-      ),
+      ...[flyDistance, target.distance ?? view.distance],
     );
 
     if (goalDistance) {
@@ -71,7 +69,7 @@ export const createViewTransition = (world: World) => {
       const finished = Math.abs(delta) / 10000 < epsilon;
       view.distance = finished
         ? goalDistance
-        : view.distance + delta * k * time;
+        : view.distance + delta * k * time * 0.01;
       if (finished) target.distance = undefined;
     }
 
