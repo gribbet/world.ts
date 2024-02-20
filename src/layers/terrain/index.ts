@@ -7,9 +7,8 @@ import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { World } from "../../world";
-import type { LayerOptions } from "..";
-import { type BaseLayer, type Terrain } from "..";
-import { configure, to } from "../common";
+import { defaultLayerOptions, type Terrain } from "..";
+import { cache, configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import type { Texture } from "./texture";
@@ -62,26 +61,16 @@ const uvw = range(0, n + 1).flatMap(y =>
   }),
 );
 
-export type TerrainLayer = BaseLayer & Terrain;
-
 export const createTerrainLayer = (
   world: World,
-  terrain: Partial<Terrain> = {},
+  properties: Partial<Terrain> = {},
 ) => {
   const { gl } = world;
-  let { options, terrainUrl, color } = {
-    options: {},
-    terrainUrl: "",
-    imageryUrl: "",
-    color: [1, 1, 1, 1],
-    ...terrain,
-  } satisfies Terrain;
-  const { imageryUrl = "" } = terrain;
 
   let imageryCache: TileCache | undefined;
   let imageryDownsampler: TileDownsampler | undefined;
 
-  const updateImageryUrl = (imageryUrl: string) => {
+  const updateImageryUrl = cache((imageryUrl: string) => {
     imageryCache?.dispose();
     imageryCache = createTileCache({
       gl,
@@ -108,8 +97,9 @@ export const createTerrainLayer = (
       },
     });
     imageryDownsampler = createTileDownsampler(imageryCache);
-  };
-  updateImageryUrl(imageryUrl);
+  });
+
+  const { terrainUrl = "" } = properties;
 
   const terrainCache = createTileCache({
     gl,
@@ -171,9 +161,22 @@ export const createTerrainLayer = (
     depth?: boolean;
     index?: number;
   }) => {
+    const { imageryUrl, color, ...options } = {
+      terrainUrl: "",
+      imageryUrl: "",
+      color: [1, 1, 1, 1],
+      ...defaultLayerOptions,
+      ...properties,
+    } satisfies Terrain;
+
+    updateImageryUrl(imageryUrl);
+
     if (configure(gl, depth, options)) return;
+
     const program = depth ? depthProgram : renderProgram;
+
     const { projection, modelView, camera } = viewport;
+
     const visible = calculateVisibleTiles(viewport);
 
     for (const xyz of visible) {
@@ -208,41 +211,15 @@ export const createTerrainLayer = (
     imageryCache?.dispose();
     terrainCache.dispose();
     elevation.dispose();
-    world.remove(layer);
   };
 
-  const layer = {
+  return {
+    set: (_: Partial<Terrain>) => {
+      properties = { ...properties, ..._ };
+    },
     render,
     dispose,
-    get options() {
-      return options;
-    },
-    set options(_: Partial<LayerOptions>) {
-      options = _;
-    },
-    get terrainUrl() {
-      return terrainUrl;
-    },
-    set terrainUrl(_: string) {
-      terrainUrl = _;
-    },
-    get imageryUrl() {
-      return imageryUrl;
-    },
-    set imageryUrl(_: string) {
-      updateImageryUrl(_);
-    },
-    get color() {
-      return color;
-    },
-    set color(_: vec4) {
-      color = _;
-    },
-  } satisfies TerrainLayer;
-
-  world.add(layer);
-
-  return layer;
+  };
 };
 
 const createPrograms = (gl: WebGL2RenderingContext) => {

@@ -1,43 +1,25 @@
-import type { quat, vec2, vec3, vec4 } from "gl-matrix";
+import type { vec2, vec3, vec4 } from "gl-matrix";
 import { mat4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
-import { type Mesh } from "../../layers";
+import type { Layer } from "../../layers";
+import { defaultLayerOptions, type Mesh } from "../../layers";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { World } from "../../world";
-import type { BaseLayer, LayerOptions } from "..";
-import { configure, to } from "../common";
+import { cache, configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
-export type MeshLayer = BaseLayer & Mesh;
-
-export const createMeshLayer = (world: World, mesh: Partial<Mesh> = {}) => {
+export const createMeshLayer = (
+  world: World,
+  properties: Partial<Mesh> = {},
+) => {
   const { gl } = world;
-  let {
-    options,
-    vertices,
-    indices,
-    position,
-    orientation,
-    color,
-    size,
-    minSizePixels,
-    maxSizePixels,
-  } = {
-    options: {},
-    vertices: [],
-    indices: [],
-    position: [0, 0, 0],
-    orientation: [0, 0, 0, 1],
-    color: [1, 1, 1, 1],
-    size: 1,
-    ...mesh,
-  } satisfies Mesh;
+
   let count = 0;
 
   const vertexBuffer = createBuffer({ gl, type: "f32", target: "array" });
@@ -57,6 +39,32 @@ export const createMeshLayer = (world: World, mesh: Partial<Mesh> = {}) => {
     depth?: boolean;
     index?: number;
   }) => {
+    const {
+      vertices,
+      indices,
+      position,
+      orientation,
+      color,
+      size,
+      minSizePixels,
+      maxSizePixels,
+      ...options
+    } = {
+      vertices: [],
+      indices: [],
+      position: [0, 0, 0],
+      orientation: [0, 0, 0, 1],
+      color: [1, 1, 1, 1],
+      size: 1,
+      minSizePixels: 0,
+      maxSizePixels: Number.MAX_VALUE,
+      ...defaultLayerOptions,
+      ...properties,
+    } satisfies Mesh;
+
+    updateVertices(vertices);
+    updateIndices(indices);
+
     if (configure(gl, depth, options)) return;
 
     const program = depth ? depthProgram : renderProgram;
@@ -70,96 +78,35 @@ export const createMeshLayer = (world: World, mesh: Partial<Mesh> = {}) => {
       orientation: mat4.fromQuat(mat4.create(), orientation),
       color,
       size,
-      minSizePixels: minSizePixels || 0,
-      maxSizePixels: maxSizePixels || Number.MAX_VALUE,
+      minSizePixels,
+      maxSizePixels,
       index,
     });
   };
 
-  const updateVertices = (_: vec3[]) => {
-    vertices = _;
-    vertexBuffer.set(_.flatMap(_ => [..._]));
-  };
+  const updateVertices = cache((_: vec3[]) =>
+    vertexBuffer.set(_.flatMap(_ => [..._])),
+  );
 
-  const updateIndices = (_: vec3[]) => {
-    indices = _;
+  const updateIndices = cache((_: vec3[]) => {
     indexBuffer.set(_.flatMap(_ => [..._]));
     count = _.length * 3;
-  };
-
-  updateVertices(vertices);
-  updateIndices(indices);
+  });
 
   const dispose = () => {
     vertexBuffer.dispose();
     indexBuffer.dispose();
     renderProgram.dispose();
     depthProgram.dispose();
-    world.remove(layer);
   };
 
-  const layer = {
+  return {
+    set: (_: Partial<Mesh>) => {
+      properties = { ...properties, ..._ };
+    },
     render,
     dispose,
-    get options() {
-      return options;
-    },
-    set options(_: Partial<LayerOptions>) {
-      options = _;
-    },
-    get vertices() {
-      return vertices;
-    },
-    set vertices(_: vec3[]) {
-      updateVertices(_);
-    },
-    get indices() {
-      return indices;
-    },
-    set indices(_: vec3[]) {
-      updateIndices(_);
-    },
-    get position() {
-      return position;
-    },
-    set position(_: vec3) {
-      position = _;
-    },
-    get orientation() {
-      return orientation;
-    },
-    set orientation(_: quat) {
-      orientation = _;
-    },
-    get color() {
-      return color;
-    },
-    set color(_: vec4) {
-      color = _;
-    },
-    get size() {
-      return size;
-    },
-    set size(_: number) {
-      size = _;
-    },
-    get minSizePixels() {
-      return minSizePixels;
-    },
-    set minSizePixels(_: number | undefined) {
-      minSizePixels = _;
-    },
-    get maxSizePixels() {
-      return maxSizePixels;
-    },
-    set maxSizePixels(_: number | undefined) {
-      maxSizePixels = _;
-    },
-  } satisfies MeshLayer;
-
-  world.add(layer);
-
-  return layer;
+  } satisfies Layer<Mesh>;
 };
 
 const createPrograms = (

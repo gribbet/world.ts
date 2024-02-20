@@ -1,11 +1,6 @@
 import type { quat, vec3, vec4 } from "gl-matrix";
 
 import type { Viewport } from "../viewport";
-import type { BillboardLayer } from "./billboard";
-import type { LineLayer } from "./line";
-import type { MeshLayer } from "./mesh";
-import type { PolygonLayer } from "./polygon";
-import type { TerrainLayer } from "./terrain";
 export * from "./billboard";
 export * from "./line";
 export * from "./mesh";
@@ -18,30 +13,32 @@ export type LayerOptions = {
   polygonOffset: number;
 };
 
-export type Terrain = {
-  options: Partial<LayerOptions>;
-  readonly terrainUrl: string;
-  readonly imageryUrl: string;
-  color: vec4;
+export const defaultLayerOptions: LayerOptions = {
+  pickable: true,
+  depth: true,
+  polygonOffset: 0,
 };
 
+export type Terrain = {
+  readonly terrainUrl: string;
+  imageryUrl: string;
+  color: vec4;
+} & LayerOptions;
+
 export type Line = {
-  options: Partial<LayerOptions>;
   points: vec3[][];
   color: vec4;
   width: number;
   minWidthPixels?: number | undefined;
   maxWidthPixels?: number | undefined;
-};
+} & LayerOptions;
 
 export type Polygon = {
-  options: Partial<LayerOptions>;
   points: vec3[][];
   color: vec4;
-};
+} & LayerOptions;
 
 export type Mesh = {
-  options: Partial<LayerOptions>;
   vertices: vec3[];
   indices: vec3[];
   position: vec3;
@@ -50,26 +47,19 @@ export type Mesh = {
   size: number;
   minSizePixels?: number;
   maxSizePixels?: number;
-};
+} & LayerOptions;
 
 export type Billboard = {
-  options: Partial<LayerOptions>;
   url: string;
   position: vec3;
   color: vec4;
   size: number;
   minSizePixels?: number;
   maxSizePixels?: number;
-};
+} & LayerOptions;
 
-export type Layer =
-  | TerrainLayer
-  | LineLayer
-  | PolygonLayer
-  | MeshLayer
-  | BillboardLayer;
-
-export type BaseLayer = {
+export type Layer<T = never> = {
+  set: (_: T) => void;
   render: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;
   dispose: () => void;
 };

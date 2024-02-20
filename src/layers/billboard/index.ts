@@ -7,30 +7,22 @@ import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { World } from "../../world";
-import type { LayerOptions } from "..";
-import { type BaseLayer, type Billboard } from "..";
-import { configure, to } from "../common";
+import type { Layer } from "..";
+import { type Billboard, defaultLayerOptions } from "..";
+import { cache, configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import { createImageTexture } from "../terrain/image-texture";
 import type { Texture } from "../terrain/texture";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
-export type BillboardLayer = BaseLayer & Billboard;
-
 export const createBillboardLayer = (
   world: World,
-  billboard: Partial<Billboard> = {},
+  properties: Partial<Billboard> = {},
 ) => {
   const { gl } = world;
-  let { options, url, position, color, size, minSizePixels, maxSizePixels } = {
-    options: {},
-    url: "",
-    position: [0, 0, 0],
-    color: [1, 1, 1, 1],
-    size: 100,
-    ...billboard,
-  } satisfies Billboard;
+
+  let image: Texture | undefined;
   let imageSize: vec2 = [0, 0];
 
   const cornerBuffer = createBuffer({ gl, type: "f32", target: "array" });
@@ -60,9 +52,7 @@ export const createBillboardLayer = (
     ].flat(),
   );
 
-  let image: Texture | undefined;
-
-  const update = () => {
+  const updateUrl = cache((url: string) => {
     image?.dispose();
     image = createImageTexture({
       gl,
@@ -75,9 +65,7 @@ export const createBillboardLayer = (
         gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
       },
     });
-  };
-
-  update();
+  });
 
   const { renderProgram, depthProgram } = createPrograms(gl, {
     cornerBuffer,
@@ -94,9 +82,33 @@ export const createBillboardLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    if (configure(gl, depth, options)) return;
+    const {
+      url,
+      position,
+      color,
+      size,
+      minSizePixels,
+      maxSizePixels,
+      ...options
+    } = {
+      url: "",
+      position: [0, 0, 0],
+      color: [1, 1, 1, 1],
+      size: 100,
+      minSizePixels: 0,
+      maxSizePixels: Number.MAX_VALUE,
+      ...defaultLayerOptions,
+      ...properties,
+    } satisfies Billboard;
+
+    updateUrl(url);
+
     if (!image) return;
+
+    if (configure(gl, depth, options)) return;
+
     const program = depth ? depthProgram : renderProgram;
+
     program.execute({
       projection,
       modelView,
@@ -107,8 +119,8 @@ export const createBillboardLayer = (
       position: to(mercator(position)),
       color,
       size,
-      minSizePixels: minSizePixels || 0,
-      maxSizePixels: maxSizePixels || Number.MAX_VALUE,
+      minSizePixels,
+      maxSizePixels,
       index,
     });
   };
@@ -120,60 +132,15 @@ export const createBillboardLayer = (
     renderProgram.dispose();
     depthProgram.dispose();
     image?.dispose();
-    world.remove(layer);
   };
 
-  const layer = {
+  return {
+    set: (_: Partial<Billboard>) => {
+      properties = { ...properties, ..._ };
+    },
     render,
     dispose,
-    get options() {
-      return options;
-    },
-    set options(_: Partial<LayerOptions>) {
-      options = _;
-    },
-    get url() {
-      return url;
-    },
-    set url(_: string) {
-      url = _;
-      update();
-    },
-    get position() {
-      return position;
-    },
-    set position(_: vec3) {
-      position = _;
-    },
-    get color() {
-      return color;
-    },
-    set color(_: vec4) {
-      color = _;
-    },
-    get size() {
-      return size;
-    },
-    set size(_: number) {
-      size = _;
-    },
-    get minSizePixels() {
-      return minSizePixels;
-    },
-    set minSizePixels(_: number | undefined) {
-      minSizePixels = _;
-    },
-    get maxSizePixels() {
-      return maxSizePixels;
-    },
-    set maxSizePixels(_: number | undefined) {
-      maxSizePixels = _;
-    },
-  } satisfies BillboardLayer;
-
-  world.add(layer);
-
-  return layer;
+  } satisfies Layer<Billboard>;
 };
 
 const createPrograms = (

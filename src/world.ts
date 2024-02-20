@@ -18,10 +18,8 @@ type Pick = {
 export type World = {
   readonly canvas: HTMLCanvasElement;
   readonly gl: WebGL2RenderingContext;
-  set view(_: View);
-  get view(): View;
-  add: (layer: Layer) => void;
-  remove: (layer: Layer) => void;
+  view: View;
+  layers: Layer[];
   project: (_: vec3) => vec2;
   unproject: (_: vec2) => vec3;
   recenter: ([x, y]: vec2) => void;
@@ -147,14 +145,6 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     };
   };
 
-  const add = (layer: Layer) => {
-    layers = [...layers, layer];
-  };
-
-  const remove = (layer: Layer) => {
-    layers = layers.filter(_ => _ !== layer);
-  };
-
   const dispose = () => {
     running = false;
     resizer.unobserve(canvas);
@@ -171,8 +161,12 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     set view(_: View) {
       view = _;
     },
-    add,
-    remove,
+    get layers() {
+      return layers;
+    },
+    set layers(_: Layer[]) {
+      layers = _;
+    },
     project,
     unproject,
     recenter,

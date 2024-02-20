@@ -8,26 +8,18 @@ import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { World } from "../../world";
-import type { LayerOptions } from "..";
-import { type BaseLayer, type Polygon } from "..";
-import { configure, to } from "../common";
+import type { Layer } from "..";
+import { defaultLayerOptions, type Polygon } from "..";
+import { cache, configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
-export type PolygonLayer = BaseLayer & Polygon;
-
 export const createPolygonLayer = (
   world: World,
-  polygon: Partial<Polygon> = {},
+  properties: Partial<Polygon> = {},
 ) => {
   const { gl } = world;
-  let { options, points, color } = {
-    options: {},
-    points: [],
-    color: [1, 1, 1, 1],
-    ...polygon,
-  } satisfies Polygon;
 
   let count = 0;
 
@@ -48,8 +40,19 @@ export const createPolygonLayer = (
     depth?: boolean;
     index?: number;
   }) => {
+    const { points, color, ...options } = {
+      points: [],
+      color: [1, 1, 1, 1],
+      ...defaultLayerOptions,
+      ...properties,
+    } satisfies Polygon;
+
+    updatePoints(points);
+
     if (configure(gl, depth, options)) return;
+
     const program = depth ? depthProgram : renderProgram;
+
     program.execute({
       projection,
       modelView,
@@ -61,52 +64,29 @@ export const createPolygonLayer = (
     });
   };
 
-  const updatePoints = (_: vec3[][]) => {
-    points = _;
+  const updatePoints = cache((_: vec3[][]) => {
     const { vertices, indices } = earclip(
       _.map(_ => _.map(_ => [...to(mercator(_))])),
     );
     positionBuffer.set(vertices);
     indexBuffer.set(indices);
     count = indices.length;
-  };
-
-  updatePoints(points);
+  });
 
   const dispose = () => {
     positionBuffer.dispose();
     indexBuffer.dispose();
     renderProgram.dispose();
     depthProgram.dispose();
-    world.remove(layer);
   };
 
-  const layer = {
+  return {
+    set: (_: Partial<Polygon>) => {
+      properties = { ...properties, ..._ };
+    },
     render,
     dispose,
-    get options() {
-      return options;
-    },
-    set options(_: Partial<LayerOptions>) {
-      options = _;
-    },
-    get points() {
-      return points;
-    },
-    set points(_: vec3[][]) {
-      updatePoints(_);
-    },
-    get color() {
-      return color;
-    },
-    set color(_: vec4) {
-      color = _;
-    },
-  } satisfies PolygonLayer;
-
-  world.add(layer);
-
-  return layer;
+  } satisfies Layer<Polygon>;
 };
 
 const createPrograms = (

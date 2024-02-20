@@ -8,24 +8,18 @@ import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { World } from "../../world";
-import type { LayerOptions } from "../";
-import { type BaseLayer, type Line } from "../";
-import { configure, to } from "../common";
+import type { Layer } from "../";
+import { defaultLayerOptions, type Line } from "../";
+import { cache, configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
-export type LineLayer = BaseLayer & Line;
-
-export const createLineLayer = (world: World, line: Partial<Line> = {}) => {
+export const createLineLayer = (
+  world: World,
+  properties: Partial<Line> = {},
+) => {
   const { gl } = world;
-  let { options, points, color, width, minWidthPixels, maxWidthPixels } = {
-    options: {},
-    points: [],
-    color: [1, 1, 1, 1],
-    width: 1,
-    ...line,
-  } satisfies Line;
 
   let count = 0;
 
@@ -48,8 +42,23 @@ export const createLineLayer = (world: World, line: Partial<Line> = {}) => {
     depth?: boolean;
     index?: number;
   }) => {
+    const { points, color, width, minWidthPixels, maxWidthPixels, ...options } =
+      {
+        points: [],
+        color: [1, 1, 1, 1],
+        width: 1,
+        minWidthPixels: 0,
+        maxWidthPixels: Number.MAX_VALUE,
+        ...defaultLayerOptions,
+        ...properties,
+      } satisfies Line;
+
+    updatePoints(points);
+
     if (configure(gl, depth, options)) return;
+
     const program = depth ? depthProgram : renderProgram;
+
     program.execute({
       projection,
       modelView,
@@ -58,15 +67,13 @@ export const createLineLayer = (world: World, line: Partial<Line> = {}) => {
       count,
       color,
       width,
-      minWidthPixels: minWidthPixels || 0,
-      maxWidthPixels: maxWidthPixels || Number.MAX_VALUE,
+      minWidthPixels,
+      maxWidthPixels,
       index,
     });
   };
 
-  const updatePoints = (_: vec3[][]) => {
-    points = _;
-
+  const updatePoints = cache((_: vec3[][]) => {
     const positionData = _.flatMap(_ => {
       const [first] = _;
       const [last] = _.slice(-1);
@@ -117,9 +124,7 @@ export const createLineLayer = (world: World, line: Partial<Line> = {}) => {
     positionBuffer.set(positionData);
     indexBuffer.set(indexData);
     cornerBuffer.set(cornerData);
-  };
-
-  updatePoints(points);
+  });
 
   const dispose = () => {
     positionBuffer.dispose();
@@ -127,53 +132,15 @@ export const createLineLayer = (world: World, line: Partial<Line> = {}) => {
     cornerBuffer.dispose();
     renderProgram.dispose();
     depthProgram.dispose();
-    world.remove(layer);
   };
 
-  const layer = {
+  return {
     render,
     dispose,
-    get options() {
-      return options;
+    set: (_: Partial<Line>) => {
+      properties = { ...properties, ..._ };
     },
-    set options(_: Partial<LayerOptions>) {
-      options = _;
-    },
-    get points() {
-      return points;
-    },
-    set points(_: vec3[][]) {
-      updatePoints(_);
-    },
-    get color() {
-      return color;
-    },
-    set color(_: vec4) {
-      color = _;
-    },
-    get width() {
-      return width;
-    },
-    set width(_: number) {
-      width = _;
-    },
-    get minWidthPixels() {
-      return minWidthPixels;
-    },
-    set minWidthPixels(_: number | undefined) {
-      minWidthPixels = _;
-    },
-    get maxWidthPixels() {
-      return maxWidthPixels;
-    },
-    set maxWidthPixels(_: number | undefined) {
-      maxWidthPixels = _;
-    },
-  } satisfies LineLayer;
-
-  world.add(layer);
-
-  return layer;
+  } satisfies Layer<Line>;
 };
 
 const createPrograms = (
