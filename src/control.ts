@@ -13,7 +13,7 @@ export type MouseControl = {
   dispose: () => void;
 };
 
-export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
+export const createMouseControl = (world: World) => {
   let enabled = true;
   let draggable = true;
   let rotatable = true;
@@ -77,6 +77,8 @@ export const createMouseControl = (canvas: HTMLCanvasElement, world: World) => {
   };
 
   const onContextMenu = (event: MouseEvent) => event.preventDefault();
+
+  const { canvas } = world;
 
   canvas.addEventListener("mousedown", onMouseDown);
   canvas.addEventListener("mousemove", onMouseMove);
