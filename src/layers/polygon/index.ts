@@ -4,19 +4,20 @@ import type { vec3 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
+import { cache } from "../../common";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { Layer } from "..";
 import { defaultLayerOptions, type Polygon } from "..";
-import { cache, configure, to } from "../common";
+import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
 export const createPolygonLayer = (
   gl: WebGL2RenderingContext,
-  properties: Partial<Polygon> = {},
+  properties: () => Partial<Polygon> = () => ({}),
 ) => {
   let count = 0;
 
@@ -41,7 +42,7 @@ export const createPolygonLayer = (
       points: [],
       color: [1, 1, 1, 1],
       ...defaultLayerOptions,
-      ...properties,
+      ...properties(),
     } satisfies Polygon;
 
     updatePoints(points);
@@ -78,12 +79,9 @@ export const createPolygonLayer = (
   };
 
   return {
-    set: (_: Partial<Polygon>) => {
-      properties = { ...properties, ..._ };
-    },
     render,
     dispose,
-  } satisfies Layer<Polygon>;
+  } satisfies Layer;
 };
 
 const createPrograms = (

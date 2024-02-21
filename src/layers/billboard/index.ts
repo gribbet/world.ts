@@ -1,14 +1,14 @@
-import type { mat4, vec2, vec4 } from "gl-matrix";
-import type { vec3 } from "gl-matrix";
+import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
+import { cache } from "../../common";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { Layer } from "..";
 import { type Billboard, defaultLayerOptions } from "..";
-import { cache, configure, to } from "../common";
+import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import { createImageTexture } from "../terrain/image-texture";
 import type { Texture } from "../terrain/texture";
@@ -17,7 +17,7 @@ import vertexSource from "./vertex.glsl";
 
 export const createBillboardLayer = (
   gl: WebGL2RenderingContext,
-  properties: Partial<Billboard> = {},
+  properties: () => Partial<Billboard> = () => ({}),
 ) => {
   let image: Texture | undefined;
   let imageSize: vec2 = [0, 0];
@@ -95,7 +95,7 @@ export const createBillboardLayer = (
       minSizePixels: 0,
       maxSizePixels: Number.MAX_VALUE,
       ...defaultLayerOptions,
-      ...properties,
+      ...properties(),
     } satisfies Billboard;
 
     updateUrl(url);
@@ -132,12 +132,9 @@ export const createBillboardLayer = (
   };
 
   return {
-    set: (_: Partial<Billboard>) => {
-      properties = { ...properties, ..._ };
-    },
     render,
     dispose,
-  } satisfies Layer<Billboard>;
+  } satisfies Layer;
 };
 
 const createPrograms = (

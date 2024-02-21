@@ -1,7 +1,7 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
 import { circumference, mercator, quadratic, radians } from "./math";
-import type { View } from "./model";
+import { defaultView, type View } from "./model";
 
 export type Viewport = {
   camera: vec3;
@@ -21,14 +21,20 @@ export type Viewport = {
 const matrix = mat4.create();
 const vector = vec4.create();
 
-export const createViewport: (view: View) => Viewport = view => {
-  const { target, offset, screen, orientation, fieldOfView } = view;
+export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
+  view,
+  screen,
+) => {
+  const { target, offset, distance, orientation, fieldOfView } = {
+    ...defaultView,
+    ...view,
+  };
   const [width = 0, height = 0] = screen;
   const [ox = 0, oy = 0] = offset;
   const [pitch = 0, roll = 0, yaw = 0] = orientation;
   const fieldScale =
     Math.tan(radians(45) / 2) / Math.tan(radians(fieldOfView) / 2);
-  const z = (view.distance / circumference) * fieldScale;
+  const z = (distance / circumference) * fieldScale;
   const near = z / 100;
   const far = z * 1000000;
 
@@ -49,7 +55,7 @@ export const createViewport: (view: View) => Viewport = view => {
   const scale = (scale: number) => {
     const screen: vec2 = [width * scale, height * scale];
     const offset: vec2 = [ox * scale, oy * scale];
-    return createViewport({ ...view, offset, screen });
+    return createViewport({ ...view, offset }, screen);
   };
 
   const screenToClip = (
@@ -82,7 +88,7 @@ export const createViewport: (view: View) => Viewport = view => {
     ax * ax +
       ay * ay +
       az * az -
-      ((view.distance * view.distance) / circumference / circumference) *
+      ((distance * distance) / circumference / circumference) *
         fieldScale *
         fieldScale,
   );
@@ -116,5 +122,5 @@ export const createViewport: (view: View) => Viewport = view => {
     localToClip,
     localToWorld,
     worldToLocal,
-  };
+  } satisfies Viewport;
 };

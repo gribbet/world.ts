@@ -1,66 +1,56 @@
-import type { vec2 } from "gl-matrix";
-import { glMatrix, vec3 } from "gl-matrix";
+import type { vec2, vec3 } from "gl-matrix";
+import { glMatrix } from "gl-matrix";
 
 import { createDepthBuffer } from "./depth-buffer";
 import type { Layer } from "./layers";
-import { circumference, geodetic, mercator } from "./math";
+import { geodetic, mercator } from "./math";
 import type { View } from "./model";
 import { createViewport } from "./viewport";
 
 glMatrix.setMatrixArrayType(Array); // Required for precision
 
 type Pick = {
-  screen: vec2;
+  point: vec2;
   position: vec3;
   layer: Layer | undefined;
 };
 
 export type World = {
-  readonly canvas: HTMLCanvasElement;
-  readonly gl: WebGL2RenderingContext;
-  view: View;
-  layers: Layer[];
   project: (_: vec3) => vec2;
   unproject: (_: vec2) => vec3;
-  recenter: ([x, y]: vec2) => void;
   pick: ([x, y]: vec2, layer?: Layer) => Pick;
   dispose: () => void;
 };
 
-export const createWorld = (canvas: HTMLCanvasElement) => {
-  let running = true;
-  let view: View = {
-    target: [0, 0, 0],
-    screen: [0, 0],
-    offset: [0, 0],
-    distance: circumference,
-    orientation: [0, 0, 0],
-    fieldOfView: 45,
-  };
+export type WorldProperties = {
+  view: Partial<View>;
+  layers: Layer[];
+};
 
-  const gl = canvas.getContext("webgl2", {
-    antialias: true,
-  });
-  if (!gl) throw new Error("No WebGL2");
+export const createWorld = (
+  gl: WebGL2RenderingContext,
+  properties: () => WorldProperties,
+) => {
+  let running = true;
+  let screen: vec2 = [0, 0];
 
   gl.enable(gl.CULL_FACE);
   gl.cullFace(gl.FRONT);
 
-  let layers: Layer[] = [];
-
   const depthBuffer = createDepthBuffer(gl);
 
-  const resize = (screen: vec2) => {
-    let [width = 0, height = 0] = screen;
+  const { canvas } = gl;
+
+  const resize = ([width = 0, height = 0]: vec2) => {
     width = width || 1;
     height = height || 1;
-    view.screen = [width, height];
+    screen = [width, height];
     canvas.width = width * devicePixelRatio;
     canvas.height = height * devicePixelRatio;
     depthBuffer.resize([canvas.width, canvas.height]);
   };
 
-  resize([canvas.clientWidth, canvas.clientHeight]);
+  resize([canvas.width, canvas.height]);
 
   const resizer = new ResizeObserver(([entry]) => {
     if (!entry) return;
@@ -68,7 +58,7 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
     const { width, height } = contentRect;
     resize([width, height]);
   });
-  resizer.observe(canvas);
+  if (canvas instanceof HTMLCanvasElement) resizer.observe(canvas);
 
   const clear = ([width = 0, height = 0]: vec2) => {
     gl.viewport(0, 0, width * devicePixelRatio, height * devicePixelRatio);
@@ -76,17 +66,19 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   };
 
   const render = () => {
-    const viewport = createViewport(view);
-    clear(viewport.screen);
+    const { view, layers } = properties();
+    const viewport = createViewport(view, screen);
+    clear(screen);
 
-    layers.forEach(_ => _.render({ viewport }));
+    flattenLayers(layers).forEach(_ => _.render?.({ viewport }));
   };
 
   const depth = (layer?: Layer) => {
-    const viewport = createViewport(view);
-    clear(viewport.screen);
-    (layer ? [layer] : layers).forEach((_, i) =>
-      _.render({ viewport, depth: true, index: i + 1 }),
+    const { view, layers } = properties();
+    const viewport = createViewport(view, screen);
+    clear(screen);
+    (layer ? [layer] : flattenLayers(layers)).forEach((_, i) =>
+      _.render?.({ viewport, depth: true, index: i + 1 }),
     );
   };
 
@@ -99,78 +91,63 @@ export const createWorld = (canvas: HTMLCanvasElement) => {
   requestAnimationFrame(frame);
 
   const project = (_: vec3) => {
-    const { worldToLocal, localToClip, clipToScreen } = createViewport(view);
+    const { view } = properties();
+    const { worldToLocal, localToClip, clipToScreen } = createViewport(
+      view,
+      screen,
+    );
     return clipToScreen(localToClip(worldToLocal(mercator(_))));
   };
 
   const unproject = (_: vec2) => {
-    const { localToWorld, clipToLocal, screenToClip } = createViewport(view);
+    const { view } = properties();
+    const { localToWorld, clipToLocal, screenToClip } = createViewport(
+      view,
+      screen,
+    );
     return geodetic(localToWorld(clipToLocal(screenToClip(_))));
   };
 
-  const pick = (screen: vec2, pickLayer?: Layer) => {
-    const [screenX = 0, screenY = 0] = screen;
-    const { screenToClip, clipToLocal, localToWorld } = createViewport(view);
+  const pick = (point: vec2, pickLayer?: Layer) => {
+    const { view, layers } = properties();
+    const { screenToClip, clipToLocal, localToWorld } = createViewport(
+      view,
+      screen,
+    );
 
     depthBuffer.use();
 
     depth(pickLayer);
 
+    const [px = 0, py = 0] = point;
+
     const [z, index] = depthBuffer.read([
-      screenX * devicePixelRatio,
-      screenY * devicePixelRatio,
+      px * devicePixelRatio,
+      py * devicePixelRatio,
     ]);
 
-    const [x = 0, y = 0] = screenToClip([screenX, screenY]);
+    const [x = 0, y = 0] = screenToClip(point);
     const position = geodetic(localToWorld(clipToLocal([x, y, z, 1])));
 
-    const layer = index === 0 ? undefined : pickLayer ?? layers[index - 1];
+    const layer =
+      index === 0 ? undefined : pickLayer ?? flattenLayers(layers)[index - 1];
 
-    return { screen, position, layer };
-  };
-
-  const recenter = ([cx = 0, cy = 0]: vec2) => {
-    const { camera, fieldScale } = createViewport(view);
-    const { position: target, layer } = pick([cx, cy]);
-    if (!layer) return;
-    const distance =
-      (vec3.distance(mercator(target), camera) * circumference) / fieldScale;
-    const [width = 0, height = 0] = view.screen;
-    const offset: vec2 = [cx - width / 2, cy - height / 2];
-    view = {
-      ...view,
-      offset,
-      target,
-      distance,
-    };
+    return { point, position, layer };
   };
 
   const dispose = () => {
     running = false;
-    resizer.unobserve(canvas);
-    layers.forEach(_ => _.dispose());
+    if (canvas instanceof HTMLCanvasElement) resizer.unobserve(canvas);
     depthBuffer.dispose();
   };
 
   return {
-    canvas,
-    gl,
-    get view() {
-      return view;
-    },
-    set view(_: View) {
-      view = _;
-    },
-    get layers() {
-      return layers;
-    },
-    set layers(_: Layer[]) {
-      layers = _;
-    },
     project,
     unproject,
-    recenter,
     pick,
     dispose,
   } satisfies World;
 };
+
+const flattenLayers: (_: Layer[]) => Layer[] = layers =>
+  layers.flatMap<Layer>(_ => [_, ...flattenLayers(_.children ?? [])]);

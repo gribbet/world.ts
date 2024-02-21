@@ -3,20 +3,20 @@ import type { vec3 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
-import { range } from "../../common";
+import { cache, range } from "../../common";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { Layer } from "../";
 import { defaultLayerOptions, type Line } from "../";
-import { cache, configure, to } from "../common";
+import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
 export const createLineLayer = (
   gl: WebGL2RenderingContext,
-  properties: Partial<Line> = {},
+  properties: () => Partial<Line> = () => ({}),
 ) => {
   let count = 0;
 
@@ -47,7 +47,7 @@ export const createLineLayer = (
         minWidthPixels: 0,
         maxWidthPixels: Number.MAX_VALUE,
         ...defaultLayerOptions,
-        ...properties,
+        ...properties(),
       } satisfies Line;
 
     updatePoints(points);
@@ -134,10 +134,7 @@ export const createLineLayer = (
   return {
     render,
     dispose,
-    set: (_: Partial<Line>) => {
-      properties = { ...properties, ..._ };
-    },
-  } satisfies Layer<Line>;
+  } satisfies Layer;
 };
 
 const createPrograms = (

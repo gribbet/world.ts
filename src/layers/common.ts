@@ -36,16 +36,3 @@ export const configure = (
     );
   }
 };
-
-export const cache = <T, R>(f: (_: T) => R) => {
-  let last: [T, R] | undefined;
-  return (value: T) => {
-    if (last) {
-      const [lastValue, lastResult] = last;
-      if (lastValue === value) return lastResult;
-    }
-    const result = f(value);
-    last = [value, result];
-    return result;
-  };
-};

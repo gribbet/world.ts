@@ -2,12 +2,13 @@ import type { mat4 } from "gl-matrix";
 import { vec2, vec3, vec4 } from "gl-matrix";
 
 import { createBuffer } from "../../buffer";
-import { range } from "../../common";
+import { cache, range } from "../../common";
 import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
+import type { Layer } from "..";
 import { defaultLayerOptions, type Terrain } from "..";
-import { cache, configure, to } from "../common";
+import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import type { Texture } from "./texture";
@@ -62,7 +63,7 @@ const uvw = range(0, n + 1).flatMap(y =>
 
 export const createTerrainLayer = (
   gl: WebGL2RenderingContext,
-  properties: Partial<Terrain> = {},
+  properties: () => Partial<Terrain> = () => ({}),
 ) => {
   let imageryCache: TileCache | undefined;
   let imageryDownsampler: TileDownsampler | undefined;
@@ -96,7 +97,7 @@ export const createTerrainLayer = (
     imageryDownsampler = createTileDownsampler(imageryCache);
   });
 
-  const { terrainUrl = "" } = properties;
+  const { terrainUrl = "" } = properties();
 
   const terrainCache = createTileCache({
     gl,
@@ -163,7 +164,7 @@ export const createTerrainLayer = (
       imageryUrl: "",
       color: [1, 1, 1, 1],
       ...defaultLayerOptions,
-      ...properties,
+      ...properties(),
     } satisfies Terrain;
 
     updateImageryUrl(imageryUrl);
@@ -211,12 +212,9 @@ export const createTerrainLayer = (
   };
 
   return {
-    set: (_: Partial<Terrain>) => {
-      properties = { ...properties, ..._ };
-    },
     render,
     dispose,
-  };
+  } satisfies Layer;
 };
 
 const createPrograms = (gl: WebGL2RenderingContext) => {

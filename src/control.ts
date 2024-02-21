@@ -1,47 +1,87 @@
-import type { vec3 } from "gl-matrix";
+import type { vec2 } from "gl-matrix";
+import { vec3 } from "gl-matrix";
 
 import { debounce } from "./common";
-import { circumference } from "./math";
+import { circumference, mercator } from "./math";
+import { defaultView, type View } from "./model";
+import { createViewport } from "./viewport";
 import type { World } from "./world";
 
 const minimumDistance = 100;
 
 export type MouseControl = {
-  enabled: boolean;
-  draggable: boolean;
-  rotatable: boolean;
   dispose: () => void;
 };
 
-export const createMouseControl = (world: World) => {
-  let enabled = true;
-  let draggable = true;
-  let rotatable = true;
+export type MouseControlProperties = {
+  enabled?: boolean;
+  draggable?: boolean;
+  rotatable?: boolean;
+  view: Partial<View>;
+  onChangeView: (_: Partial<View>) => void;
+};
+
+export const createMouseControl = (
+  canvas: HTMLCanvasElement,
+  world: World,
+  properties: () => MouseControlProperties,
+) => {
   let zooming = false;
   let recentered = false;
 
+  const recenter = ([cx = 0, cy = 0]: vec2) => {
+    const [width, height] = [
+      canvas.width / devicePixelRatio,
+      canvas.height / devicePixelRatio,
+    ];
+
+    const { view, onChangeView } = properties();
+
+    const { camera, fieldScale } = createViewport(view, [width, height]);
+    const { position: target, layer } = world.pick([cx, cy]);
+    if (!layer) return;
+    const distance =
+      (vec3.distance(mercator(target), camera) * circumference) / fieldScale;
+    const offset: vec2 = [cx - width / 2, cy - height / 2];
+
+    onChangeView({
+      offset,
+      target,
+      distance,
+    });
+  };
+
   const onMouseDown = () => {
     recentered = false;
-    if (!enabled || !draggable) return;
   };
 
   const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
+    const {
+      enabled = true,
+      draggable = true,
+      rotatable = true,
+      view,
+      onChangeView,
+    } = properties();
+
     if (!enabled) return;
+
     if (draggable && !recentered) {
-      world.recenter([x, y]);
+      recenter([x, y]);
       recentered = true;
     }
-    if (buttons === 1 && draggable) {
-      const [width = 0, height = 0] = world.view.screen;
-      world.view = {
-        ...world.view,
+
+    const [width, height] = [
+      canvas.width / devicePixelRatio,
+      canvas.height / devicePixelRatio,
+    ];
+
+    if (buttons === 1 && draggable)
+      onChangeView({
         offset: [x - width / 2, y - height / 2],
-      };
-    } else if (buttons === 2 && rotatable) {
-      const {
-        screen: [width = 0, height = 0],
-        orientation: [pitch = 0, roll = 0, yaw = 0],
-      } = world.view;
+      });
+    else if (buttons === 2 && rotatable) {
+      const { orientation: [pitch = 0, roll = 0, yaw = 0] = [] } = view;
       const orientation = [
         Math.min(
           Math.PI / 2,
@@ -50,35 +90,38 @@ export const createMouseControl = (world: World) => {
         roll,
         yaw - (movementX / width) * Math.PI,
       ] satisfies vec3;
-      world.view = {
-        ...world.view,
+      onChangeView({
         orientation,
-      };
+      });
     }
   };
 
   const clearZooming = debounce(() => (zooming = false), 100);
 
   const onWheel = ({ x, y, deltaY }: WheelEvent) => {
+    const {
+      enabled = true,
+      draggable = true,
+      view,
+      onChangeView,
+    } = properties();
+
+    let { distance } = { ...defaultView, ...view };
+
     if (!enabled) return;
     if (!zooming) {
-      if (draggable) world.recenter([x, y]);
+      if (draggable) recenter([x, y]);
       zooming = true;
     }
-    const distance = Math.min(
-      Math.max(world.view.distance * Math.exp(deltaY * 0.001), minimumDistance),
+    distance = Math.min(
+      Math.max(distance * Math.exp(deltaY * 0.0), minimumDistance),
       circumference,
     );
-    world.view = {
-      ...world.view,
-      distance,
-    };
+    onChangeView({ distance });
     clearZooming();
   };
 
   const onContextMenu = (event: MouseEvent) => event.preventDefault();
-
-  const { canvas } = world;
 
   canvas.addEventListener("mousedown", onMouseDown);
   canvas.addEventListener("mousemove", onMouseMove);
@@ -93,24 +136,6 @@ export const createMouseControl = (world: World) => {
   };
 
   return {
-    get enabled() {
-      return enabled;
-    },
-    set enabled(_: boolean) {
-      enabled = _;
-    },
-    get draggable() {
-      return draggable;
-    },
-    set draggable(_: boolean) {
-      draggable = _;
-    },
-    get rotatable() {
-      return rotatable;
-    },
-    set rotatable(_: boolean) {
-      rotatable = _;
-    },
     dispose,
   } satisfies MouseControl;
 };

@@ -58,8 +58,8 @@ export type Billboard = {
   maxSizePixels?: number;
 } & LayerOptions;
 
-export type Layer<T = never> = {
-  set: (_: T) => void;
-  render: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;
+export type Layer = {
+  children?: Layer[];
+  render?: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;
   dispose: () => void;
 };

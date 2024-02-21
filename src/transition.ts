@@ -13,43 +13,30 @@ export type Transition<T> = {
 export const createTransition = <T>(
   step: (_: { time: number; current: T; target: T }) => T,
 ) => {
-  let running = true;
   let target: T | undefined;
   let current: T | undefined;
   let last: number | undefined;
 
-  const frame = () => {
-    if (!running) return;
-    requestAnimationFrame(frame);
-
-    const now = performance.now();
-    const time = (now - (last ?? now)) / 1000;
-    last = now;
-
-    if (time > 1) {
-      current = target;
-      target = undefined;
-    }
-
-    if (!current || !target) return;
-
-    current = step({ time, current, target });
-  };
-  requestAnimationFrame(frame);
-
-  const dispose = () => {
-    running = false;
-  };
-
   return {
     get value() {
+      const now = performance.now();
+      const time = (now - (last ?? now)) / 1000;
+      last = now;
+
+      if (time > 1) {
+        current = target;
+        target = undefined;
+      }
+
+      if (!current || !target) return;
+
+      current = step({ time, current, target });
       return current;
     },
     set value(_: T | undefined) {
       if (!current || !_) current = _;
       target = _;
     },
-    dispose,
   };
 };
 
@@ -101,9 +88,7 @@ export const createPositionTransition = (
     return current;
   });
 
-export const createPositionVelocityTransition = (
-  update?: (_: vec3, target: vec3) => void,
-) => {
+export const createPositionVelocityTransition = () => {
   let velocity: vec3 = [0, 0, 0];
   let targetVelocity: vec3 = [0, 0, 0];
   let last: vec3 | undefined;
@@ -161,8 +146,6 @@ export const createPositionVelocityTransition = (
     );
 
     velocity = nextVelocity;
-
-    update?.(current, target);
 
     return current;
   });

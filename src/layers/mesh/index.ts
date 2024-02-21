@@ -3,19 +3,20 @@ import { mat4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
+import { cache } from "../../common";
 import type { Layer } from "../../layers";
 import { defaultLayerOptions, type Mesh } from "../../layers";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import { cache, configure, to } from "../common";
+import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
 export const createMeshLayer = (
   gl: WebGL2RenderingContext,
-  properties: Partial<Mesh> = {},
+  properties: () => Partial<Mesh> = () => ({}),
 ) => {
   let count = 0;
 
@@ -56,7 +57,7 @@ export const createMeshLayer = (
       minSizePixels: 0,
       maxSizePixels: Number.MAX_VALUE,
       ...defaultLayerOptions,
-      ...properties,
+      ...properties(),
     } satisfies Mesh;
 
     updateVertices(vertices);
@@ -98,12 +99,9 @@ export const createMeshLayer = (
   };
 
   return {
-    set: (_: Partial<Mesh>) => {
-      properties = { ...properties, ..._ };
-    },
     render,
     dispose,
-  } satisfies Layer<Mesh>;
+  } satisfies Layer;
 };
 
 const createPrograms = (
