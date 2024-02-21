@@ -10,25 +10,25 @@ export type Transition<T> = {
   dispose: () => void;
 };
 
-export const createTransition = <T>(
-  step: (_: { time: number; current: T; target: T }) => T,
-) => {
-  let current: T | undefined;
-  let last: number | undefined;
+export const createTransition =
+  <T>(step: (_: { time: number; current: T; target: T }) => T) =>
+  (_target: () => T) => {
+    let current: T | undefined;
+    let last: number | undefined;
 
-  return (_target: () => T) => () => {
-    const now = performance.now();
-    const time = (now - (last ?? now)) / 1000;
-    last = now;
+    return () => {
+      const now = performance.now();
+      const time = (now - (last ?? now)) / 1000;
+      last = now;
 
-    if (time > 1) current = undefined;
+      if (time > 1) current = undefined;
 
-    const target = _target();
-    current = current ?? target;
-    current = step({ time, current, target });
-    return current;
+      const target = _target();
+      current = current ?? target;
+      current = step({ time, current, target });
+      return current;
+    };
   };
-};
 
 export const createNumberTransition = createTransition<number>(
   ({ time, current, target }) => {
