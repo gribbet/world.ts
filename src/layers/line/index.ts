@@ -3,12 +3,12 @@ import type { vec3 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
-import { cache, range } from "../../common";
+import { range } from "../../common";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import type { Layer } from "../";
-import { defaultLayerOptions, type Line } from "../";
+import type { Layer, Properties } from "../";
+import { cache, type Line, resolve } from "../";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -16,7 +16,7 @@ import vertexSource from "./vertex.glsl";
 
 export const createLineLayer = (
   gl: WebGL2RenderingContext,
-  properties: () => Partial<Line> = () => ({}),
+  properties: Properties<Partial<Line>> = {},
 ) => {
   let count = 0;
 
@@ -39,18 +39,15 @@ export const createLineLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    const { points, color, width, minWidthPixels, maxWidthPixels, ...options } =
-      {
-        points: [],
-        color: [1, 1, 1, 1],
-        width: 1,
-        minWidthPixels: 0,
-        maxWidthPixels: Number.MAX_VALUE,
-        ...defaultLayerOptions,
-        ...properties(),
-      } satisfies Line;
+    const {
+      color = [1, 1, 1, 1],
+      width = 1,
+      minWidthPixels = 0,
+      maxWidthPixels = Number.MAX_VALUE,
+      ...options
+    } = resolve(properties);
 
-    updatePoints(points);
+    updatePoints();
 
     if (configure(gl, depth, options)) return;
 
@@ -70,58 +67,61 @@ export const createLineLayer = (
     });
   };
 
-  const updatePoints = cache((_: vec3[][]) => {
-    const positionData = _.flatMap(_ => {
-      const [first] = _;
-      const [last] = _.slice(-1);
+  const updatePoints = cache(
+    () => properties.points?.() ?? [],
+    _ => {
+      const positionData = _.flatMap(_ => {
+        const [first] = _;
+        const [last] = _.slice(-1);
 
-      if (!first || !last) return [];
+        if (!first || !last) return [];
 
-      return [first, ..._, last]
-        .map(_ => to(mercator(_)))
-        .flatMap(_ => [..._, ..._, ..._, ..._]);
-    });
+        return [first, ..._, last]
+          .map(_ => to(mercator(_)))
+          .flatMap(_ => [..._, ..._, ..._, ..._]);
+      });
 
-    const { indexData } = _.reduce<{
-      indexData: number[];
-      count: number;
-    }>(
-      ({ indexData, count }, _) => {
-        if (_.length === 0) return { indexData, count };
-        const indices = range(0, (_.length - 1) * 2).flatMap(i => {
-          const [a = 0, b = 0, c = 0, d = 0] = range(0, 4).map(
-            _ => _ + i * 2 + count,
-          );
-          return [
-            [a, b, d],
-            [a, d, c],
-          ].flat();
-        });
-        count += (_.length + 2) * 4;
-        indexData = indexData.concat(indices);
-        return { indexData, count };
-      },
-      { indexData: [], count: 0 },
-    );
-    count = indexData.length;
+      const { indexData } = _.reduce<{
+        indexData: number[];
+        count: number;
+      }>(
+        ({ indexData, count }, _) => {
+          if (_.length === 0) return { indexData, count };
+          const indices = range(0, (_.length - 1) * 2).flatMap(i => {
+            const [a = 0, b = 0, c = 0, d = 0] = range(0, 4).map(
+              _ => _ + i * 2 + count,
+            );
+            return [
+              [a, b, d],
+              [a, d, c],
+            ].flat();
+          });
+          count += (_.length + 2) * 4;
+          indexData = indexData.concat(indices);
+          return { indexData, count };
+        },
+        { indexData: [], count: 0 },
+      );
+      count = indexData.length;
 
-    const cornerData = _.flatMap(_ =>
-      _.length === 0
-        ? []
-        : range(0, (_.length + 1) * 2).flatMap(() =>
-            [
-              [-1, -1],
-              [-1, 1],
-              [1, -1],
-              [1, 1],
-            ].flat(),
-          ),
-    );
+      const cornerData = _.flatMap(_ =>
+        _.length === 0
+          ? []
+          : range(0, (_.length + 1) * 2).flatMap(() =>
+              [
+                [-1, -1],
+                [-1, 1],
+                [1, -1],
+                [1, 1],
+              ].flat(),
+            ),
+      );
 
-    positionBuffer.set(positionData);
-    indexBuffer.set(indexData);
-    cornerBuffer.set(cornerData);
-  });
+      positionBuffer.set(positionData);
+      indexBuffer.set(indexData);
+      cornerBuffer.set(cornerData);
+    },
+  );
 
   const dispose = () => {
     positionBuffer.dispose();

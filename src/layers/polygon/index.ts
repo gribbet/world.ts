@@ -4,12 +4,11 @@ import type { vec3 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
-import { cache } from "../../common";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import type { Layer } from "..";
-import { defaultLayerOptions, type Polygon } from "..";
+import type { Layer, Properties } from "..";
+import { cache, type Polygon, resolve } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -17,7 +16,7 @@ import vertexSource from "./vertex.glsl";
 
 export const createPolygonLayer = (
   gl: WebGL2RenderingContext,
-  properties: () => Partial<Polygon> = () => ({}),
+  properties: Properties<Partial<Polygon>> = {},
 ) => {
   let count = 0;
 
@@ -38,14 +37,9 @@ export const createPolygonLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    const { points, color, ...options } = {
-      points: [],
-      color: [1, 1, 1, 1],
-      ...defaultLayerOptions,
-      ...properties(),
-    } satisfies Polygon;
+    const { color = [1, 1, 1, 1], ...options } = resolve(properties);
 
-    updatePoints(points);
+    updatePoints();
 
     if (configure(gl, depth, options)) return;
 
@@ -62,14 +56,17 @@ export const createPolygonLayer = (
     });
   };
 
-  const updatePoints = cache((_: vec3[][]) => {
-    const { vertices, indices } = earclip(
-      _.map(_ => _.map(_ => [...to(mercator(_))])),
-    );
-    positionBuffer.set(vertices);
-    indexBuffer.set(indices);
-    count = indices.length;
-  });
+  const updatePoints = cache(
+    () => properties.points?.() ?? [],
+    _ => {
+      const { vertices, indices } = earclip(
+        _.map(_ => _.map(_ => [...to(mercator(_))])),
+      );
+      positionBuffer.set(vertices);
+      indexBuffer.set(indices);
+      count = indices.length;
+    },
+  );
 
   const dispose = () => {
     positionBuffer.dispose();

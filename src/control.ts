@@ -2,6 +2,7 @@ import type { vec2 } from "gl-matrix";
 import { vec3 } from "gl-matrix";
 
 import { debounce } from "./common";
+import { type Properties, resolve } from "./layers";
 import { circumference, mercator } from "./math";
 import { defaultView, type View } from "./model";
 import { createViewport } from "./viewport";
@@ -24,18 +25,18 @@ export type MouseControlProperties = {
 export const createMouseControl = (
   canvas: HTMLCanvasElement,
   world: World,
-  properties: () => MouseControlProperties,
+  properties: Properties<MouseControlProperties>,
 ) => {
   let zooming = false;
   let recentered = false;
 
   const recenter = ([cx = 0, cy = 0]: vec2) => {
+    const { view, onChangeView } = resolve(properties);
+
     const [width, height] = [
       canvas.width / devicePixelRatio,
       canvas.height / devicePixelRatio,
     ];
-
-    const { view, onChangeView } = properties();
 
     const { camera, fieldScale } = createViewport(view, [width, height]);
     const { position: target, layer } = world.pick([cx, cy]);
@@ -62,7 +63,7 @@ export const createMouseControl = (
       rotatable = true,
       view,
       onChangeView,
-    } = properties();
+    } = resolve(properties);
 
     if (!enabled) return;
 
@@ -104,7 +105,7 @@ export const createMouseControl = (
       draggable = true,
       view,
       onChangeView,
-    } = properties();
+    } = resolve(properties);
 
     let { distance } = { ...defaultView, ...view };
 

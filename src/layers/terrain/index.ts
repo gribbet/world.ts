@@ -2,12 +2,12 @@ import type { mat4 } from "gl-matrix";
 import { vec2, vec3, vec4 } from "gl-matrix";
 
 import { createBuffer } from "../../buffer";
-import { cache, range } from "../../common";
+import { range } from "../../common";
 import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import type { Layer } from "..";
-import { defaultLayerOptions, type Terrain } from "..";
+import type { Layer, Properties } from "..";
+import { cache, resolve, type Terrain } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -63,41 +63,46 @@ const uvw = range(0, n + 1).flatMap(y =>
 
 export const createTerrainLayer = (
   gl: WebGL2RenderingContext,
-  properties: () => Partial<Terrain> = () => ({}),
+  properties: Properties<Partial<Terrain>> = {},
 ) => {
   let imageryCache: TileCache | undefined;
   let imageryDownsampler: TileDownsampler | undefined;
 
-  const updateImageryUrl = cache((imageryUrl: string) => {
-    imageryCache?.dispose();
-    imageryCache = createTileCache({
-      gl,
-      urlPattern: imageryUrl,
-      onLoad: () => {
-        const extension = gl.getExtension("EXT_texture_filter_anisotropic");
-        if (extension) {
-          const max = gl.getParameter(extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT);
-          gl.texParameterf(
+  const updateImageryUrl = cache(
+    () => properties.imageryUrl?.() ?? "",
+    imageryUrl => {
+      imageryCache?.dispose();
+      imageryCache = createTileCache({
+        gl,
+        urlPattern: imageryUrl,
+        onLoad: () => {
+          const extension = gl.getExtension("EXT_texture_filter_anisotropic");
+          if (extension) {
+            const max = gl.getParameter(
+              extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT,
+            );
+            gl.texParameterf(
+              gl.TEXTURE_2D,
+              extension.TEXTURE_MAX_ANISOTROPY_EXT,
+              max,
+            );
+          }
+          gl.texParameteri(
             gl.TEXTURE_2D,
-            extension.TEXTURE_MAX_ANISOTROPY_EXT,
-            max,
+            gl.TEXTURE_MIN_FILTER,
+            gl.LINEAR_MIPMAP_LINEAR,
           );
-        }
-        gl.texParameteri(
-          gl.TEXTURE_2D,
-          gl.TEXTURE_MIN_FILTER,
-          gl.LINEAR_MIPMAP_LINEAR,
-        );
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.generateMipmap(gl.TEXTURE_2D);
-      },
-    });
-    imageryDownsampler = createTileDownsampler(imageryCache);
-  });
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.generateMipmap(gl.TEXTURE_2D);
+        },
+      });
+      imageryDownsampler = createTileDownsampler(imageryCache);
+    },
+  );
 
-  const { terrainUrl = "" } = properties();
+  const terrainUrl = properties.terrainUrl?.() ?? "";
 
   const terrainCache = createTileCache({
     gl,
@@ -159,15 +164,9 @@ export const createTerrainLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    const { imageryUrl, color, ...options } = {
-      terrainUrl: "",
-      imageryUrl: "",
-      color: [1, 1, 1, 1],
-      ...defaultLayerOptions,
-      ...properties(),
-    } satisfies Terrain;
+    const { color = [1, 1, 1, 1], ...options } = resolve(properties);
 
-    updateImageryUrl(imageryUrl);
+    updateImageryUrl();
 
     if (configure(gl, depth, options)) return;
 

@@ -13,47 +13,33 @@ export type Transition<T> = {
 export const createTransition = <T>(
   step: (_: { time: number; current: T; target: T }) => T,
 ) => {
-  let target: T | undefined;
   let current: T | undefined;
   let last: number | undefined;
 
-  return {
-    get value() {
-      const now = performance.now();
-      const time = (now - (last ?? now)) / 1000;
-      last = now;
+  return (_target: () => T) => () => {
+    const now = performance.now();
+    const time = (now - (last ?? now)) / 1000;
+    last = now;
 
-      if (time > 1) {
-        current = target;
-        target = undefined;
-      }
+    if (time > 1) current = undefined;
 
-      if (!current || !target) return;
-
-      current = step({ time, current, target });
-      return current;
-    },
-    set value(_: T | undefined) {
-      if (!current || !_) current = _;
-      target = _;
-    },
+    const target = _target();
+    current = current ?? target;
+    current = step({ time, current, target });
+    return current;
   };
 };
 
-export const createNumberTransition = (
-  update?: (_: number, target: number) => void,
-) =>
-  createTransition<number>(({ time, current, target }) => {
+export const createNumberTransition = createTransition<number>(
+  ({ time, current, target }) => {
     current = current + (target - current) * k * time;
     if (Math.abs(target - current) < epsilon) current = target;
-    update?.(current, target);
     return current;
-  });
+  },
+);
 
-export const createColorTransition = (
-  update?: (_: vec4, target: vec4) => void,
-) =>
-  createTransition<vec4>(({ time, current, target }) => {
+export const createColorTransition = createTransition<vec4>(
+  ({ time, current, target }) => {
     current = vec4.add(
       vec4.create(),
       current,
@@ -64,14 +50,12 @@ export const createColorTransition = (
       ),
     );
     if (vec4.distance(current, target) < epsilon) current = target;
-    update?.(current, target);
     return current;
-  });
+  },
+);
 
-export const createPositionTransition = (
-  update?: (_: vec3, target: vec3) => void,
-) =>
-  createTransition<vec3>(({ time, current, target }) => {
+export const createPositionTransition = createTransition<vec3>(
+  ({ time, current, target }) => {
     current = geodetic(
       vec3.add(
         vec3.create(),
@@ -84,17 +68,17 @@ export const createPositionTransition = (
       ),
     );
     if (vec3.distance(current, target) < epsilon) current = target;
-    update?.(current, target);
     return current;
-  });
+  },
+);
 
-export const createPositionVelocityTransition = () => {
+export const createPositionVelocityTransition = (target: () => vec3) => {
   let velocity: vec3 = [0, 0, 0];
   let targetVelocity: vec3 = [0, 0, 0];
   let last: vec3 | undefined;
   let lastTime: number | undefined;
 
-  return createTransition<vec3>(({ time, current, target }) => {
+  const transition = createTransition<vec3>(({ time, current, target }) => {
     if (target === current || time > 1) {
       last = undefined;
       velocity = [0, 0, 0];
@@ -149,12 +133,12 @@ export const createPositionVelocityTransition = () => {
 
     return current;
   });
+
+  return transition(target);
 };
 
-export const createOrientationTransition = (
-  update?: (_: vec3, target: vec3) => void,
-) =>
-  createTransition<vec3>(({ time, current, target }) => {
+export const createOrientationTransition = createTransition<vec3>(
+  ({ time, current, target }) => {
     current = toOrientation(
       quat.slerp(
         quat.create(),
@@ -165,6 +149,6 @@ export const createOrientationTransition = (
     );
     if (quat.getAngle(toQuaternion(current), toQuaternion(target)) < epsilon)
       target = current;
-    update?.(current, target);
     return current;
-  });
+  },
+);

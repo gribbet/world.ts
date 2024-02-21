@@ -63,3 +63,26 @@ export type Layer = {
   render?: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;
   dispose: () => void;
 };
+
+export type Properties<T> = {
+  [K in keyof T]: () => T[K];
+};
+
+export const resolve = <T>(_: Properties<T>) =>
+  Object.fromEntries(
+    Object.entries<() => unknown>(_).map(([key, value]) => [key, value()]),
+  ) as T;
+
+export const cache = <T, R>(_value: () => T, f: (_: T) => R) => {
+  let last: [T, R] | undefined;
+  return () => {
+    const value = _value();
+    if (last) {
+      const [lastValue, lastResult] = last;
+      if (lastValue === value) return lastResult;
+    }
+    const result = f(value);
+    last = [value, result];
+    return result;
+  };
+};

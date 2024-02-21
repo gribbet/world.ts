@@ -2,12 +2,11 @@ import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
-import { cache } from "../../common";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import type { Layer } from "..";
-import { type Billboard, defaultLayerOptions } from "..";
+import type { Layer, Properties } from "..";
+import { type Billboard, cache, resolve } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import { createImageTexture } from "../terrain/image-texture";
@@ -17,7 +16,7 @@ import vertexSource from "./vertex.glsl";
 
 export const createBillboardLayer = (
   gl: WebGL2RenderingContext,
-  properties: () => Partial<Billboard> = () => ({}),
+  properties: Properties<Partial<Billboard>> = {},
 ) => {
   let image: Texture | undefined;
   let imageSize: vec2 = [0, 0];
@@ -49,20 +48,23 @@ export const createBillboardLayer = (
     ].flat(),
   );
 
-  const updateUrl = cache((url: string) => {
-    image?.dispose();
-    image = createImageTexture({
-      gl,
-      url,
-      onLoad: ({ width, height }) => {
-        imageSize = [width, height];
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-      },
-    });
-  });
+  const updateUrl = cache(
+    () => properties.url?.() ?? "",
+    url => {
+      image?.dispose();
+      image = createImageTexture({
+        gl,
+        url,
+        onLoad: ({ width, height }) => {
+          imageSize = [width, height];
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        },
+      });
+    },
+  );
 
   const { renderProgram, depthProgram } = createPrograms(gl, {
     cornerBuffer,
@@ -80,25 +82,15 @@ export const createBillboardLayer = (
     index?: number;
   }) => {
     const {
-      url,
-      position,
-      color,
-      size,
-      minSizePixels,
-      maxSizePixels,
+      position = [0, 0, 0],
+      color = [1, 1, 1, 1],
+      size = 100,
+      minSizePixels = 0,
+      maxSizePixels = Number.MAX_VALUE,
       ...options
-    } = {
-      url: "",
-      position: [0, 0, 0],
-      color: [1, 1, 1, 1],
-      size: 100,
-      minSizePixels: 0,
-      maxSizePixels: Number.MAX_VALUE,
-      ...defaultLayerOptions,
-      ...properties(),
-    } satisfies Billboard;
+    } = resolve(properties);
 
-    updateUrl(url);
+    updateUrl();
 
     if (!image) return;
 

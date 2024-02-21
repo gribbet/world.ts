@@ -3,9 +3,8 @@ import { mat4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
-import { cache } from "../../common";
-import type { Layer } from "../../layers";
-import { defaultLayerOptions, type Mesh } from "../../layers";
+import type { Layer, Properties } from "../../layers";
+import { cache, type Mesh, resolve } from "../../layers";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
@@ -16,7 +15,7 @@ import vertexSource from "./vertex.glsl";
 
 export const createMeshLayer = (
   gl: WebGL2RenderingContext,
-  properties: () => Partial<Mesh> = () => ({}),
+  properties: Properties<Partial<Mesh>> = {},
 ) => {
   let count = 0;
 
@@ -38,30 +37,17 @@ export const createMeshLayer = (
     index?: number;
   }) => {
     const {
-      vertices,
-      indices,
-      position,
-      orientation,
-      color,
-      size,
-      minSizePixels,
-      maxSizePixels,
+      position = [0, 0, 0],
+      orientation = [0, 0, 0, 1],
+      color = [1, 1, 1, 1],
+      size = 1,
+      minSizePixels = 0,
+      maxSizePixels = Number.MAX_VALUE,
       ...options
-    } = {
-      vertices: [],
-      indices: [],
-      position: [0, 0, 0],
-      orientation: [0, 0, 0, 1],
-      color: [1, 1, 1, 1],
-      size: 1,
-      minSizePixels: 0,
-      maxSizePixels: Number.MAX_VALUE,
-      ...defaultLayerOptions,
-      ...properties(),
-    } satisfies Mesh;
+    } = resolve(properties);
 
-    updateVertices(vertices);
-    updateIndices(indices);
+    updateVertices();
+    updateIndices();
 
     if (configure(gl, depth, options)) return;
 
@@ -82,14 +68,18 @@ export const createMeshLayer = (
     });
   };
 
-  const updateVertices = cache((_: vec3[]) =>
-    vertexBuffer.set(_.flatMap(_ => [..._])),
+  const updateVertices = cache(
+    () => properties.vertices?.() ?? [],
+    _ => vertexBuffer.set(_.flatMap(_ => [..._])),
   );
 
-  const updateIndices = cache((_: vec3[]) => {
-    indexBuffer.set(_.flatMap(_ => [..._]));
-    count = _.length * 3;
-  });
+  const updateIndices = cache(
+    () => properties.indices?.() ?? [],
+    _ => {
+      indexBuffer.set(_.flatMap(_ => [..._]));
+      count = _.length * 3;
+    },
+  );
 
   const dispose = () => {
     vertexBuffer.dispose();
