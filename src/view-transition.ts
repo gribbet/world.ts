@@ -4,7 +4,7 @@ import { circumference, mercator, toOrientation, toQuaternion } from "./math";
 import type { View } from "./model";
 import type { World } from "./world";
 
-const k = 5;
+const k = 10;
 
 export type ViewTransition = {
   view: Partial<View>;
@@ -46,7 +46,7 @@ export const createViewTransition = (world: World) => {
             vec3.create(),
             view.target,
             delta,
-            k * time * slowdown * 0,
+            k * time * slowdown,
           );
       if (finished) target.target = undefined;
     }
@@ -69,7 +69,7 @@ export const createViewTransition = (world: World) => {
       const finished = Math.abs(delta) / 10000 < epsilon;
       view.distance = finished
         ? goalDistance
-        : view.distance + delta * k * time * 0.01;
+        : view.distance + delta * k * time;
       if (finished) target.distance = undefined;
     }
 
