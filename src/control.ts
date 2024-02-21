@@ -108,9 +108,9 @@ export const createMouseControl = (
     } = resolve(properties);
 
     if (!enabled) return;
+
     if (!zooming) {
       if (draggable) recenter([x, y]);
-
       zooming = true;
     }
 

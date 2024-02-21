@@ -4,7 +4,7 @@ import { mat4 } from "gl-matrix";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import type { Layer, Properties } from "../../layers";
-import { cache, type Mesh, resolve } from "../../layers";
+import { cache, createMouseEvents, type Mesh, resolve } from "../../layers";
 import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
@@ -88,9 +88,12 @@ export const createMeshLayer = (
     depthProgram.dispose();
   };
 
+  const mouseEvents = createMouseEvents(properties);
+
   return {
     render,
     dispose,
+    ...mouseEvents,
   } satisfies Layer;
 };
 

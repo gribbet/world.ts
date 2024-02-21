@@ -7,7 +7,7 @@ import { createElevation } from "../../elevation";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { Layer, Properties } from "..";
-import { cache, resolve, type Terrain } from "..";
+import { cache, createMouseEvents, resolve, type Terrain } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -210,9 +210,12 @@ export const createTerrainLayer = (
     elevation.dispose();
   };
 
+  const mouseEvents = createMouseEvents(properties);
+
   return {
     render,
     dispose,
+    ...mouseEvents,
   } satisfies Layer;
 };
 

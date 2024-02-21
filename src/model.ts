@@ -1,5 +1,6 @@
 import type { vec2, vec3 } from "gl-matrix";
 
+import type { Layer } from "./layers";
 import { circumference } from "./math";
 
 export type View = {
@@ -16,4 +17,10 @@ export const defaultView: View = {
   distance: circumference,
   orientation: [0, 0, 0],
   fieldOfView: 45,
+};
+
+export type Pick = {
+  point: vec2;
+  position: vec3;
+  layer: Layer | undefined;
 };

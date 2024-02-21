@@ -6,7 +6,7 @@ import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { Layer, Properties } from "..";
-import { type Billboard, cache, resolve } from "..";
+import { type Billboard, cache, createMouseEvents, resolve } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import { createImageTexture } from "../terrain/image-texture";
@@ -123,9 +123,12 @@ export const createBillboardLayer = (
     image?.dispose();
   };
 
+  const mouseEvents = createMouseEvents(properties);
+
   return {
     render,
     dispose,
+    ...mouseEvents,
   } satisfies Layer;
 };
 

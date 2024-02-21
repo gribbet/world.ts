@@ -4,16 +4,10 @@ import { glMatrix } from "gl-matrix";
 import { createDepthBuffer } from "./depth-buffer";
 import type { Layer, Properties } from "./layers";
 import { geodetic, mercator } from "./math";
-import type { View } from "./model";
+import type { Pick, View } from "./model";
 import { createViewport } from "./viewport";
 
 glMatrix.setMatrixArrayType(Array); // Required for precision
-
-type Pick = {
-  point: vec2;
-  position: vec3;
-  layer: Layer | undefined;
-};
 
 export type World = {
   project: (_: vec3) => vec2;
@@ -132,8 +126,11 @@ export const createWorld = (
     return { point, position, layer };
   };
 
+  const mouseEvents = createMouseEvents(gl, pick);
+
   const dispose = () => {
     running = false;
+    mouseEvents.dispose();
     if (canvas instanceof HTMLCanvasElement) resizer.unobserve(canvas);
     depthBuffer.dispose();
   };
@@ -148,3 +145,73 @@ export const createWorld = (
 
 const flattenLayers: (_: Layer[]) => Layer[] = layers =>
   layers.flatMap<Layer>(_ => [_, ...flattenLayers(_.children ?? [])]);
+
+const createMouseEvents = (
+  gl: WebGL2RenderingContext,
+  pick: (_: vec2) => Pick,
+) => {
+  const canvas = gl.canvas instanceof HTMLCanvasElement ? gl.canvas : undefined;
+
+  let clicked = false;
+
+  const onMouseDown = () => {
+    clicked = true;
+  };
+
+  const onMouseMove = ({ movementX, movementY }: MouseEvent) => {
+    if (Math.abs(movementX) > 1 || Math.abs(movementY) > 1) clicked = false;
+  };
+
+  const onMouseUp = (_: MouseEvent) => {
+    if (clicked) onClick(_);
+  };
+
+  const onClick = ({ x, y, buttons }: MouseEvent) => {
+    if (buttons !== 0) return;
+    const { point, position, layer } = pick([x, y]);
+    layer?.onClick?.({ point, position, layer });
+  };
+
+  canvas?.addEventListener("mousedown", onMouseDown);
+  canvas?.addEventListener("mousemove", onMouseMove);
+  canvas?.addEventListener("mouseup", onMouseUp);
+
+  const dispose = () => {
+    canvas?.removeEventListener("mousedown", onMouseDown);
+    canvas?.removeEventListener("mousemove", onMouseMove);
+    canvas?.removeEventListener("mouseup", onMouseUp);
+  };
+
+  return { dispose };
+};
+
+export const handleClick = (
+  element: HTMLElement,
+  onClick: (_: MouseEvent) => void,
+) => {
+  let clicked = false;
+
+  const onMouseDown = () => {
+    clicked = true;
+  };
+
+  const onMouseMove = ({ movementX, movementY }: MouseEvent) => {
+    if (Math.abs(movementX) > 1 || Math.abs(movementY) > 1) clicked = false;
+  };
+
+  const onMouseUp = (_: MouseEvent) => {
+    if (clicked) onClick(_);
+  };
+
+  element.addEventListener("mousedown", onMouseDown);
+  element.addEventListener("mousemove", onMouseMove);
+  element.addEventListener("mouseup", onMouseUp);
+
+  const dispose = () => {
+    element.removeEventListener("mousedown", onMouseDown);
+    element.removeEventListener("mousemove", onMouseMove);
+    element.removeEventListener("mouseup", onMouseUp);
+  };
+
+  return { dispose };
+};

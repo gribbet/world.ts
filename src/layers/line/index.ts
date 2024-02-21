@@ -8,7 +8,7 @@ import { mercator } from "../../math";
 import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import type { Layer, Properties } from "../";
-import { cache, type Line, resolve } from "../";
+import { cache, createMouseEvents, type Line, resolve } from "../";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -131,9 +131,12 @@ export const createLineLayer = (
     depthProgram.dispose();
   };
 
+  const mouseEvents = createMouseEvents(properties);
+
   return {
     render,
     dispose,
+    ...mouseEvents,
   } satisfies Layer;
 };
 

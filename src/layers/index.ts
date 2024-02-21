@@ -6,11 +6,13 @@ export * from "./line";
 export * from "./mesh";
 export * from "./polygon";
 export * from "./terrain";
+import type { Pick } from "../model";
 
 export type LayerOptions = {
   pickable: boolean;
   depth: boolean;
   polygonOffset: number;
+  onClick?: (_: Pick) => void;
 };
 
 export const defaultLayerOptions: LayerOptions = {
@@ -61,6 +63,7 @@ export type Billboard = {
 export type Layer = {
   children?: Layer[];
   render?: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;
+  onClick?: (_: Pick) => void;
   dispose: () => void;
 };
 
@@ -90,4 +93,12 @@ export const cache = <T, R>(_value: () => T, f: (_: T) => R) => {
     last = [value, result];
     return result;
   };
+};
+
+export const createMouseEvents = (
+  properties: Properties<Partial<LayerOptions>>,
+) => {
+  const onClick = (_: Pick) => properties.onClick?.()?.(_);
+
+  return { onClick };
 };
