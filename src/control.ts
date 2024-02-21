@@ -30,15 +30,17 @@ export const createMouseControl = (
   let zooming = false;
   let recentered = false;
 
+  const { view } = properties;
+
   const recenter = ([cx = 0, cy = 0]: vec2) => {
-    const { view, onChangeView } = resolve(properties);
+    const { onChangeView } = resolve(properties);
 
     const [width, height] = [
       canvas.width / devicePixelRatio,
       canvas.height / devicePixelRatio,
     ];
 
-    const { camera, fieldScale } = createViewport(view, [width, height]);
+    const { camera, fieldScale } = createViewport(view(), [width, height]);
     const { position: target, layer } = world.pick([cx, cy]);
     if (!layer) return;
     const distance =
@@ -61,7 +63,6 @@ export const createMouseControl = (
       enabled = true,
       draggable = true,
       rotatable = true,
-      view,
       onChangeView,
     } = resolve(properties);
 
@@ -82,7 +83,7 @@ export const createMouseControl = (
         offset: [x - width / 2, y - height / 2],
       });
     else if (buttons === 2 && rotatable) {
-      const { orientation: [pitch = 0, roll = 0, yaw = 0] = [] } = view;
+      const { orientation: [pitch = 0, roll = 0, yaw = 0] = [] } = view();
       const orientation = [
         Math.min(
           Math.PI / 2,
@@ -103,17 +104,18 @@ export const createMouseControl = (
     const {
       enabled = true,
       draggable = true,
-      view,
       onChangeView,
     } = resolve(properties);
-
-    let { distance } = { ...defaultView, ...view };
 
     if (!enabled) return;
     if (!zooming) {
       if (draggable) recenter([x, y]);
+
       zooming = true;
     }
+
+    let { distance } = { ...defaultView, ...view() };
+
     distance = Math.min(
       Math.max(distance * Math.exp(deltaY * 0.001), minimumDistance),
       circumference,
