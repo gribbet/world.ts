@@ -27,14 +27,14 @@ export const createMouseControl = (
   world: World,
   properties: Properties<MouseControlProperties>,
 ) => {
+  const { onChangeView } = properties;
+
   let zooming = false;
   let recentered = false;
 
   const { view } = properties;
 
   const recenter = ([cx = 0, cy = 0]: vec2) => {
-    const { onChangeView } = resolve(properties);
-
     const [width, height] = [
       canvas.width / devicePixelRatio,
       canvas.height / devicePixelRatio,
@@ -63,10 +63,9 @@ export const createMouseControl = (
       enabled = true,
       draggable = true,
       rotatable = true,
-      onChangeView,
     } = resolve(properties);
 
-    if (!enabled) return;
+    if (!enabled || !buttons) return;
 
     if (draggable && !recentered) {
       recenter([x, y]);
@@ -101,11 +100,7 @@ export const createMouseControl = (
   const clearZooming = debounce(() => (zooming = false), 100);
 
   const onWheel = ({ x, y, deltaY }: WheelEvent) => {
-    const {
-      enabled = true,
-      draggable = true,
-      onChangeView,
-    } = resolve(properties);
+    const { enabled = true, draggable = true } = resolve(properties);
 
     if (!enabled) return;
 

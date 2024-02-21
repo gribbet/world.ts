@@ -68,17 +68,26 @@ export type Layer = {
 };
 
 export type Properties<T> = {
-  [K in keyof T]: () => T[K];
+  // eslint-disable-next-line @typescript-eslint/ban-types
+  [K in keyof T]: T[K] extends Function | undefined ? T[K] : () => T[K];
 };
 
 export const resolve = <T>(_: Properties<T>) =>
   Object.fromEntries(
-    Object.entries<() => unknown>(_).map(([key, value]) => [key, value()]),
+    Object.entries(_)
+      .filter(([key]) => !key.startsWith("on"))
+      .map(([key, value]) => [
+        key,
+        typeof value === "function" ? value() : value,
+      ]),
   ) as T;
 
-export const combine = <T extends object>(value: () => T) =>
+export const combine = <T extends object>(properties: () => T) =>
   Object.fromEntries(
-    Object.keys(value()).map(key => [key, () => value()[key as keyof T]]),
+    Object.keys(properties()).map(key => {
+      const value = () => properties()[key as keyof T];
+      return [key, typeof value() === "function" ? value() : () => value()];
+    }),
   ) as Properties<T>;
 
 export const cache = <T, R>(_value: () => T, f: (_: T) => R) => {
@@ -98,7 +107,6 @@ export const cache = <T, R>(_value: () => T, f: (_: T) => R) => {
 export const createMouseEvents = (
   properties: Properties<Partial<LayerOptions>>,
 ) => {
-  const onClick = (_: Pick) => properties.onClick?.()?.(_);
-
+  const { onClick } = properties;
   return { onClick };
 };
