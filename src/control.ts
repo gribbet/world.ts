@@ -115,7 +115,7 @@ export const createMouseControl = (
       zooming = true;
     }
     distance = Math.min(
-      Math.max(distance * Math.exp(deltaY * 0.0), minimumDistance),
+      Math.max(distance * Math.exp(deltaY * 0.001), minimumDistance),
       circumference,
     );
     onChangeView({ distance });

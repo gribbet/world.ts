@@ -73,6 +73,11 @@ export const resolve = <T>(_: Properties<T>) =>
     Object.entries<() => unknown>(_).map(([key, value]) => [key, value()]),
   ) as T;
 
+export const combine = <T extends object>(value: () => T) =>
+  Object.fromEntries(
+    Object.keys(value()).map(key => [key, () => value()[key as keyof T]]),
+  ) as Properties<T>;
+
 export const cache = <T, R>(_value: () => T, f: (_: T) => R) => {
   let last: [T, R] | undefined;
   return () => {
