@@ -1,4 +1,4 @@
-import { quat, vec3, vec4 } from "gl-matrix";
+import { quat, vec2, vec3, vec4 } from "gl-matrix";
 
 import { geodetic, mercator, toOrientation, toQuaternion } from "./math";
 
@@ -38,7 +38,23 @@ export const createNumberTransition = createTransition<number>(
   },
 );
 
-export const createColorTransition = createTransition<vec4>(
+export const createVec2Transition = createTransition<vec2>(
+  ({ time, current, target }) => {
+    current = vec2.add(
+      vec2.create(),
+      current,
+      vec2.scale(
+        vec2.create(),
+        vec2.sub(vec2.create(), target, current),
+        k * time,
+      ),
+    );
+    if (vec2.distance(current, target) < epsilon) current = target;
+    return current;
+  },
+);
+
+export const createVec4Transition = createTransition<vec4>(
   ({ time, current, target }) => {
     current = vec4.add(
       vec4.create(),
