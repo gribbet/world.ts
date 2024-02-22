@@ -9,7 +9,7 @@ import {
   createVec2Transition,
 } from "./transition";
 
-const k = 5;
+const k = 10;
 
 export const createViewTransition = (view: () => View) => {
   const orientation = createOrientationTransition(() => view().orientation);
@@ -23,9 +23,11 @@ export const createViewTransition = (view: () => View) => {
 
     const targetDistance = Math.max(target.distance, flyDistance);
 
+    const q = 1 - Math.exp(-k * time);
+
     const distance = Math.exp(
       Math.log(current.distance) +
-        (Math.log(targetDistance) - Math.log(current.distance)) * k * time,
+        (Math.log(targetDistance) - Math.log(current.distance)) * q,
     );
 
     const slowdown =
@@ -42,7 +44,7 @@ export const createViewTransition = (view: () => View) => {
             mercator(target.target),
             mercator(current.target),
           ),
-          k * time * slowdown,
+          q * slowdown,
         ),
       ),
     );

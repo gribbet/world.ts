@@ -38,7 +38,7 @@ export const createTransition =
 
 export const createNumberTransition = createTransition<number>(
   ({ time, current, target }) => {
-    current = current + (target - current) * k * time;
+    current = current + (target - current) * (1 - Math.exp(-k * time));
     if (Math.abs(target - current) < epsilon) current = target;
     return current;
   },
@@ -52,7 +52,7 @@ export const createVec2Transition = createTransition<vec2>(
       vec2.scale(
         vec2.create(),
         vec2.sub(vec2.create(), target, current),
-        k * time,
+        1 - Math.exp(-k * time),
       ),
     );
     if (vec2.distance(current, target) < epsilon) current = target;
@@ -68,7 +68,7 @@ export const createVec4Transition = createTransition<vec4>(
       vec4.scale(
         vec4.create(),
         vec4.sub(vec4.create(), target, current),
-        k * time,
+        1 - Math.exp(-k * time),
       ),
     );
     if (vec4.distance(current, target) < epsilon) current = target;
@@ -85,7 +85,7 @@ export const createPositionTransition = createTransition<vec3>(
         vec3.scale(
           vec3.create(),
           vec3.sub(vec3.create(), mercator(target), mercator(current)),
-          k * time,
+          1 - Math.exp(-k * time),
         ),
       ),
     );
