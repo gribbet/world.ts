@@ -11,6 +11,7 @@ import type { Pick } from "../model";
 export type LayerEvents = {
   onClick?: (_: Pick) => void;
   onRightClick?: (_: Pick) => void;
+  onDoubleClick?: (_: Pick) => void;
   onDragStart?: (_: Pick) => void;
   onDrag?: (_: Pick) => void;
   onDragEnd?: (_: Pick) => void;
@@ -114,6 +115,20 @@ export const cache = <T, R>(_value: () => T, f: (_: T) => R) => {
 export const createMouseEvents = (
   properties: Properties<Partial<LayerOptions>>,
 ) => {
-  const { onClick, onRightClick, onDrag, onDragStart, onDragEnd } = properties;
-  return { onClick, onRightClick, onDrag, onDragStart, onDragEnd };
+  const {
+    onClick,
+    onRightClick,
+    onDoubleClick,
+    onDrag,
+    onDragStart,
+    onDragEnd,
+  } = properties;
+  return {
+    onClick,
+    onRightClick,
+    onDoubleClick,
+    onDrag,
+    onDragStart,
+    onDragEnd,
+  };
 };
