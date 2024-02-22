@@ -85,21 +85,9 @@ export const createWorld = (
 
   requestAnimationFrame(frame);
 
-  const project = (_: vec3) => {
-    const { worldToLocal, localToClip, clipToScreen } = createViewport(
-      view(),
-      screen,
-    );
-    return clipToScreen(localToClip(worldToLocal(mercator(_))));
-  };
+  const project = (_: vec3) => createViewport(view(), screen).project(_);
 
-  const unproject = (_: vec2) => {
-    const { localToWorld, clipToLocal, screenToClip } = createViewport(
-      view(),
-      screen,
-    );
-    return geodetic(localToWorld(clipToLocal(screenToClip(_))));
-  };
+  const unproject = (_: vec2) => createViewport(view(), screen).unproject(_);
 
   const pick = (point: vec2, { terrain }: { terrain?: boolean } = {}) => {
     const { screenToClip, clipToLocal, localToWorld } = createViewport(
@@ -130,7 +118,11 @@ export const createWorld = (
     return { point, position, layer };
   };
 
-  const mouseEvents = createMouseEvents(gl, pick);
+  const mouseEvents = createMouseEvents(gl, {
+    view,
+    screen: () => screen,
+    pick,
+  });
 
   const dispose = () => {
     running = false;

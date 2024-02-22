@@ -1,6 +1,6 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
-import { circumference, mercator, quadratic, radians } from "./math";
+import { circumference, geodetic, mercator, quadratic, radians } from "./math";
 import { defaultView, type View } from "./model";
 
 export type Viewport = {
@@ -16,6 +16,8 @@ export type Viewport = {
   localToClip: (_: vec3, out?: vec4) => vec4;
   localToWorld: (_: vec3, out?: vec3) => vec3;
   worldToLocal: (_: vec3, out?: vec3) => vec3;
+  project: (_: vec3) => vec2;
+  unproject: (_: vec2, { targetZ }: { targetZ: number | undefined }) => vec3;
 };
 
 const matrix = mat4.create();
@@ -109,6 +111,24 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
   const worldToLocal = (v: vec3, out = vec3.create()) =>
     vec3.sub(out, v, camera);
 
+  const project = (_: vec3) =>
+    clipToScreen(localToClip(worldToLocal(mercator(_))));
+
+  const unproject = (_: vec2, { targetZ = 0 }: { targetZ?: number } = {}) => {
+    const clip1 = screenToClip(_);
+    const [cx = 0, cy = 0, , cw = 0] = clip1;
+    const clip2 = [cx, cy, -1, cw] satisfies vec4;
+
+    const world1 = geodetic(localToWorld(clipToLocal(clip1)));
+    const world2 = geodetic(localToWorld(clipToLocal(clip2)));
+
+    const [, , z1 = 0] = world1;
+    const [, , z2 = 0] = world2;
+
+    const t = z1 == z2 ? 0 : (targetZ - z1) / (z2 - z1);
+    return vec3.lerp(vec3.create(), world1, world2, t);
+  };
+
   return {
     camera,
     screen,
@@ -122,5 +142,7 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
     localToClip,
     localToWorld,
     worldToLocal,
+    project,
+    unproject,
   } satisfies Viewport;
 };
