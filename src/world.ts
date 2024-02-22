@@ -166,10 +166,10 @@ const createMouseEvents = (
     if (clicked) onClick(_);
   };
 
-  const onClick = ({ x, y, buttons }: MouseEvent) => {
-    if (buttons !== 0) return;
+  const onClick = ({ x, y, button }: MouseEvent) => {
     const { point, position, layer } = pick([x, y]);
-    layer?.onClick?.({ point, position, layer });
+    if (button === 0) layer?.onClick?.({ point, position, layer });
+    else if (button === 2) layer?.onRightClick?.({ point, position, layer });
   };
 
   canvas?.addEventListener("mousedown", onMouseDown);

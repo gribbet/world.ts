@@ -13,6 +13,7 @@ export type LayerOptions = {
   depth: boolean;
   polygonOffset: number;
   onClick?: (_: Pick) => void;
+  onRightClick?: (_: Pick) => void;
 };
 
 export const defaultLayerOptions: LayerOptions = {
@@ -64,6 +65,7 @@ export type Layer = {
   children?: Layer[];
   render?: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;
   onClick?: (_: Pick) => void;
+  onRightClick?: (_: Pick) => void;
   dispose: () => void;
 };
 
@@ -107,6 +109,6 @@ export const cache = <T, R>(_value: () => T, f: (_: T) => R) => {
 export const createMouseEvents = (
   properties: Properties<Partial<LayerOptions>>,
 ) => {
-  const { onClick } = properties;
-  return { onClick };
+  const { onClick, onRightClick } = properties;
+  return { onClick, onRightClick };
 };
