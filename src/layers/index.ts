@@ -2,6 +2,7 @@ import type { quat, vec3, vec4 } from "gl-matrix";
 
 import type { Viewport } from "../viewport";
 export * from "./billboard";
+export * from "./container";
 export * from "./line";
 export * from "./mesh";
 export * from "./polygon";
