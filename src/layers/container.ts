@@ -44,3 +44,17 @@ export const createDynamicContainer = <K>(
     dispose,
   } satisfies Layer;
 };
+
+export const createRenderLayer = (render: () => void) => {
+  const dispose = () => {};
+
+  return {
+    render,
+    dispose,
+  } satisfies Layer;
+};
+
+export const createEmptyLayer = () => {
+  const dispose = () => {};
+  return { dispose } satisfies Layer;
+};
