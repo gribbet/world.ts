@@ -4,7 +4,7 @@ import { glMatrix } from "gl-matrix";
 import { createDepthBuffer } from "./depth-buffer";
 import { createMouseEvents } from "./events";
 import type { Layer, Properties } from "./layers";
-import { geodetic, mercator } from "./math";
+import { geodetic } from "./math";
 import type { Pick, View } from "./model";
 import { createViewport } from "./viewport";
 
@@ -33,6 +33,7 @@ export const createWorld = (
 
   gl.enable(gl.CULL_FACE);
   gl.cullFace(gl.FRONT);
+  gl.depthFunc(gl.LEQUAL);
 
   const depthBuffer = createDepthBuffer(gl);
 
