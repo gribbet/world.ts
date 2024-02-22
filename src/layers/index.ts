@@ -8,13 +8,19 @@ export * from "./polygon";
 export * from "./terrain";
 import type { Pick } from "../model";
 
+export type LayerEvents = {
+  onClick?: (_: Pick) => void;
+  onRightClick?: (_: Pick) => void;
+  onDragStart?: (_: Pick) => void;
+  onDrag?: (_: Pick) => void;
+  onDragEnd?: (_: Pick) => void;
+};
+
 export type LayerOptions = {
   pickable: boolean;
   depth: boolean;
   polygonOffset: number;
-  onClick?: (_: Pick) => void;
-  onRightClick?: (_: Pick) => void;
-};
+} & LayerEvents;
 
 export const defaultLayerOptions: LayerOptions = {
   pickable: true,
@@ -64,10 +70,8 @@ export type Billboard = {
 export type Layer = {
   children?: Layer[];
   render?: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;
-  onClick?: (_: Pick) => void;
-  onRightClick?: (_: Pick) => void;
   dispose: () => void;
-};
+} & LayerEvents;
 
 export type Properties<T> = {
   // eslint-disable-next-line @typescript-eslint/ban-types
@@ -109,6 +113,6 @@ export const cache = <T, R>(_value: () => T, f: (_: T) => R) => {
 export const createMouseEvents = (
   properties: Properties<Partial<LayerOptions>>,
 ) => {
-  const { onClick, onRightClick } = properties;
-  return { onClick, onRightClick };
+  const { onClick, onRightClick, onDrag, onDragStart, onDragEnd } = properties;
+  return { onClick, onRightClick, onDrag, onDragStart, onDragEnd };
 };
