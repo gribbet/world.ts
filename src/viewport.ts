@@ -17,7 +17,7 @@ export type Viewport = {
   localToWorld: (_: vec3, out?: vec3) => vec3;
   worldToLocal: (_: vec3, out?: vec3) => vec3;
   project: (_: vec3) => vec2;
-  unproject: (_: vec2, { targetZ }: { targetZ: number | undefined }) => vec3;
+  unproject: (_: vec2, options?: { targetZ: number | undefined }) => vec3;
 };
 
 const matrix = mat4.create();
@@ -125,7 +125,7 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
     const [, , z1 = 0] = world1;
     const [, , z2 = 0] = world2;
 
-    const t = z1 == z2 ? 0 : (targetZ - z1) / (z2 - z1);
+    const t = z1 === z2 ? 0 : (targetZ - z1) / (z2 - z1);
     return vec3.lerp(vec3.create(), world1, world2, t);
   };
 
