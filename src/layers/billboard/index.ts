@@ -51,8 +51,7 @@ export const createBillboardLayer = (
   const updateUrl = cache(
     () => properties.url?.() ?? "",
     url => {
-      image?.dispose();
-      image = createImageTexture({
+      const newImage = createImageTexture({
         gl,
         url,
         onLoad: ({ width, height }) => {
@@ -61,6 +60,8 @@ export const createBillboardLayer = (
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          image?.dispose();
+          image = newImage;
         },
       });
     },
