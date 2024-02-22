@@ -85,8 +85,8 @@ export const createMouseControl = (
       const { orientation: [pitch = 0, roll = 0, yaw = 0] = [] } = view();
       const orientation = [
         Math.min(
-          Math.PI / 2,
-          Math.max(0, pitch - (movementY / height) * Math.PI),
+          Math.PI / 2 - 0.001,
+          Math.max(0.001, pitch - (movementY / height) * Math.PI),
         ),
         roll,
         yaw - (movementX / width) * Math.PI,
