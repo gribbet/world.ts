@@ -44,6 +44,7 @@ export const createLineLayer = (
       width = 1,
       minWidthPixels = 0,
       maxWidthPixels = Number.MAX_VALUE,
+      depthWidthPixels,
       ...options
     } = resolve(properties);
 
@@ -61,8 +62,14 @@ export const createLineLayer = (
       count,
       color,
       width,
-      minWidthPixels,
-      maxWidthPixels,
+      minWidthPixels:
+        depth && depthWidthPixels !== undefined
+          ? Math.max(minWidthPixels, depthWidthPixels)
+          : minWidthPixels,
+      maxWidthPixels:
+        depth && depthWidthPixels !== undefined
+          ? Math.max(maxWidthPixels, depthWidthPixels)
+          : maxWidthPixels,
       index,
     });
   };

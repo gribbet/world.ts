@@ -40,6 +40,7 @@ export type Line = {
   width: number;
   minWidthPixels?: number | undefined;
   maxWidthPixels?: number | undefined;
+  depthWidthPixels?: number | undefined;
 } & LayerOptions;
 
 export type Polygon = {

@@ -111,8 +111,6 @@ export const createWorld = (
     const [terrainLayer] = terrain ? layers() : [];
     depth(terrainLayer);
 
-    console.log(terrainLayer);
-
     const [px = 0, py = 0] = point;
 
     const [z, index] = depthBuffer.read([
