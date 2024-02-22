@@ -33,6 +33,7 @@ export const createMouseEvents = (
 
   const onMouseUp = (_: MouseEvent) => {
     if (clicked) onClick(_);
+    clicked = false;
     if (dragging) {
       const { x, y } = _;
       const { point, position, layer } = pick([x, y]);
