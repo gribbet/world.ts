@@ -1,6 +1,12 @@
 import { quat, vec2, vec3, vec4 } from "gl-matrix";
 
-import { geodetic, mercator, toOrientation, toQuaternion } from "./math";
+import {
+  circumference,
+  geodetic,
+  mercator,
+  toOrientation,
+  toQuaternion,
+} from "./math";
 
 const k = 10;
 const epsilon = 1e-3;
@@ -95,11 +101,15 @@ export const createPositionVelocityTransition = (target: () => vec3) => {
   let lastTime: number | undefined;
 
   const transition = createTransition<vec3>(({ time, current, target }) => {
-    if (target === current || time > 1) {
+    if (
+      target === current ||
+      time > 1 ||
+      vec3.distance(mercator(target), mercator(current)) > 1000 / circumference
+    ) {
       last = undefined;
       velocity = [0, 0, 0];
       targetVelocity = [0, 0, 0];
-      return current;
+      return target;
     }
 
     if (!last) {
