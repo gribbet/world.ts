@@ -13,7 +13,7 @@ glMatrix.setMatrixArrayType(Array); // Required for precision
 export type World = {
   project: (_: vec3) => vec2;
   unproject: (_: vec2) => vec3;
-  pick: ([x, y]: vec2, _: { terrain?: boolean }) => Pick;
+  pick: ([x, y]: vec2, _?: { terrain?: boolean }) => Pick;
   dispose: () => void;
 };
 
