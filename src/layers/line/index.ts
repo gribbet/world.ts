@@ -1,30 +1,30 @@
-import type { mat4, vec2, vec4 } from "gl-matrix";
-import type { vec3 } from "gl-matrix";
+import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
+import type { Layer, Properties } from "../";
+import { cache, createMouseEvents, resolve, type Line } from "../";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import { range } from "../../common";
+import { Context } from "../../context";
 import { mercator } from "../../math";
-import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
-import type { Layer, Properties } from "../";
-import { cache, createMouseEvents, type Line, resolve } from "../";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
 export const createLineLayer = (
-  gl: WebGL2RenderingContext,
-  properties: Properties<Partial<Line>> = {},
+  context: Context,
+  properties: Properties<Partial<Line>> = {}
 ) => {
+  const { gl } = context;
   let count = 0;
 
   const positionBuffer = createBuffer({ gl, type: "i32", target: "array" });
   const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
   const cornerBuffer = createBuffer({ gl, type: "f32", target: "array" });
 
-  const { renderProgram, depthProgram } = createPrograms(gl, {
+  const { renderProgram, depthProgram } = createPrograms(context, {
     positionBuffer,
     indexBuffer,
     cornerBuffer,
@@ -96,7 +96,7 @@ export const createLineLayer = (
           if (_.length === 0) return { indexData, count };
           const indices = range(0, (_.length - 1) * 2).flatMap(i => {
             const [a = 0, b = 0, c = 0, d = 0] = range(0, 4).map(
-              _ => _ + i * 2 + count,
+              _ => _ + i * 2 + count
             );
             return [
               [a, b, d],
@@ -107,7 +107,7 @@ export const createLineLayer = (
           indexData = indexData.concat(indices);
           return { indexData, count };
         },
-        { indexData: [], count: 0 },
+        { indexData: [], count: 0 }
       );
       count = indexData.length;
 
@@ -120,14 +120,14 @@ export const createLineLayer = (
                 [-1, 1],
                 [1, -1],
                 [1, 1],
-              ].flat(),
-            ),
+              ].flat()
+            )
       );
 
       positionBuffer.set(positionData);
       indexBuffer.set(indexData);
       cornerBuffer.set(cornerData);
-    },
+    }
   );
 
   const dispose = () => {
@@ -148,7 +148,7 @@ export const createLineLayer = (
 };
 
 const createPrograms = (
-  gl: WebGL2RenderingContext,
+  { gl, programs }: Context,
   {
     positionBuffer,
     indexBuffer,
@@ -157,11 +157,10 @@ const createPrograms = (
     positionBuffer: Buffer;
     indexBuffer: Buffer;
     cornerBuffer: Buffer;
-  },
+  }
 ) => {
   const createRenderProgram = (depth = false) => {
-    const program = createProgram({
-      gl,
+    const program = programs.get({
       vertexSource,
       fragmentSource: depth ? depthSource : fragmentSource,
     });

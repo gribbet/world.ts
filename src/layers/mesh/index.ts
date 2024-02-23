@@ -3,10 +3,10 @@ import { mat4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
+import { Context } from "../../context";
 import type { Layer, Properties } from "../../layers";
-import { cache, createMouseEvents, type Mesh, resolve } from "../../layers";
+import { cache, createMouseEvents, resolve, type Mesh } from "../../layers";
 import { mercator } from "../../math";
-import { createProgram } from "../../program";
 import type { Viewport } from "../../viewport";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
@@ -14,15 +14,16 @@ import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
 export const createMeshLayer = (
-  gl: WebGL2RenderingContext,
-  properties: Properties<Partial<Mesh>> = {},
+  context: Context,
+  properties: Properties<Partial<Mesh>> = {}
 ) => {
+  const { gl } = context;
   let count = 0;
 
   const vertexBuffer = createBuffer({ gl, type: "f32", target: "array" });
   const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
 
-  const { renderProgram, depthProgram } = createPrograms(gl, {
+  const { renderProgram, depthProgram } = createPrograms(context, {
     vertexBuffer,
     indexBuffer,
   });
@@ -70,7 +71,7 @@ export const createMeshLayer = (
 
   const updateVertices = cache(
     () => properties.vertices?.() ?? [],
-    _ => vertexBuffer.set(_.flatMap(_ => [..._])),
+    _ => vertexBuffer.set(_.flatMap(_ => [..._]))
   );
 
   const updateIndices = cache(
@@ -78,7 +79,7 @@ export const createMeshLayer = (
     _ => {
       indexBuffer.set(_.flatMap(_ => [..._]));
       count = _.length * 3;
-    },
+    }
   );
 
   const dispose = () => {
@@ -98,18 +99,17 @@ export const createMeshLayer = (
 };
 
 const createPrograms = (
-  gl: WebGL2RenderingContext,
+  { gl, programs }: Context,
   {
     vertexBuffer,
     indexBuffer,
   }: {
     vertexBuffer: Buffer;
     indexBuffer: Buffer;
-  },
+  }
 ) => {
   const createRenderProgram = (depth = false) => {
-    const program = createProgram({
-      gl,
+    const program = programs.get({
       vertexSource,
       fragmentSource: depth ? depthSource : fragmentSource,
     });

@@ -7,6 +7,7 @@ import type { Layer, Properties } from "./layers";
 import { geodetic } from "./math";
 import type { Pick, View } from "./model";
 import { createViewport } from "./viewport";
+import { Context } from "./context";
 
 glMatrix.setMatrixArrayType(Array); // Required for precision
 
@@ -23,8 +24,8 @@ export type WorldProperties = {
 };
 
 export const createWorld = (
-  gl: WebGL2RenderingContext,
-  properties: Properties<WorldProperties>,
+  { gl }: Context,
+  properties: Properties<WorldProperties>
 ) => {
   const { view, layers } = properties;
 
@@ -74,7 +75,7 @@ export const createWorld = (
     const viewport = createViewport(view(), screen);
     clear(screen);
     (layer ? [layer] : flattenLayers(layers())).forEach((_, i) =>
-      _.render?.({ viewport, depth: true, index: i + 1 }),
+      _.render?.({ viewport, depth: true, index: i + 1 })
     );
   };
 
@@ -93,7 +94,7 @@ export const createWorld = (
   const pick = (point: vec2, { terrain }: { terrain?: boolean } = {}) => {
     const { screenToClip, clipToLocal, localToWorld } = createViewport(
       view(),
-      screen,
+      screen
     );
 
     depthBuffer.use();
