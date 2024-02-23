@@ -1,7 +1,7 @@
 import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
 import type { Layer, Properties } from "..";
-import { cache, createMouseEvents, resolve, type Billboard } from "..";
+import { cache, createMouseEvents, type Billboard } from "..";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import { Context } from "../../context";
@@ -83,20 +83,17 @@ export const createBillboardLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    const {
-      position = [0, 0, 0],
-      color = [1, 1, 1, 1],
-      size = 100,
-      minSizePixels = 0,
-      maxSizePixels = Number.MAX_VALUE,
-      ...options
-    } = resolve(properties);
+    const position = properties.position?.() ?? [0, 0, 0];
+    const color = properties.color?.() ?? [1, 1, 1, 1];
+    const size = properties.size?.() ?? 100;
+    const minSizePixels = properties.minSizePixels?.() ?? 0;
+    const maxSizePixels = properties.maxSizePixels?.() ?? Number.MAX_VALUE;
 
     updateUrl();
 
     if (!image) return;
 
-    if (configure(gl, depth, options)) return;
+    if (configure(gl, depth, properties)) return;
 
     const program = depth ? depthProgram : renderProgram;
 
@@ -108,8 +105,8 @@ export const createBillboardLayer = (
       image,
       imageSize,
       position: to(mercator(position)),
-      color,
-      size,
+      color: color,
+      size: size,
       minSizePixels,
       maxSizePixels,
       index,

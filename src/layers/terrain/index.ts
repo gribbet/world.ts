@@ -2,7 +2,7 @@ import type { mat4 } from "gl-matrix";
 import { vec2, vec3, vec4 } from "gl-matrix";
 
 import type { Layer, Properties } from "..";
-import { cache, createMouseEvents, resolve, type Terrain } from "..";
+import { cache, createMouseEvents, type Terrain } from "..";
 import { createBuffer } from "../../buffer";
 import { range } from "../../common";
 import { Context } from "../../context";
@@ -176,11 +176,11 @@ export const createTerrainLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    const { color = [1, 1, 1, 1], ...options } = resolve(properties);
+    const color = properties.color?.() ?? [1, 1, 1, 1];
 
     updateImageryUrl();
 
-    if (configure(gl, depth, options)) return;
+    if (configure(gl, depth, properties)) return;
 
     const program = depth ? depthProgram : renderProgram;
 

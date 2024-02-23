@@ -1,7 +1,7 @@
 import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
 import type { Layer, Properties } from "../";
-import { cache, createMouseEvents, resolve, type Line } from "../";
+import { cache, createMouseEvents, type Line } from "../";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import { range } from "../../common";
@@ -39,18 +39,15 @@ export const createLineLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    const {
-      color = [1, 1, 1, 1],
-      width = 1,
-      minWidthPixels = 0,
-      maxWidthPixels = Number.MAX_VALUE,
-      depthWidthPixels,
-      ...options
-    } = resolve(properties);
-
     updatePoints();
 
-    if (configure(gl, depth, options)) return;
+    const color = properties.color?.() ?? [1, 1, 1, 1];
+    const width = properties.width?.() ?? 1;
+    const minWidthPixels = properties.minWidthPixels?.() ?? 0;
+    const maxWidthPixels = properties.maxWidthPixels?.() ?? Number.MAX_VALUE;
+    const depthWidthPixels = properties.depthWidthPixels?.();
+
+    if (configure(gl, depth, properties)) return;
 
     const program = depth ? depthProgram : renderProgram;
 

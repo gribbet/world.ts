@@ -29,9 +29,9 @@ export const createBuffer = ({
         type === "u16"
           ? new Uint16Array(value)
           : type === "i32"
-            ? new Int32Array(value)
-            : new Float32Array(value),
-        gl.DYNAMIC_DRAW,
+          ? new Int32Array(value)
+          : new Float32Array(value),
+        gl.DYNAMIC_DRAW
       );
     },
     use,

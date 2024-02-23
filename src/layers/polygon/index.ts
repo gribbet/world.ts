@@ -2,7 +2,7 @@ import { earclip } from "earclip";
 import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
 import type { Layer, Properties } from "..";
-import { cache, createMouseEvents, resolve, type Polygon } from "..";
+import { cache, createMouseEvents, type Polygon } from "..";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import { Context } from "../../context";
@@ -37,11 +37,11 @@ export const createPolygonLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    const { color = [1, 1, 1, 1], ...options } = resolve(properties);
+    const color = properties.color?.() ?? [1, 1, 1, 1];
 
     updatePoints();
 
-    if (configure(gl, depth, options)) return;
+    if (configure(gl, depth, properties)) return;
 
     const program = depth ? depthProgram : renderProgram;
 

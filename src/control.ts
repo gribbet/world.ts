@@ -2,7 +2,7 @@ import type { vec2 } from "gl-matrix";
 import { vec3 } from "gl-matrix";
 
 import { debounce } from "./common";
-import { type Properties, resolve } from "./layers";
+import { type Properties } from "./layers";
 import { circumference, mercator } from "./math";
 import { defaultView, type View } from "./model";
 import { createViewport } from "./viewport";
@@ -27,7 +27,12 @@ export const createMouseControl = (
   world: World,
   properties: Properties<MouseControlProperties>
 ) => {
-  const { onChangeView } = properties;
+  const {
+    enabled = () => true,
+    draggable = () => true,
+    rotatable = () => true,
+    onChangeView,
+  } = properties;
 
   let zooming = false;
   let recentered = false;
@@ -59,15 +64,9 @@ export const createMouseControl = (
   };
 
   const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
-    const {
-      enabled = true,
-      draggable = true,
-      rotatable = true,
-    } = resolve(properties);
+    if (!enabled() || !buttons) return;
 
-    if (!enabled || !buttons) return;
-
-    if (draggable && !recentered) {
+    if (draggable() && !recentered) {
       recenter([x, y]);
       recentered = true;
     }
@@ -77,11 +76,11 @@ export const createMouseControl = (
       canvas.height / devicePixelRatio,
     ];
 
-    if (buttons === 1 && draggable)
+    if (buttons === 1 && draggable())
       onChangeView({
         offset: [x - width / 2, y - height / 2],
       });
-    else if (buttons === 2 && rotatable) {
+    else if (buttons === 2 && rotatable()) {
       const { orientation: [pitch = 0, roll = 0, yaw = 0] = [] } = view();
       const orientation = [
         Math.min(
@@ -100,12 +99,10 @@ export const createMouseControl = (
   const clearZooming = debounce(() => (zooming = false), 100);
 
   const onWheel = ({ x, y, deltaY }: WheelEvent) => {
-    const { enabled = true, draggable = true } = resolve(properties);
-
-    if (!enabled) return;
+    if (!enabled()) return;
 
     if (!zooming) {
-      if (draggable) recenter([x, y]);
+      if (draggable()) recenter([x, y]);
       zooming = true;
     }
 

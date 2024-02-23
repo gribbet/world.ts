@@ -71,12 +71,7 @@ export const createProgram = ({
     throw new Error("Link failure");
   }
 
-  const use = () => {
-    gl.useProgram(program);
-    if (gl.getError()) {
-      throw new Error(gl.getError().toString());
-    }
-  };
+  const use = () => gl.useProgram(program);
 
   const uniform = <T extends number | vec2 | vec3 | vec4 | mat4>(
     name: string,

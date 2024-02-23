@@ -5,7 +5,7 @@ import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import { Context } from "../../context";
 import type { Layer, Properties } from "../../layers";
-import { cache, createMouseEvents, resolve, type Mesh } from "../../layers";
+import { cache, createMouseEvents, type Mesh } from "../../layers";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
 import { configure, to } from "../common";
@@ -37,20 +37,17 @@ export const createMeshLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    const {
-      position = [0, 0, 0],
-      orientation = [0, 0, 0, 1],
-      color = [1, 1, 1, 1],
-      size = 1,
-      minSizePixels = 0,
-      maxSizePixels = Number.MAX_VALUE,
-      ...options
-    } = resolve(properties);
+    const position = properties.position?.() ?? [0, 0, 0];
+    const orientation = properties.orientation?.() ?? [0, 0, 0, 1];
+    const color = properties.color?.() ?? [1, 1, 1, 1];
+    const size = properties.size?.() ?? 1;
+    const minSizePixels = properties.minSizePixels?.() ?? 0;
+    const maxSizePixels = properties.maxSizePixels?.() ?? Number.MAX_VALUE;
 
     updateVertices();
     updateIndices();
 
-    if (configure(gl, depth, options)) return;
+    if (configure(gl, depth, properties)) return;
 
     const program = depth ? depthProgram : renderProgram;
     program.execute({
