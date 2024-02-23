@@ -78,11 +78,8 @@ export const createProgram = ({
     f: (location: WebGLUniformLocation, value: T) => void,
   ) => {
     const location = gl.getUniformLocation(program, name);
-    let cached: T | undefined;
     const set = (value: T) => {
-      if (value === cached) return;
       if (location) f(location, value);
-      cached = value;
     };
     return { set };
   };
