@@ -29,7 +29,7 @@ void main(void) {
     float pixel_size = projected.w / screen.y;
     float scale = clamp(size / CIRCUMFERENCE * -projection[1][1], min_size_pixels * pixel_size, max_size_pixels * pixel_size);
 
-    gl_Position = projected + 0.5 * scale * screen.y / image_size.y * vec4(corner * image_size / screen, 0.f, 0.0f);
+    gl_Position = projected + scale * screen.y / image_size.y * vec4(corner * image_size / screen, 0.f, 0.0f);
 
     uv_out = uv;
     color_out = color;
