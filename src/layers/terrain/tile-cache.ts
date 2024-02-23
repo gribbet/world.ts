@@ -25,7 +25,7 @@ export const createTileCache = ({
   });
   const loading = createTileIndexCache<true>({
     max: 10000,
-    ttl: 2000,
+    ttl: 200,
     dispose: (_, xyz) => {
       const cached = tiles.get(xyz);
       if (cached && !cached.loaded) {
