@@ -142,4 +142,4 @@ export const createWorld = (
 };
 
 const flattenLayers: (_: Layer[]) => Layer[] = layers =>
-  layers.flatMap<Layer>(_ => [_, ...flattenLayers(_.children ?? [])]);
+  layers.flatMap<Layer>(_ => [...flattenLayers(_.children ?? []), _]);
