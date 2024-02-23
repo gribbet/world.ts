@@ -1,4 +1,5 @@
-import { Programs, createPrograms } from "./programs";
+import type { Programs } from "./programs";
+import { createPrograms } from "./programs";
 
 export type Context = {
   gl: WebGL2RenderingContext;

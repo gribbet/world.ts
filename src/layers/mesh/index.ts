@@ -3,7 +3,7 @@ import { mat4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
-import { Context } from "../../context";
+import type { Context } from "../../context";
 import type { Layer, Properties } from "../../layers";
 import { cache, createMouseEvents, type Mesh } from "../../layers";
 import { mercator } from "../../math";
@@ -15,7 +15,7 @@ import vertexSource from "./vertex.glsl";
 
 export const createMeshLayer = (
   context: Context,
-  properties: Properties<Partial<Mesh>> = {}
+  properties: Properties<Partial<Mesh>> = {},
 ) => {
   const { gl } = context;
   let count = 0;
@@ -68,7 +68,7 @@ export const createMeshLayer = (
 
   const updateVertices = cache(
     () => properties.vertices?.() ?? [],
-    _ => vertexBuffer.set(_.flatMap(_ => [..._]))
+    _ => vertexBuffer.set(_.flatMap(_ => [..._])),
   );
 
   const updateIndices = cache(
@@ -76,7 +76,7 @@ export const createMeshLayer = (
     _ => {
       indexBuffer.set(_.flatMap(_ => [..._]));
       count = _.length * 3;
-    }
+    },
   );
 
   const dispose = () => {
@@ -101,7 +101,7 @@ const createPrograms = (
   }: {
     vertexBuffer: Buffer;
     indexBuffer: Buffer;
-  }
+  },
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = programs.get({

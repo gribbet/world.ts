@@ -1,13 +1,13 @@
 import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
-import type { Layer, Properties } from "../";
-import { cache, createMouseEvents, type Line } from "../";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import { range } from "../../common";
-import { Context } from "../../context";
+import type { Context } from "../../context";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
+import type { Layer, Properties } from "../";
+import { cache, createMouseEvents, type Line } from "../";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -15,7 +15,7 @@ import vertexSource from "./vertex.glsl";
 
 export const createLineLayer = (
   context: Context,
-  properties: Properties<Partial<Line>> = {}
+  properties: Properties<Partial<Line>> = {},
 ) => {
   const { gl } = context;
   let count = 0;
@@ -93,7 +93,7 @@ export const createLineLayer = (
           if (_.length === 0) return { indexData, count };
           const indices = range(0, (_.length - 1) * 2).flatMap(i => {
             const [a = 0, b = 0, c = 0, d = 0] = range(0, 4).map(
-              _ => _ + i * 2 + count
+              _ => _ + i * 2 + count,
             );
             return [
               [a, b, d],
@@ -104,7 +104,7 @@ export const createLineLayer = (
           indexData = indexData.concat(indices);
           return { indexData, count };
         },
-        { indexData: [], count: 0 }
+        { indexData: [], count: 0 },
       );
       count = indexData.length;
 
@@ -117,14 +117,14 @@ export const createLineLayer = (
                 [-1, 1],
                 [1, -1],
                 [1, 1],
-              ].flat()
-            )
+              ].flat(),
+            ),
       );
 
       positionBuffer.set(positionData);
       indexBuffer.set(indexData);
       cornerBuffer.set(cornerData);
-    }
+    },
   );
 
   const dispose = () => {
@@ -152,7 +152,7 @@ const createPrograms = (
     positionBuffer: Buffer;
     indexBuffer: Buffer;
     cornerBuffer: Buffer;
-  }
+  },
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = programs.get({

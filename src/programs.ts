@@ -1,4 +1,5 @@
-import { Program, createProgram } from "./program";
+import type { Program } from "./program";
+import { createProgram } from "./program";
 
 export type Programs = {
   get: (_: { vertexSource: string; fragmentSource: string }) => Program;

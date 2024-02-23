@@ -1,20 +1,20 @@
 import type { mat4 } from "gl-matrix";
 import { vec2, vec3, vec4 } from "gl-matrix";
 
-import type { Layer, Properties } from "..";
-import { cache, createMouseEvents, type Terrain } from "..";
+import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import { range } from "../../common";
-import { Context } from "../../context";
+import type { Context } from "../../context";
 import { createElevation } from "../../elevation";
 import type { Viewport } from "../../viewport";
+import type { Layer, Properties } from "..";
+import { cache, createMouseEvents, type Terrain } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import type { Texture } from "./texture";
 import type { TileCache } from "./tile-cache";
 import { createTileCache } from "./tile-cache";
-import type { Buffer } from "../../buffer";
 import type { TileDownsampler } from "./tile-downsampler";
 import { createTileDownsampler } from "./tile-downsampler";
 import { createTileShapes } from "./tile-shapes";
@@ -32,7 +32,7 @@ const indices = range(0, n).flatMap(y =>
     y * (n + 1) + x,
     (y + 1) * (n + 1) + x + 1,
     (y + 1) * (n + 1) + x,
-  ])
+  ]),
 );
 
 const skirt = 0.1;
@@ -59,12 +59,12 @@ const uvw = range(0, n + 1).flatMap(y =>
     }
 
     return [u, v, w] as vec3;
-  })
+  }),
 );
 
 export const createTerrainLayer = (
   context: Context,
-  properties: Properties<Partial<Terrain>> = {}
+  properties: Properties<Partial<Terrain>> = {},
 ) => {
   const { gl } = context;
 
@@ -82,18 +82,18 @@ export const createTerrainLayer = (
           const extension = gl.getExtension("EXT_texture_filter_anisotropic");
           if (extension) {
             const max = gl.getParameter(
-              extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT
+              extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT,
             );
             gl.texParameterf(
               gl.TEXTURE_2D,
               extension.TEXTURE_MAX_ANISOTROPY_EXT,
-              max
+              max,
             );
           }
           gl.texParameteri(
             gl.TEXTURE_2D,
             gl.TEXTURE_MIN_FILTER,
-            gl.LINEAR_MIPMAP_LINEAR
+            gl.LINEAR_MIPMAP_LINEAR,
           );
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
@@ -102,7 +102,7 @@ export const createTerrainLayer = (
         },
       });
       imageryDownsampler = createTileDownsampler(imageryCache);
-    }
+    },
   );
 
   const terrainUrl = properties.terrainUrl?.() ?? "";
@@ -231,7 +231,7 @@ export const createTerrainLayer = (
 
 const createPrograms = (
   { gl, programs }: Context,
-  { uvwBuffer, indexBuffer }: { uvwBuffer: Buffer; indexBuffer: Buffer }
+  { uvwBuffer, indexBuffer }: { uvwBuffer: Buffer; indexBuffer: Buffer },
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = programs.get({
@@ -317,7 +317,7 @@ const insideTileShape = (position: vec3, shape: vec3[]) => {
       Math.min(y, minY),
       Math.max(y, maxY),
     ],
-    [1, 0, 1, 0]
+    [1, 0, 1, 0],
   );
   const [x = 0, y = 0, z = 0] = position;
   return (
@@ -340,8 +340,8 @@ const screenSize = (screen: vec2[]) =>
       .map((_, i) =>
         vec2.squaredDistance(
           screen[i] ?? [0, 0],
-          screen[(i + 1) % screen.length] ?? [0, 0]
-        )
+          screen[(i + 1) % screen.length] ?? [0, 0],
+        ),
       )
-      .reduce((a, b) => a + b, 0) / screen.length
+      .reduce((a, b) => a + b, 0) / screen.length,
   );

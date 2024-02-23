@@ -1,12 +1,12 @@
 import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
-import type { Layer, Properties } from "..";
-import { cache, createMouseEvents, type Billboard } from "..";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
-import { Context } from "../../context";
+import type { Context } from "../../context";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
+import type { Layer, Properties } from "..";
+import { type Billboard, cache, createMouseEvents } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import { createImageTexture } from "../terrain/image-texture";
@@ -16,9 +16,10 @@ import vertexSource from "./vertex.glsl";
 
 export const createBillboardLayer = (
   context: Context,
-  properties: Properties<Partial<Billboard>> = {}
+  properties: Properties<Partial<Billboard>> = {},
 ) => {
   const { gl } = context;
+
   let image: Texture | undefined;
   let imageSize: vec2 = [0, 0];
 
@@ -32,7 +33,7 @@ export const createBillboardLayer = (
       [-1, 1],
       [1, -1],
       [1, 1],
-    ].flat()
+    ].flat(),
   );
   uvBuffer.set(
     [
@@ -40,13 +41,13 @@ export const createBillboardLayer = (
       [0, 0],
       [1, 1],
       [1, 0],
-    ].flat()
+    ].flat(),
   );
   indexBuffer.set(
     [
       [0, 1, 3],
       [0, 3, 2],
-    ].flat()
+    ].flat(),
   );
 
   const updateUrl = cache(
@@ -65,7 +66,7 @@ export const createBillboardLayer = (
           image = newImage;
         },
       });
-    }
+    },
   );
 
   const { renderProgram, depthProgram } = createPrograms(context, {
@@ -105,8 +106,8 @@ export const createBillboardLayer = (
       image,
       imageSize,
       position: to(mercator(position)),
-      color: color,
-      size: size,
+      color,
+      size,
       minSizePixels,
       maxSizePixels,
       index,
@@ -139,7 +140,7 @@ const createPrograms = (
     cornerBuffer: Buffer;
     uvBuffer: Buffer;
     indexBuffer: Buffer;
-  }
+  },
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = programs.get({

@@ -9,7 +9,7 @@ export const to = ([x = 0, y = 0, z = 0]: vec3) =>
 export const configure = (
   gl: WebGL2RenderingContext,
   _depth: boolean,
-  options: Properties<Partial<LayerOptions>>
+  options: Properties<Partial<LayerOptions>>,
 ) => {
   const { pickable, depth, polygonOffset } = {
     pickable: () => true,
@@ -27,14 +27,14 @@ export const configure = (
 
   if (_depth) {
     gl.disable(gl.BLEND);
-    if (!pickable) return true;
+    if (!pickable()) return true;
   } else {
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(
       gl.SRC_ALPHA,
       gl.ONE_MINUS_SRC_ALPHA,
       gl.ONE,
-      gl.ONE_MINUS_SRC_ALPHA
+      gl.ONE_MINUS_SRC_ALPHA,
     );
   }
 };

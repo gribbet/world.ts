@@ -1,13 +1,13 @@
 import { earclip } from "earclip";
 import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
-import type { Layer, Properties } from "..";
-import { cache, createMouseEvents, type Polygon } from "..";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
-import { Context } from "../../context";
+import type { Context } from "../../context";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
+import type { Layer, Properties } from "..";
+import { cache, createMouseEvents, type Polygon } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -15,7 +15,7 @@ import vertexSource from "./vertex.glsl";
 
 export const createPolygonLayer = (
   context: Context,
-  properties: Properties<Partial<Polygon>> = {}
+  properties: Properties<Partial<Polygon>> = {},
 ) => {
   const { gl } = context;
   let count = 0;
@@ -60,12 +60,12 @@ export const createPolygonLayer = (
     () => properties.points?.() ?? [],
     _ => {
       const { vertices, indices } = earclip(
-        _.map(_ => _.map(_ => [...to(mercator(_))]))
+        _.map(_ => _.map(_ => [...to(mercator(_))])),
       );
       positionBuffer.set(vertices);
       indexBuffer.set(indices);
       count = indices.length;
-    }
+    },
   );
 
   const dispose = () => {
@@ -90,7 +90,7 @@ const createPrograms = (
   }: {
     positionBuffer: Buffer;
     indexBuffer: Buffer;
-  }
+  },
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = programs.get({
