@@ -120,8 +120,6 @@ export const createBillboardLayer = (
     cornerBuffer.dispose();
     uvBuffer.dispose();
     indexBuffer.dispose();
-    renderProgram.dispose();
-    depthProgram.dispose();
     image?.dispose();
   };
 
@@ -225,9 +223,7 @@ const createPrograms = (
       gl.drawElements(gl.TRIANGLES, 6, gl.UNSIGNED_SHORT, 0);
     };
 
-    const { dispose } = program;
-
-    return { execute, dispose };
+    return { execute };
   };
 
   const renderProgram = createRenderProgram();

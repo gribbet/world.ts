@@ -14,6 +14,7 @@ import fragmentSource from "./fragment.glsl";
 import type { Texture } from "./texture";
 import type { TileCache } from "./tile-cache";
 import { createTileCache } from "./tile-cache";
+import type { Buffer } from "../../buffer";
 import type { TileDownsampler } from "./tile-downsampler";
 import { createTileDownsampler } from "./tile-downsampler";
 import { createTileShapes } from "./tile-shapes";
@@ -121,7 +122,16 @@ export const createTerrainLayer = (
   const elevation = createElevation({ gl, terrainCache });
   const tileShapes = createTileShapes(elevation);
 
-  const { renderProgram, depthProgram } = createPrograms(context);
+  const uvwBuffer = createBuffer({ gl, type: "f32", target: "array" });
+  uvwBuffer.set(uvw.flatMap(([x = 0, y = 0, z = 0]) => [x, y, z]));
+
+  const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
+  indexBuffer.set(indices);
+
+  const { renderProgram, depthProgram } = createPrograms(context, {
+    uvwBuffer,
+    indexBuffer,
+  });
 
   const q = [0, 1, 2, 3];
   const vec3s = q.map(vec3.create);
@@ -205,8 +215,6 @@ export const createTerrainLayer = (
   };
 
   const dispose = () => {
-    depthProgram.dispose();
-    renderProgram.dispose();
     imageryCache?.dispose();
     terrainCache.dispose();
     elevation.dispose();
@@ -221,18 +229,15 @@ export const createTerrainLayer = (
   } satisfies Layer;
 };
 
-const createPrograms = ({ gl, programs }: Context) => {
+const createPrograms = (
+  { gl, programs }: Context,
+  { uvwBuffer, indexBuffer }: { uvwBuffer: Buffer; indexBuffer: Buffer }
+) => {
   const createRenderProgram = (depth = false) => {
     const program = programs.get({
       vertexSource,
       fragmentSource: depth ? depthSource : fragmentSource,
     });
-
-    const uvwBuffer = createBuffer({ gl, type: "f32", target: "array" });
-    uvwBuffer.set(uvw.flatMap(([x = 0, y = 0, z = 0]) => [x, y, z]));
-
-    const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
-    indexBuffer.set(indices);
 
     const uvwAttribute = program.attribute3f("uvw", uvwBuffer);
 
@@ -295,13 +300,7 @@ const createPrograms = ({ gl, programs }: Context) => {
       gl.drawElements(gl.TRIANGLES, n * n * 2 * 3, gl.UNSIGNED_SHORT, 0);
     };
 
-    const dispose = () => {
-      uvwBuffer.dispose();
-      indexBuffer.dispose();
-      program.dispose();
-    };
-
-    return { execute, dispose };
+    return { execute };
   };
 
   const renderProgram = createRenderProgram();

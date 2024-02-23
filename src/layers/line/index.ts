@@ -134,8 +134,6 @@ export const createLineLayer = (
     positionBuffer.dispose();
     indexBuffer.dispose();
     cornerBuffer.dispose();
-    renderProgram.dispose();
-    depthProgram.dispose();
   };
 
   const mouseEvents = createMouseEvents(properties);
@@ -240,9 +238,7 @@ const createPrograms = (
       gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
     };
 
-    const { dispose } = program;
-
-    return { execute, dispose };
+    return { execute };
   };
 
   const renderProgram = createRenderProgram();
