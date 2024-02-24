@@ -82,14 +82,6 @@ export type Properties<T> = {
   [K in keyof T]: T[K] extends Function | undefined ? T[K] : () => T[K];
 };
 
-export const combine = <T extends object>(properties: () => T) =>
-  Object.fromEntries(
-    Object.keys(properties()).map(key => {
-      const value = () => properties()[key as keyof T];
-      return [key, typeof value() === "function" ? value() : () => value()];
-    }),
-  ) as Properties<T>;
-
 export const cache = <T, R>(_value: () => T, f: (_: T) => R) => {
   let last: [T, R] | undefined;
   return () => {
