@@ -38,58 +38,64 @@ export const createTransition =
 
 export const createNumberTransition = createTransition<number>(
   ({ time, current, target }) => {
-    current = current + (target - current) * (1 - Math.exp(-k * time));
     if (Math.abs(target - current) < epsilon) current = target;
+    else current = current + (target - current) * (1 - Math.exp(-k * time));
     return current;
   },
 );
 
 export const createVec2Transition = createTransition<vec2>(
   ({ time, current, target }) => {
-    current = vec2.add(
-      vec2.create(),
-      current,
-      vec2.scale(
+    if (vec2.distance(current, target) < epsilon) vec2.copy(current, target);
+    else
+      current = vec2.add(
         vec2.create(),
-        vec2.sub(vec2.create(), target, current),
-        1 - Math.exp(-k * time),
-      ),
-    );
-    if (vec2.distance(current, target) < epsilon) current = target;
+        current,
+        vec2.scale(
+          vec2.create(),
+          vec2.sub(vec2.create(), target, current),
+          1 - Math.exp(-k * time),
+        ),
+      );
     return current;
   },
 );
 
 export const createVec4Transition = createTransition<vec4>(
   ({ time, current, target }) => {
-    current = vec4.add(
-      vec4.create(),
-      current,
-      vec4.scale(
+    if (vec4.distance(current, target) < epsilon) vec4.copy(current, target);
+    else
+      current = vec4.add(
         vec4.create(),
-        vec4.sub(vec4.create(), target, current),
-        1 - Math.exp(-k * time),
-      ),
-    );
-    if (vec4.distance(current, target) < epsilon) current = target;
+        current,
+        vec4.scale(
+          vec4.create(),
+          vec4.sub(vec4.create(), target, current),
+          1 - Math.exp(-k * time),
+        ),
+      );
+
     return current;
   },
 );
 
 export const createPositionTransition = createTransition<vec3>(
   ({ time, current, target }) => {
-    current = geodetic(
-      vec3.add(
-        vec3.create(),
-        mercator(current),
-        vec3.scale(
+    const distance = vec3.distance(mercator(current), mercator(target));
+    if (distance * circumference < epsilon || distance > 100000 / circumference)
+      vec3.copy(current, target);
+    else
+      current = geodetic(
+        vec3.add(
           vec3.create(),
-          vec3.sub(vec3.create(), mercator(target), mercator(current)),
-          1 - Math.exp(-k * time),
+          mercator(current),
+          vec3.scale(
+            vec3.create(),
+            vec3.sub(vec3.create(), mercator(target), mercator(current)),
+            1 - Math.exp(-k * time),
+          ),
         ),
-      ),
-    );
-    if (vec3.distance(current, target) < epsilon) current = target;
+      );
     return current;
   },
 );
