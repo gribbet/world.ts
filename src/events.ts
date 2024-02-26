@@ -65,8 +65,11 @@ export const createMouseEvents = (
 
   const onClick = ({ x, y, button }: MouseEvent) => {
     const { point, position, layer } = pick([x, y]);
-    if (button === 0) layer?.onClick?.({ point, position, layer });
-    else if (button === 2) layer?.onRightClick?.({ point, position, layer });
+    (button === 2 ? layer?.onRightClick : layer?.onClick)?.({
+      point,
+      position,
+      layer,
+    });
   };
 
   const onDoubleClick = ({ x, y }: MouseEvent) => {
