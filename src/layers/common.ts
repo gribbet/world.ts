@@ -20,15 +20,15 @@ export const configure = (
   if (depth()) gl.enable(gl.DEPTH_TEST);
   else gl.disable(gl.DEPTH_TEST);
 
-  if (polygonOffset()) {
-    gl.enable(gl.POLYGON_OFFSET_FILL);
-    gl.polygonOffset(0, polygonOffset() ?? 0);
-  } else gl.disable(gl.POLYGON_OFFSET_FILL);
-
   if (_depth) {
     gl.disable(gl.BLEND);
     if (!pickable()) return true;
   } else {
+    if (polygonOffset()) {
+      gl.enable(gl.POLYGON_OFFSET_FILL);
+      gl.polygonOffset(0, polygonOffset() ?? 0);
+    } else gl.disable(gl.POLYGON_OFFSET_FILL);
+
     gl.enable(gl.BLEND);
     gl.blendFuncSeparate(
       gl.SRC_ALPHA,
