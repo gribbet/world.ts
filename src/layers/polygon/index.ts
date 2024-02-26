@@ -59,9 +59,10 @@ export const createPolygonLayer = (
   const updatePoints = cache(
     () => properties.points?.() ?? [],
     _ => {
-      const { vertices, indices } = earclip(
-        _.map(_ => _.map(_ => [...to(mercator(_))])),
-      );
+      const { vertices, indices } =
+        _.length > 0
+          ? earclip(_.map(_ => _.map(_ => [...to(mercator(_))])))
+          : { vertices: [], indices: [] };
       positionBuffer.set(vertices);
       indexBuffer.set(indices);
       count = indices.length;
