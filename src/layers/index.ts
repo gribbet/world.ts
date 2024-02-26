@@ -44,6 +44,9 @@ export type Line = {
   minWidthPixels?: number | undefined;
   maxWidthPixels?: number | undefined;
   depthWidthPixels?: number | undefined;
+  dashPattern: vec4[];
+  dashSize: number;
+  dashOffset: number;
 } & LayerOptions;
 
 export type Polygon = {

@@ -13,6 +13,11 @@ export type Program = {
   uniform4f: (name: string) => Uniform<vec4>;
   uniform4i: (name: string) => Uniform<vec4>;
   uniformMatrix4f: (name: string) => Uniform<mat4>;
+  attribute1f: (
+    name: string,
+    buffer: Buffer,
+    _?: { stride?: number; offset?: number },
+  ) => Attribute;
   attribute2f: (
     name: string,
     buffer: Buffer,
@@ -160,6 +165,12 @@ export const createProgram = ({
     return { use } satisfies Attribute;
   };
 
+  const attribute1f = (
+    name: string,
+    buffer: Buffer,
+    options: { stride?: number; offset?: number } = {},
+  ) => attribute({ name, buffer, size: 1, type: "f32", ...options });
+
   const attribute2f = (
     name: string,
     buffer: Buffer,
@@ -195,6 +206,7 @@ export const createProgram = ({
     uniform4f,
     uniform4i,
     uniformMatrix4f,
+    attribute1f,
     attribute2f,
     attribute3f,
     attribute3i,

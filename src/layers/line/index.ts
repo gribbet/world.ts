@@ -1,15 +1,17 @@
-import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
+import type { mat4, vec2, vec4 } from "gl-matrix";
+import { vec3 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import { range } from "../../common";
 import type { Context } from "../../context";
-import { mercator } from "../../math";
+import { circumference, mercator } from "../../math";
 import type { Viewport } from "../../viewport";
 import type { Layer, Properties } from "../";
 import { cache, createMouseEvents, type Line } from "../";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
+import { createTexture, type Texture } from "../terrain/texture";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
@@ -23,12 +25,21 @@ export const createLineLayer = (
   const positionBuffer = createBuffer({ gl, type: "i32", target: "array" });
   const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
   const cornerBuffer = createBuffer({ gl, type: "f32", target: "array" });
+  const distanceBuffer = createBuffer({ gl, type: "f32", target: "array" });
 
   const { renderProgram, depthProgram } = createPrograms(context, {
     positionBuffer,
     indexBuffer,
     cornerBuffer,
+    distanceBuffer,
   });
+
+  const dash = createTexture(gl);
+  dash.use();
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT);
 
   const render = ({
     viewport: { projection, modelView, camera, screen },
@@ -40,12 +51,15 @@ export const createLineLayer = (
     index?: number;
   }) => {
     updatePoints();
+    updateDashPattern();
 
     const color = properties.color?.() ?? [1, 1, 1, 1];
     const width = properties.width?.() ?? 1;
     const minWidthPixels = properties.minWidthPixels?.() ?? 0;
     const maxWidthPixels = properties.maxWidthPixels?.() ?? Number.MAX_VALUE;
     const depthWidthPixels = properties.depthWidthPixels?.();
+    const dashSize = properties.dashSize?.() ?? 1000;
+    const dashOffset = properties.dashOffset?.() ?? 0;
 
     if (configure(gl, depth, properties)) return;
 
@@ -68,6 +82,9 @@ export const createLineLayer = (
           ? Math.max(maxWidthPixels, depthWidthPixels)
           : maxWidthPixels,
       index,
+      dash,
+      dashSize,
+      dashOffset,
     });
   };
 
@@ -121,9 +138,52 @@ export const createLineLayer = (
             ),
       );
 
+      const distanceData = _.flatMap(points => {
+        const distances = points.map(
+          (_, i) =>
+            vec3.distance(mercator(_), mercator(points[i - 1] ?? _)) *
+            circumference,
+        );
+        const accumulated = distances.reduce(
+          ({ current, result }, distance) => {
+            current += distance;
+            result.push(current);
+            return { current, result };
+          },
+          { current: 0, result: [] as number[] },
+        ).result;
+
+        const [first] = accumulated;
+        const [last] = accumulated.slice(-1);
+
+        if (first === undefined || last === undefined) return [];
+
+        return [first, ...accumulated, last].flatMap(_ => [_, _, _, _]);
+      });
+
       positionBuffer.set(positionData);
       indexBuffer.set(indexData);
       cornerBuffer.set(cornerData);
+      distanceBuffer.set(distanceData);
+    },
+  );
+
+  const updateDashPattern = cache(
+    () => properties.dashPattern?.(),
+    dashPattern => {
+      dashPattern = dashPattern ?? [[1, 1, 1, 1]];
+      dash.use();
+      gl.texImage2D(
+        gl.TEXTURE_2D,
+        0,
+        gl.RGBA,
+        dashPattern.length,
+        1,
+        0,
+        gl.RGBA,
+        gl.UNSIGNED_BYTE,
+        new Uint8Array(dashPattern.flatMap(_ => [..._.map(_ => _ * 255)])),
+      );
     },
   );
 
@@ -131,6 +191,7 @@ export const createLineLayer = (
     positionBuffer.dispose();
     indexBuffer.dispose();
     cornerBuffer.dispose();
+    distanceBuffer.dispose();
   };
 
   const mouseEvents = createMouseEvents(properties);
@@ -148,10 +209,12 @@ const createPrograms = (
     positionBuffer,
     indexBuffer,
     cornerBuffer,
+    distanceBuffer,
   }: {
     positionBuffer: Buffer;
     indexBuffer: Buffer;
     cornerBuffer: Buffer;
+    distanceBuffer: Buffer;
   },
 ) => {
   const createRenderProgram = (depth = false) => {
@@ -177,6 +240,10 @@ const createPrograms = (
     const cornerAttribute = program.attribute2f("corner", cornerBuffer, {
       stride: FLOAT_BYTES * 2,
     });
+    const distanceAttribute = program.attribute1f("distance", distanceBuffer, {
+      stride: FLOAT_BYTES,
+      offset: FLOAT_BYTES * 1 * 4,
+    });
 
     const projectionUniform = program.uniformMatrix4f("projection");
     const modelViewUniform = program.uniformMatrix4f("model_view");
@@ -187,6 +254,9 @@ const createPrograms = (
     const maxWidthPixelsUniform = program.uniform1f("max_width_pixels");
     const minWidthPixelsUniform = program.uniform1f("min_width_pixels");
     const indexUniform = program.uniform1i("index");
+    const dashUniform = program.uniform1i("dash");
+    const dashSizeUniform = program.uniform1f("dash_size");
+    const dashOffsetUniform = program.uniform1f("dash_offset");
 
     const execute = ({
       projection,
@@ -199,6 +269,9 @@ const createPrograms = (
       minWidthPixels,
       maxWidthPixels,
       index,
+      dash,
+      dashSize,
+      dashOffset,
     }: {
       projection: mat4;
       modelView: mat4;
@@ -210,6 +283,9 @@ const createPrograms = (
       minWidthPixels: number;
       maxWidthPixels: number;
       index: number;
+      dash: Texture;
+      dashSize: number;
+      dashOffset: number;
     }) => {
       if (count === 0) return;
 
@@ -219,6 +295,7 @@ const createPrograms = (
       currentAttribute.use();
       nextAttribute.use();
       cornerAttribute.use();
+      distanceAttribute.use();
 
       projectionUniform.set(projection);
       modelViewUniform.set(modelView);
@@ -229,6 +306,12 @@ const createPrograms = (
       minWidthPixelsUniform.set(minWidthPixels);
       maxWidthPixelsUniform.set(maxWidthPixels);
       indexUniform.set(index);
+      dashSizeUniform.set(dashSize);
+      dashOffsetUniform.set(dashOffset);
+
+      gl.activeTexture(gl.TEXTURE0);
+      dashUniform.set(0);
+      dash.use();
 
       indexBuffer.use();
 

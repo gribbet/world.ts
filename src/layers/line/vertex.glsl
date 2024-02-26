@@ -10,12 +10,15 @@ uniform vec4 color;
 uniform float width;
 uniform float min_width_pixels;
 uniform float max_width_pixels;
+uniform float time;
 
 in ivec3 previous;
 in ivec3 current;
 in ivec3 next;
 in vec2 corner;
+in float distance;
 out vec4 color_out;
+out float distance_out;
 
 const int ONE = 1073741824; // 2^30
 const float INV_ONE = 1.f / float(ONE);
@@ -60,4 +63,5 @@ void main(void) {
     gl_Position = projected_current + 0.5 * vec4(scale * offset, 0.f, 0.f);
 
     color_out = color;
+    distance_out = distance;
 }
