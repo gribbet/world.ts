@@ -58,7 +58,7 @@ export const createLineLayer = (
     const minWidthPixels = properties.minWidthPixels?.() ?? 0;
     const maxWidthPixels = properties.maxWidthPixels?.() ?? Number.MAX_VALUE;
     const depthWidthPixels = properties.depthWidthPixels?.();
-    const dashSize = properties.dashSize?.() ?? 100;
+    const dashSize = properties.dashSize?.() ?? 1000;
     const dashOffset = properties.dashOffset?.() ?? 0;
 
     if (configure(gl, depth, properties)) return;
