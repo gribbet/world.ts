@@ -35,7 +35,6 @@ void main(void) {
     gl_Position = transform(q.xyz / q.w);
 
     vec4 qn = orientation * vec4(normal, 1.f);
-    vec3 n = qn.xyz / qn.w; 
 
-    color_out = color + diffuse * vec4(vec3(clamp(dot(n, vec3(0.f, 0.f, 1.f)), 0.f, 1.f)), 1.f);
+    color_out = color + diffuse * vec4(vec3(clamp(dot(qn.xyz / qn.w, vec3(0.f, 0.f, 1.f)), 0.f, 1.f)), 1.f);
 }
