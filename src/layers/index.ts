@@ -85,19 +85,29 @@ export type Properties<T> = {
   [K in keyof T]: T[K] extends Function | undefined ? T[K] : () => T[K];
 };
 
-export const cache = <T, R>(_value: () => T, f: (_: T) => R) => {
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const cacheAll = <T extends readonly any[], R>(
+  _value: { [K in keyof T]: () => T[K] },
+  f: (_: T) => R,
+) => {
   let last: [T, R] | undefined;
   return () => {
-    const value = _value();
+    const value = _value.map(_ => _()) as unknown as T;
     if (last) {
       const [lastValue, lastResult] = last;
-      if (lastValue === value) return lastResult;
+      if (lastValue.every((_, i) => _ === value[i])) return lastResult;
     }
     const result = f(value);
     last = [value, result];
     return result;
   };
 };
+
+export const cache = <T, R>(value: () => T, f: (_: T) => R) =>
+  cacheAll([value], test => {
+    const [_] = test;
+    return f(_!);
+  });
 
 export const createMouseEvents = (
   properties: Properties<Partial<LayerOptions>>,
