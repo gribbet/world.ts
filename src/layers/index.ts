@@ -4,7 +4,7 @@ import type { Viewport } from "../viewport";
 export * from "./billboard";
 export * from "./container";
 export * from "./line";
-export * from "./mesh";
+export * from "./object";
 export * from "./polygon";
 export * from "./terrain";
 import type { Pick } from "../model";
@@ -57,9 +57,15 @@ export type Polygon = {
 export type Mesh = {
   vertices: vec3[];
   indices: vec3[];
+  normals: vec3[];
+};
+
+export type Object = {
+  mesh: Mesh;
   position: vec3;
   orientation: quat;
   color: vec4;
+  diffuse: vec4;
   size: number;
   minSizePixels?: number;
   maxSizePixels?: number;
@@ -88,7 +94,7 @@ export type Properties<T> = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const cacheAll = <T extends readonly any[], R>(
   _value: { [K in keyof T]: () => T[K] },
-  f: (_: T) => R,
+  f: (_: T) => R
 ) => {
   let last: [T, R] | undefined;
   return () => {
@@ -110,7 +116,7 @@ export const cache = <T, R>(value: () => T, f: (_: T) => R) =>
   });
 
 export const createMouseEvents = (
-  properties: Properties<Partial<LayerOptions>>,
+  properties: Properties<Partial<LayerOptions>>
 ) => {
   const {
     onClick,

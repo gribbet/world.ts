@@ -4,8 +4,8 @@ import { mat4 } from "gl-matrix";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import type { Context } from "../../context";
-import type { Layer, Properties } from "../../layers";
-import { cache, createMouseEvents, type Mesh } from "../../layers";
+import type { Layer, Properties } from "..";
+import { cache, createMouseEvents, type Object } from "..";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
 import { configure, to } from "../common";
@@ -13,19 +13,21 @@ import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
-export const createMeshLayer = (
+export const createObjectLayer = (
   context: Context,
-  properties: Properties<Partial<Mesh>> = {},
+  properties: Properties<Partial<Object>> = {}
 ) => {
   const { gl } = context;
   let count = 0;
 
   const vertexBuffer = createBuffer({ gl, type: "f32", target: "array" });
   const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
+  const normalBuffer = createBuffer({ gl, type: "f32", target: "array" });
 
   const { renderProgram, depthProgram } = createPrograms(context, {
     vertexBuffer,
     indexBuffer,
+    normalBuffer,
   });
 
   const render = ({
@@ -40,12 +42,12 @@ export const createMeshLayer = (
     const position = properties.position?.() ?? [0, 0, 0];
     const orientation = properties.orientation?.() ?? [0, 0, 0, 1];
     const color = properties.color?.() ?? [1, 1, 1, 1];
+    const diffuse = properties.diffuse?.() ?? [0, 0, 0, 0];
     const size = properties.size?.() ?? 1;
     const minSizePixels = properties.minSizePixels?.() ?? 0;
     const maxSizePixels = properties.maxSizePixels?.() ?? Number.MAX_VALUE;
 
-    updateVertices();
-    updateIndices();
+    updateMesh();
 
     if (configure(gl, depth, properties)) return;
 
@@ -59,6 +61,7 @@ export const createMeshLayer = (
       position: to(mercator(position)),
       orientation: mat4.fromQuat(mat4.create(), orientation),
       color,
+      diffuse,
       size,
       minSizePixels,
       maxSizePixels,
@@ -66,22 +69,25 @@ export const createMeshLayer = (
     });
   };
 
-  const updateVertices = cache(
-    () => properties.vertices?.() ?? [],
-    _ => vertexBuffer.set(_.flatMap(_ => [..._])),
-  );
-
-  const updateIndices = cache(
-    () => properties.indices?.() ?? [],
-    _ => {
-      indexBuffer.set(_.flatMap(_ => [..._]));
-      count = _.length * 3;
-    },
+  const updateMesh = cache(
+    () => properties.mesh?.(),
+    mesh => {
+      const { vertices = [], indices = [], normals = [] } = mesh ?? {};
+      vertexBuffer.set(vertices.flatMap(_ => [..._]));
+      indexBuffer.set(indices.flatMap(_ => [..._]));
+      normalBuffer.set(
+        normals.length === 0
+          ? vertices.flatMap(() => [0, 0, 0])
+          : normals.flatMap(_ => [..._])
+      );
+      count = indices.length * 3;
+    }
   );
 
   const dispose = () => {
     vertexBuffer.dispose();
     indexBuffer.dispose();
+    normalBuffer.dispose();
   };
 
   const mouseEvents = createMouseEvents(properties);
@@ -98,10 +104,12 @@ const createPrograms = (
   {
     vertexBuffer,
     indexBuffer,
+    normalBuffer,
   }: {
     vertexBuffer: Buffer;
     indexBuffer: Buffer;
-  },
+    normalBuffer: Buffer;
+  }
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = programs.get({
@@ -110,6 +118,7 @@ const createPrograms = (
     });
 
     const vertexAttribute = program.attribute3f("vertex", vertexBuffer);
+    const normalAttribute = program.attribute3f("normal", normalBuffer);
 
     const projectionUniform = program.uniformMatrix4f("projection");
     const modelViewUniform = program.uniformMatrix4f("model_view");
@@ -118,6 +127,7 @@ const createPrograms = (
     const orientationUniform = program.uniformMatrix4f("orientation");
     const screenUniform = program.uniform2f("screen");
     const colorUniform = program.uniform4f("color");
+    const diffuseUniform = program.uniform4f("diffuse");
     const sizeUniform = program.uniform1f("size");
     const minSizePixelsUniform = program.uniform1f("min_size_pixels");
     const maxSizePixelsUniform = program.uniform1f("max_size_pixels");
@@ -132,6 +142,7 @@ const createPrograms = (
       position,
       orientation,
       color,
+      diffuse,
       size,
       minSizePixels,
       maxSizePixels,
@@ -145,6 +156,7 @@ const createPrograms = (
       position: vec3;
       orientation: mat4;
       color: vec4;
+      diffuse: vec4;
       size: number;
       minSizePixels: number;
       maxSizePixels: number;
@@ -153,6 +165,7 @@ const createPrograms = (
       program.use();
 
       vertexAttribute.use();
+      normalAttribute.use();
 
       projectionUniform.set(projection);
       modelViewUniform.set(modelView);
@@ -161,6 +174,7 @@ const createPrograms = (
       positionUniform.set(position);
       orientationUniform.set(orientation);
       colorUniform.set(color);
+      diffuseUniform.set(diffuse);
       sizeUniform.set(size);
       minSizePixelsUniform.set(minSizePixels);
       maxSizePixelsUniform.set(maxSizePixels);

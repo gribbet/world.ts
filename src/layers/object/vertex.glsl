@@ -9,11 +9,13 @@ uniform vec2 screen;
 uniform ivec3 position;
 uniform mat4 orientation;
 uniform vec4 color;
+uniform vec4 diffuse;
 uniform float size;
 uniform float min_size_pixels;
 uniform float max_size_pixels;
 
 in vec3 vertex;
+in vec3 normal;
 out vec4 color_out;
 
 const int ONE = 1073741824; // 2^30
@@ -32,5 +34,8 @@ void main(void) {
     vec4 q = orientation * vec4(vertex * scale, 1.f);
     gl_Position = transform(q.xyz / q.w);
 
-    color_out = color;
+    vec4 qn = orientation * vec4(normal, 1.f);
+    vec3 n = qn.xyz / qn.w; 
+
+    color_out = color + diffuse * vec4(vec3(clamp(dot(n, vec3(0.f, 0.f, 1.f)), 0.f, 1.f)), 1.f);
 }
