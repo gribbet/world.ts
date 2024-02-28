@@ -149,16 +149,18 @@ export const createMouseControl = (
 
   const onContextMenu = (event: MouseEvent) => event.preventDefault();
 
-  canvas.addEventListener("touchstart", onMouseDown);
   canvas.addEventListener("mousedown", onMouseDown);
   canvas.addEventListener("mousemove", onMouseMove);
-  canvas.addEventListener("touchmove", onTouchMove);
+  canvas.addEventListener("touchstart", onMouseDown, { passive: false });
+  canvas.addEventListener("touchmove", onTouchMove, { passive: false });
   canvas.addEventListener("wheel", onWheel, { passive: true });
   canvas.addEventListener("contextmenu", onContextMenu);
 
   const dispose = () => {
     canvas.removeEventListener("mousedown", onMouseDown);
     canvas.removeEventListener("mousemove", onMouseMove);
+    canvas.removeEventListener("touchstart", onMouseDown);
+    canvas.removeEventListener("touchmove", onTouchMove);
     canvas.removeEventListener("wheel", onWheel);
     canvas.removeEventListener("contextmenu", onContextMenu);
   };
