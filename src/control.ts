@@ -25,7 +25,7 @@ export type MouseControlProperties = {
 export const createMouseControl = (
   canvas: HTMLCanvasElement,
   world: World,
-  properties: Properties<MouseControlProperties>,
+  properties: Properties<MouseControlProperties>
 ) => {
   const {
     enabled = () => true,
@@ -59,12 +59,31 @@ export const createMouseControl = (
     });
   };
 
-  const onMouseDown = () => {
-    recentered = false;
+  const onDrag = (x: number, y: number) => {
+    if (!draggable()) return;
+
+    if (!recentered) {
+      recenter([x, y]);
+      recentered = true;
+    }
+
+    const [width, height] = [
+      canvas.width / devicePixelRatio,
+      canvas.height / devicePixelRatio,
+    ];
+
+    onChangeView({
+      offset: [x - width / 2, y - height / 2],
+    });
   };
 
-  const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
-    if (!enabled() || !buttons) return;
+  const onRotate = (
+    x: number,
+    y: number,
+    movementX: number,
+    movementY: number
+  ) => {
+    if (!rotatable()) return;
 
     if (draggable() && !recentered) {
       recenter([x, y]);
@@ -76,24 +95,36 @@ export const createMouseControl = (
       canvas.height / devicePixelRatio,
     ];
 
-    if (buttons === 1 && draggable())
-      onChangeView({
-        offset: [x - width / 2, y - height / 2],
-      });
-    else if (buttons === 2 && rotatable()) {
-      const { orientation: [pitch = 0, roll = 0, yaw = 0] = [] } = view();
-      const orientation = [
-        Math.min(
-          Math.PI / 2 - 0.1,
-          Math.max(0.1, pitch - (movementY / height) * Math.PI),
-        ),
-        roll,
-        yaw - (movementX / width) * Math.PI,
-      ] satisfies vec3;
-      onChangeView({
-        orientation,
-      });
-    }
+    const { orientation: [pitch = 0, roll = 0, yaw = 0] = [] } = view();
+    const orientation = [
+      Math.min(
+        Math.PI / 2 - 0.1,
+        Math.max(0.1, pitch - (movementY / height) * Math.PI)
+      ),
+      roll,
+      yaw - (movementX / width) * Math.PI,
+    ] satisfies vec3;
+
+    onChangeView({
+      orientation,
+    });
+  };
+
+  const onMouseDown = (event: any) => {
+    recentered = false;
+  };
+
+  const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
+    if (!enabled() || !buttons) return;
+    if (buttons === 1 && draggable()) onDrag(x, y);
+    else if (buttons === 2 && rotatable()) onRotate(x, y, movementX, movementY);
+  };
+
+  const onTouchMove = ({ touches }: TouchEvent) => {
+    const touch = touches.item(0);
+    if (!touch) return;
+    const { clientX: x, clientY: y } = touch;
+    onDrag(x, y);
   };
 
   const clearZooming = debounce(() => (zooming = false), 100);
@@ -110,7 +141,7 @@ export const createMouseControl = (
 
     distance = Math.min(
       Math.max(distance * Math.exp(deltaY * 0.001), minimumDistance),
-      circumference,
+      circumference
     );
     onChangeView({ distance });
     clearZooming();
@@ -118,8 +149,10 @@ export const createMouseControl = (
 
   const onContextMenu = (event: MouseEvent) => event.preventDefault();
 
+  canvas.addEventListener("touchstart", onMouseDown);
   canvas.addEventListener("mousedown", onMouseDown);
   canvas.addEventListener("mousemove", onMouseMove);
+  canvas.addEventListener("touchmove", onTouchMove);
   canvas.addEventListener("wheel", onWheel, { passive: true });
   canvas.addEventListener("contextmenu", onContextMenu);
 
