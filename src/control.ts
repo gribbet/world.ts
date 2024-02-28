@@ -110,7 +110,8 @@ export const createMouseControl = (
     });
   };
 
-  const onMouseDown = (event: any) => {
+  const onMouseDown = (event: Event) => {
+    event.preventDefault();
     recentered = false;
   };
 
@@ -120,8 +121,9 @@ export const createMouseControl = (
     else if (buttons === 2 && rotatable()) onRotate(x, y, movementX, movementY);
   };
 
-  const onTouchMove = ({ touches }: TouchEvent) => {
-    const touch = touches.item(0);
+  const onTouchMove = (event: TouchEvent) => {
+    event.preventDefault();
+    const touch = event.touches.item(0);
     if (!touch) return;
     const { clientX: x, clientY: y } = touch;
     onDrag(x, y);
