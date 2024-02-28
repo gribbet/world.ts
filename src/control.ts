@@ -147,12 +147,15 @@ export const createMouseControl = (
     clearZooming();
   };
 
+  const onGestureStart = (event: Event) => event.preventDefault();
+
   const onContextMenu = (event: MouseEvent) => event.preventDefault();
 
   canvas.addEventListener("mousedown", onMouseDown);
   canvas.addEventListener("mousemove", onMouseMove);
   canvas.addEventListener("touchstart", onMouseDown, { passive: false });
   canvas.addEventListener("touchmove", onTouchMove, { passive: false });
+  canvas.addEventListener("gesturestart", onGestureStart);
   canvas.addEventListener("wheel", onWheel, { passive: true });
   canvas.addEventListener("contextmenu", onContextMenu);
 
@@ -161,6 +164,7 @@ export const createMouseControl = (
     canvas.removeEventListener("mousemove", onMouseMove);
     canvas.removeEventListener("touchstart", onMouseDown);
     canvas.removeEventListener("touchmove", onTouchMove);
+    canvas.removeEventListener("gesturestart", onGestureStart);
     canvas.removeEventListener("wheel", onWheel);
     canvas.removeEventListener("contextmenu", onContextMenu);
   };
