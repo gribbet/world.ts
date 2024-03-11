@@ -4,10 +4,10 @@ import { mat4 } from "gl-matrix";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import type { Context } from "../../context";
-import type { Layer, Properties } from "..";
-import { cache, createMouseEvents, type Object } from "..";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
+import type { Layer, Properties } from "..";
+import { cache, createMouseEvents, type Object } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -15,7 +15,7 @@ import vertexSource from "./vertex.glsl";
 
 export const createObjectLayer = (
   context: Context,
-  properties: Properties<Partial<Object>> = {}
+  properties: Properties<Partial<Object>> = {},
 ) => {
   const { gl } = context;
   let count = 0;
@@ -78,10 +78,10 @@ export const createObjectLayer = (
       normalBuffer.set(
         normals.length === 0
           ? vertices.flatMap(() => [0, 0, 0])
-          : normals.flatMap(_ => [..._])
+          : normals.flatMap(_ => [..._]),
       );
       count = indices.length * 3;
-    }
+    },
   );
 
   const dispose = () => {
@@ -109,7 +109,7 @@ const createPrograms = (
     vertexBuffer: Buffer;
     indexBuffer: Buffer;
     normalBuffer: Buffer;
-  }
+  },
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = programs.get({

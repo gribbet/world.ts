@@ -25,7 +25,7 @@ export type MouseControlProperties = {
 export const createMouseControl = (
   canvas: HTMLCanvasElement,
   world: World,
-  properties: Properties<MouseControlProperties>
+  properties: Properties<MouseControlProperties>,
 ) => {
   const {
     enabled = () => true,
@@ -81,7 +81,7 @@ export const createMouseControl = (
     x: number,
     y: number,
     movementX: number,
-    movementY: number
+    movementY: number,
   ) => {
     if (!rotatable()) return;
 
@@ -99,7 +99,7 @@ export const createMouseControl = (
     const orientation = [
       Math.min(
         Math.PI / 2 - 0.1,
-        Math.max(0.1, pitch - (movementY / height) * Math.PI)
+        Math.max(0.1, pitch - (movementY / height) * Math.PI),
       ),
       roll,
       yaw - (movementX / width) * Math.PI,
@@ -143,7 +143,7 @@ export const createMouseControl = (
 
     distance = Math.min(
       Math.max(distance * Math.exp(deltaY * 0.001), minimumDistance),
-      circumference
+      circumference,
     );
     onChangeView({ distance });
     clearZooming();

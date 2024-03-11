@@ -1,10 +1,10 @@
 import type { vec3 } from "gl-matrix";
 
+import { tileToMercator } from "../../math";
 import type { ImageTexture } from "./image-texture";
 import { createImageTexture } from "./image-texture";
 import type { Texture } from "./texture";
 import { createTileIndexCache } from "./tile-index-cache";
-import { tileToMercator } from "../../math";
 
 export type TileCache = {
   get: (xyz: vec3) => Texture | undefined;
