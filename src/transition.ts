@@ -124,6 +124,7 @@ export const createPositionVelocityTransition = (target: () => vec3) => {
     } else if (
       target !== last &&
       lastTime !== undefined &&
+      time - lastTime > 1
     ) {
       targetVelocity = vec3.scale(
         vec3.create(),
