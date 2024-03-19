@@ -12,6 +12,11 @@ export const quadratic = (a: number, b: number, c: number) => {
   return [(-b - q) / (2 * a), (-b + q) / (2 * a)];
 };
 
+const clamp = (x: number, min: number, max: number) =>
+  Math.min(Math.max(x, min), max);
+
+const limit = Math.atan(Math.sinh(Math.PI));
+
 export const mercator = (
   [lng = 0, lat = 0, alt = 0]: vec3,
   out = vec3.create(),
@@ -19,7 +24,8 @@ export const mercator = (
   vec3.set(
     out,
     lng / 360 + 0.5,
-    -Math.asinh(Math.tan(radians(lat))) / (2 * Math.PI) + 0.5,
+    -Math.asinh(Math.tan(clamp(radians(lat), -limit, limit))) / (2 * Math.PI) +
+      0.5,
     alt / circumference,
   );
 
