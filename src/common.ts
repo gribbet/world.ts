@@ -1,11 +1,12 @@
-export const debounce = <F extends (...args: unknown[]) => void>(
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export const debounce = <F extends (...args: any[]) => void>(
   f: F,
   delay: number,
 ) => {
   let timeout: number;
   return (...args: Parameters<F>) => {
     clearTimeout(timeout);
-    timeout = setTimeout(() => f(args), delay);
+    timeout = setTimeout(() => f(...args), delay);
   };
 };
 
