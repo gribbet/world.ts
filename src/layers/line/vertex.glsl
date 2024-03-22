@@ -60,7 +60,7 @@ void main(void) {
     float pixel_size = abs(projected_current.w) / screen.y;
     float scale = clamp(width / CIRCUMFERENCE * -projection[1][1], min_width_pixels * pixel_size, max_width_pixels * pixel_size) ;
 
-    gl_Position = projected_current + 0.5 * vec4(scale * offset, 0.f, 0.f);
+    gl_Position = projected_current + 0.5 * vec4(scale * offset / screen * screen.y, 0.f, 0.f);
 
     color_out = color;
     distance_out = distance;
