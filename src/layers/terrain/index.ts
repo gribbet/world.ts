@@ -71,6 +71,13 @@ export const createTerrainLayer = (
   let imageryCache: TileCache | undefined;
   let imageryDownsampler: TileDownsampler | undefined;
 
+  const textureFilterAnisotropic = gl.getExtension(
+    "EXT_texture_filter_anisotropic",
+  );
+  const maxAnisotropy = textureFilterAnisotropic
+    ? gl.getParameter(textureFilterAnisotropic.MAX_TEXTURE_MAX_ANISOTROPY_EXT)
+    : undefined;
+
   const updateImageryUrl = cache(
     () => properties.imageryUrl?.() ?? "",
     imageryUrl => {
@@ -79,17 +86,12 @@ export const createTerrainLayer = (
         gl,
         urlPattern: imageryUrl,
         onLoad: () => {
-          const extension = gl.getExtension("EXT_texture_filter_anisotropic");
-          if (extension) {
-            const max = gl.getParameter(
-              extension.MAX_TEXTURE_MAX_ANISOTROPY_EXT,
-            );
+          if (textureFilterAnisotropic && maxAnisotropy)
             gl.texParameterf(
               gl.TEXTURE_2D,
-              extension.TEXTURE_MAX_ANISOTROPY_EXT,
-              max,
+              textureFilterAnisotropic.TEXTURE_MAX_ANISOTROPY_EXT,
+              maxAnisotropy,
             );
-          }
           gl.texParameteri(
             gl.TEXTURE_2D,
             gl.TEXTURE_MIN_FILTER,
