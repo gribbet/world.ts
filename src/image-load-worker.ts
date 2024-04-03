@@ -20,12 +20,16 @@ addEventListener("message", async event => {
     const image = await createImageBitmap(blob);
     postMessage({ url, image });
   } catch (error) {
-    if (
-      error instanceof Error &&
-      error.message === "The user aborted a request."
-    ) {
+    if (!(error instanceof Error)) throw error;
+    if (error.message === "The user aborted a request.")
       // Ignore
-    } else throw error;
+      return;
+    else if (error.message === "Failed to fetch") {
+      // Network error (eg. CORS issue)
+      postMessage({ url, image: undefined });
+      return;
+    }
+    throw error;
   } finally {
     removeEventListener("message", handler);
   }
