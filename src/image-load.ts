@@ -19,6 +19,7 @@ export const createImageLoad = ({
   const handler = ({ data }: MessageEvent) => {
     if (canceled || url !== data.url) return;
     worker.removeEventListener("message", handler);
+    if (!data.image) return;
     loaded = true;
     onLoad(data.image);
   };
