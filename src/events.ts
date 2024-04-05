@@ -26,7 +26,8 @@ export const createMouseEvents = (
     clicked = true;
   };
 
-  const onMouseMove = ({ x, y, movementX, movementY }: MouseEvent) => {
+  const onMouseMove = (event: MouseEvent) => {
+    const { x, y, movementX, movementY } = event;
     if (dragging) {
       if (dragging.onDrag) {
         const { point, position, layer } = pick([x, y], { terrain: true });
@@ -63,13 +64,13 @@ export const createMouseEvents = (
     dragging = undefined;
   };
 
-  const onClick = ({ x, y, button }: MouseEvent) => {
+  const onClick = (event: MouseEvent) => {
+    const { x, y, button } = event;
     const { point, position, layer } = pick([x, y]);
-    (button === 2 ? layer?.onRightClick : layer?.onClick)?.({
-      point,
-      position,
-      layer,
-    });
+    (button === 2 ? layer?.onRightClick : layer?.onClick)?.(
+      { point, position, layer },
+      event,
+    );
   };
 
   const onDoubleClick = ({ x, y }: MouseEvent) => {

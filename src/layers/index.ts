@@ -10,8 +10,8 @@ export * from "./terrain";
 import type { Pick } from "../model";
 
 export type LayerEvents = {
-  onClick?: (_: Pick) => void;
-  onRightClick?: (_: Pick) => void;
+  onClick?: (_: Pick, event: MouseEvent) => void;
+  onRightClick?: (_: Pick, event: MouseEvent) => void;
   onDoubleClick?: (_: Pick) => void;
   onDragStart?: (_: Pick) => void;
   onDrag?: (_: Pick) => void;
