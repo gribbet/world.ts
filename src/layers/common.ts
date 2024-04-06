@@ -21,6 +21,7 @@ export const configure = (
   else gl.disable(gl.DEPTH_TEST);
 
   if (_depth) {
+    gl.disable(gl.POLYGON_OFFSET_FILL);
     gl.disable(gl.BLEND);
     if (!pickable()) return true;
   } else {
