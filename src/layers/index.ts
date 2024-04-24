@@ -110,10 +110,7 @@ export const cacheAll = <T extends readonly any[], R>(
 };
 
 export const cache = <T, R>(value: () => T, f: (_: T) => R) =>
-  cacheAll([value], test => {
-    const [_] = test;
-    return f(_!);
-  });
+  cacheAll([value], ([_]) => f(_!));
 
 export const createMouseEvents = (
   properties: Properties<Partial<LayerOptions>>,
