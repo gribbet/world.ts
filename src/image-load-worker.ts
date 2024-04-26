@@ -21,7 +21,10 @@ addEventListener("message", async event => {
     postMessage({ url, image });
   } catch (error) {
     if (!(error instanceof Error)) throw error;
-    if (error.message === "The user aborted a request.")
+    if (
+      error.message === "The user aborted a request." ||
+      error.message.startsWith("signal is aborted without reason")
+    )
       // Ignore
       return;
     else if (error.message === "Failed to fetch") {
