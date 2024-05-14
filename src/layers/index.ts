@@ -7,6 +7,7 @@ export * from "./line";
 export * from "./object";
 export * from "./polygon";
 export * from "./terrain";
+export * from "./radar";
 import type { Pick } from "../model";
 
 export type LayerEvents = {
@@ -80,6 +81,13 @@ export type Billboard = {
   maxSizePixels?: number;
 } & LayerOptions;
 
+export type Radar = {
+  image: ImageData;
+  range: number;
+  position: vec3;
+  orientation: quat;
+} & LayerOptions;
+
 export type Layer = {
   children?: Layer[];
   render?: (_: { viewport: Viewport; depth?: boolean; index?: number }) => void;
@@ -94,7 +102,7 @@ export type Properties<T> = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const cacheAll = <T extends readonly any[], R>(
   _value: { [K in keyof T]: () => T[K] },
-  f: (_: T) => R,
+  f: (_: T) => R
 ) => {
   let last: [T, R] | undefined;
   return () => {
@@ -113,7 +121,7 @@ export const cache = <T, R>(value: () => T, f: (_: T) => R) =>
   cacheAll([value], ([_]) => f(_!));
 
 export const createMouseEvents = (
-  properties: Properties<Partial<LayerOptions>>,
+  properties: Properties<Partial<LayerOptions>>
 ) => {
   const {
     onClick,
