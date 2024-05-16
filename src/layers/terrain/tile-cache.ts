@@ -21,7 +21,7 @@ export const createTileCache = ({
   onLoad?: () => void;
 }) => {
   const tiles = createTileIndexCache<ImageTexture>({
-    max: 10000,
+    max: 2000,
     dispose: tile => tile.dispose(),
   });
   const loading = createTileIndexCache<true>({
