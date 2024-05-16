@@ -17,7 +17,7 @@ import vertexSource from "./vertex.glsl";
 
 export const createLineLayer = (
   context: Context,
-  properties: Properties<Partial<Line>> = {},
+  properties: Properties<Partial<Line>> = {}
 ) => {
   const { gl } = context;
   let count = 0;
@@ -110,7 +110,7 @@ export const createLineLayer = (
           if (_.length === 0) return { indexData, count };
           const indices = range(0, (_.length - 1) * 2).flatMap(i => {
             const [a = 0, b = 0, c = 0, d = 0] = range(0, 4).map(
-              _ => _ + i * 2 + count,
+              _ => _ + i * 2 + count
             );
             return [
               [a, b, d],
@@ -121,7 +121,7 @@ export const createLineLayer = (
           indexData = indexData.concat(indices);
           return { indexData, count };
         },
-        { indexData: [], count: 0 },
+        { indexData: [], count: 0 }
       );
       count = indexData.length;
 
@@ -134,15 +134,15 @@ export const createLineLayer = (
                 [-1, 1],
                 [1, -1],
                 [1, 1],
-              ].flat(),
-            ),
+              ].flat()
+            )
       );
 
       const distanceData = _.flatMap(points => {
         const distances = points.map(
           (_, i) =>
             vec3.distance(mercator(_), mercator(points[i - 1] ?? _)) *
-            circumference,
+            circumference
         );
         const accumulated = distances.reduce(
           ({ current, result }, distance) => {
@@ -150,7 +150,7 @@ export const createLineLayer = (
             result.push(current);
             return { current, result };
           },
-          { current: 0, result: [] as number[] },
+          { current: 0, result: [] as number[] }
         ).result;
 
         const [first] = accumulated;
@@ -165,7 +165,7 @@ export const createLineLayer = (
       indexBuffer.set(indexData);
       cornerBuffer.set(cornerData);
       distanceBuffer.set(distanceData);
-    },
+    }
   );
 
   const updateDashPattern = cache(
@@ -182,12 +182,13 @@ export const createLineLayer = (
         0,
         gl.RGBA,
         gl.UNSIGNED_BYTE,
-        new Uint8Array(dashPattern.flatMap(_ => [..._.map(_ => _ * 255)])),
+        new Uint8Array(dashPattern.flatMap(_ => [..._.map(_ => _ * 255)]))
       );
-    },
+    }
   );
 
   const dispose = () => {
+    dash.dispose();
     positionBuffer.dispose();
     indexBuffer.dispose();
     cornerBuffer.dispose();
@@ -215,7 +216,7 @@ const createPrograms = (
     indexBuffer: Buffer;
     cornerBuffer: Buffer;
     distanceBuffer: Buffer;
-  },
+  }
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = programs.get({
