@@ -6,8 +6,8 @@ import { createBuffer } from "../../buffer";
 import type { Context } from "../../context";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
-import type { Layer, Properties } from "..";
-import { cache, createMouseEvents, type Object } from "..";
+import type { Layer, Object as Object_, Properties } from "..";
+import { cache, createMouseEvents } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -15,7 +15,7 @@ import vertexSource from "./vertex.glsl";
 
 export const createObjectLayer = (
   context: Context,
-  properties: Properties<Partial<Object>> = {},
+  properties: Properties<Partial<Object_>> = {},
 ) => {
   const { gl } = context;
   let count = 0;

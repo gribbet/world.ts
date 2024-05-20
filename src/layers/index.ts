@@ -6,8 +6,8 @@ export * from "./container";
 export * from "./line";
 export * from "./object";
 export * from "./polygon";
-export * from "./terrain";
 export * from "./radar";
+export * from "./terrain";
 import type { Pick } from "../model";
 
 export type LayerEvents = {
@@ -102,7 +102,7 @@ export type Properties<T> = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const cacheAll = <T extends readonly any[], R>(
   _value: { [K in keyof T]: () => T[K] },
-  f: (_: T) => R
+  f: (_: T) => R,
 ) => {
   let last: [T, R] | undefined;
   return () => {
@@ -121,7 +121,7 @@ export const cache = <T, R>(value: () => T, f: (_: T) => R) =>
   cacheAll([value], ([_]) => f(_!));
 
 export const createMouseEvents = (
-  properties: Properties<Partial<LayerOptions>>
+  properties: Properties<Partial<LayerOptions>>,
 ) => {
   const {
     onClick,

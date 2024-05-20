@@ -1,4 +1,3 @@
-import { createImageLoad } from "../../image-load";
 import { createTexture } from "./texture";
 
 export type MemoryTexture = {

@@ -1,12 +1,13 @@
-import { mat4, vec2, vec3 } from "gl-matrix";
+import type { vec2, vec3 } from "gl-matrix";
+import { mat4 } from "gl-matrix";
 
-import type { Layer, Properties, Radar } from "..";
-import { cache, createMouseEvents } from "..";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import type { Context } from "../../context";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
+import type { Layer, Properties, Radar } from "..";
+import { cache, createMouseEvents } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -14,11 +15,11 @@ import vertexSource from "./vertex.glsl";
 
 export const createRadarLayer = (
   context: Context,
-  properties: Properties<Partial<Radar>> = {}
+  properties: Properties<Partial<Radar>> = {},
 ) => {
   const { gl } = context;
 
-  let image = createMemoryTexture(gl);
+  const image = createMemoryTexture(gl);
 
   const uvBuffer = createBuffer({ gl, type: "f32", target: "array" });
   const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
@@ -29,20 +30,20 @@ export const createRadarLayer = (
       [-1, 1],
       [1, -1],
       [1, 1],
-    ].flat()
+    ].flat(),
   );
   indexBuffer.set(
     [
       [0, 1, 3],
       [0, 3, 2],
-    ].flat()
+    ].flat(),
   );
 
   const updateImage = cache(
     () => properties.image?.(),
     data => {
       if (data) image.set(data);
-    }
+    },
   );
 
   const { renderProgram, depthProgram } = createPrograms(context, {
@@ -105,7 +106,7 @@ const createPrograms = (
   }: {
     uvBuffer: Buffer;
     indexBuffer: Buffer;
-  }
+  },
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = programs.get({
