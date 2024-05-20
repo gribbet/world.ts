@@ -52,7 +52,8 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
   mat4.rotateZ(modelView, modelView, yaw);
 
   const transform = mat4.multiply(matrix, projection, modelView);
-  const inverse = mat4.invert(mat4.create(), transform);
+  const inverse = mat4.invert(mat4.create(), transform) as mat4 | null;
+  if (!inverse) throw new Error("No inverse");
 
   const scale = (scale: number) => {
     const screen: vec2 = [width * scale, height * scale];
