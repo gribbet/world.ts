@@ -78,14 +78,27 @@ export const createProgram = ({
 
   const use = () => gl.useProgram(program);
 
-  const uniform = <T extends number | vec2 | vec3 | vec4 | mat4>(
+  type UniformValue = number | vec2 | vec3 | vec4 | mat4;
+  type Uniform<T extends UniformValue> = {
+    set: (value: T) => void;
+  };
+  const uniforms: {
+    [name: string]: Uniform<never>;
+  } = {};
+  const uniform = <T extends UniformValue>(
     name: string,
     f: (location: WebGLUniformLocation, value: T) => void,
   ) => {
+    if (uniforms[name]) return uniforms[name] as Uniform<T>;
     const location = gl.getUniformLocation(program, name);
+    let lastValue: T | undefined;
     const set = (value: T) => {
-      if (location) f(location, value);
+      if (location && value !== lastValue) {
+        f(location, value);
+        lastValue = value;
+      }
     };
+    uniforms[name] = { set };
     return { set };
   };
 
