@@ -97,9 +97,21 @@ export const createLineLayer = (
 
         if (!first || !last) return [];
 
-        return [first, ..._, last]
-          .map(_ => to(mercator(_)))
-          .flatMap(_ => [..._, ..._, ..._, ..._]);
+        const repeat = (_: vec3[]) => {
+          const result = new Array(_.length * 3 * 4);
+          for (let i = 0; i < _.length; i++) {
+            const [x = 0, y = 0, z = 0] = _[i] ?? [];
+            for (let j = 0; j < 4; j++) {
+              const q = i * 3 * 4 + j * 3;
+              result[q + 0] = x;
+              result[q + 1] = y;
+              result[q + 2] = z;
+            }
+          }
+          return result;
+        };
+
+        return repeat([first, ..._, last].map(_ => to(mercator(_))));
       });
 
       const { indexData } = _.reduce<{
@@ -109,13 +121,10 @@ export const createLineLayer = (
         ({ indexData, count }, _) => {
           if (_.length === 0) return { indexData, count };
           const indices = range(0, (_.length - 1) * 2).flatMap(i => {
-            const [a = 0, b = 0, c = 0, d = 0] = range(0, 4).map(
+            const [a = 0, b = 0, c = 0, d = 0] = [0, 1, 2, 3].map(
               _ => _ + i * 2 + count,
             );
-            return [
-              [a, b, d],
-              [a, d, c],
-            ].flat();
+            return [a, b, d, /**/ a, d, c];
           });
           count += (_.length + 2) * 4;
           indexData = indexData.concat(indices);
@@ -128,14 +137,15 @@ export const createLineLayer = (
       const cornerData = _.flatMap(_ =>
         _.length === 0
           ? []
-          : range(0, (_.length + 1) * 2).flatMap(() =>
-              [
-                [-1, -1],
-                [-1, 1],
-                [1, -1],
-                [1, 1],
-              ].flat(),
-            ),
+          : range(0, (_.length + 1) * 2).flatMap(() => [
+              -1, -1,
+              //
+              -1, 1,
+              //
+              1, -1,
+              //
+              1, 1,
+            ]),
       );
 
       const distanceData = _.flatMap(points => {
@@ -158,7 +168,18 @@ export const createLineLayer = (
 
         if (first === undefined || last === undefined) return [];
 
-        return [first, ...accumulated, last].flatMap(_ => [_, _, _, _]);
+        const repeat = (_: number[]) => {
+          const result = new Array(_.length * 4);
+          for (let i = 0; i < _.length; i++) {
+            result[i * 4 + 0] = _[i];
+            result[i * 4 + 1] = _[i];
+            result[i * 4 + 2] = _[i];
+            result[i * 4 + 3] = _[i];
+          }
+          return result;
+        };
+
+        return repeat([first, ...accumulated, last]);
       });
 
       positionBuffer.set(positionData);
