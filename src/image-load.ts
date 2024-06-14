@@ -27,6 +27,7 @@ export const createImageLoad = ({
 
   let canceled = false;
   const cancel = () => {
+    if (loaded) return;
     canceled = true;
     worker.postMessage(["cancel", url]);
   };
