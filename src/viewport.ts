@@ -36,9 +36,11 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
   const [pitch = 0, roll = 0, yaw = 0] = orientation;
   const fieldScale =
     Math.tan(radians(45) / 2) / Math.tan(radians(fieldOfView) / 2);
-  const z = (distance / circumference) * fieldScale;
-  const near = z / 100;
-  const far = z * 1000000;
+  const z = distance / circumference;
+  const farScale = 1e9;
+  const nearScale = 1e-3;
+  const far = z * (farScale + fieldScale - 1);
+  const near = z * (nearScale + fieldScale - 1);
 
   const projection = mat4.create();
   mat4.identity(projection);
@@ -88,14 +90,9 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
   const [bx = 0, by = 0, bz = 0] = clipToLocal([cx, cy, 1.00001, 1]);
 
   const [t1 = 0] = quadratic(
-    (bx - ax) * (bx - ax) + (by - ay) * (by - ay) + (bz - az) * (bz - az),
-    ax * (bx - ax) + ay * (by - ay) + az * (bz - az),
-    ax * ax +
-      ay * ay +
-      az * az -
-      ((distance * distance) / circumference / circumference) *
-        fieldScale *
-        fieldScale,
+    (bx - ax) ** 2 + (by - ay) ** 2 + (bz - az) ** 2,
+    2 * (ax * (bx - ax) + ay * (by - ay) + az * (bz - az)),
+    ax ** 2 + ay ** 2 + az ** 2 - (z * fieldScale) ** 2,
   );
 
   if (isNaN(t1)) throw new Error("Unexpected");
