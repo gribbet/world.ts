@@ -38,7 +38,7 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
     Math.tan(radians(45) / 2) / Math.tan(radians(fieldOfView) / 2);
   const z = distance / circumference;
   const farScale = 1e9;
-  const nearScale = 1e-3;
+  const nearScale = 1e-2;
   const far = z * (farScale + fieldScale - 1);
   const near = z * (nearScale + fieldScale - 1);
 
