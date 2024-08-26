@@ -20,9 +20,6 @@ export type Viewport = {
   unproject: (_: vec2, options?: { targetZ: number | undefined }) => vec3;
 };
 
-const matrix = mat4.create();
-const vector = vec4.create();
-
 export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
   view,
   screen,
@@ -37,10 +34,13 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
   const fieldScale =
     Math.tan(radians(45) / 2) / Math.tan(radians(fieldOfView) / 2);
   const z = distance / circumference;
-  const farScale = 1e9;
-  const nearScale = 1e-2;
-  const far = z * (farScale + fieldScale - 1);
-  const near = z * (nearScale + fieldScale - 1);
+  const minZ = Math.max(1000 / circumference, z);
+  const farScale = 1e3;
+  const nearScale = 1e-3;
+  const far = minZ * farScale * fieldScale;
+  const near = minZ * nearScale * fieldScale;
+
+  const vector = vec4.create();
 
   const projection = mat4.create();
   mat4.identity(projection);
@@ -53,7 +53,7 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
   mat4.rotateY(modelView, modelView, roll);
   mat4.rotateZ(modelView, modelView, yaw);
 
-  const transform = mat4.multiply(matrix, projection, modelView);
+  const transform = mat4.multiply(mat4.create(), projection, modelView);
   const inverse = mat4.invert(mat4.create(), transform) as mat4 | null;
   if (!inverse) throw new Error("No inverse");
 

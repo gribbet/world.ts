@@ -181,7 +181,7 @@ export const createOrientationTransition = createTransition<vec3>(
         quat.create(),
         toQuaternion(current),
         toQuaternion(target),
-        Math.PI * time,
+        2 * time,
       ),
     );
     if (quat.getAngle(toQuaternion(current), toQuaternion(target)) < epsilon)
