@@ -44,8 +44,8 @@ export const createNumberTransition = createTransition<number>(
   },
 );
 
-export const createVec2Transition = createTransition<vec2>(
-  ({ time, current, target }) => {
+export const createVec2Transition = (target: () => vec2) =>
+  createTransition<vec2>(({ time, current, target }) => {
     if (vec2.distance(current, target) < epsilon) vec2.copy(current, target);
     else
       current = vec2.add(
@@ -58,11 +58,10 @@ export const createVec2Transition = createTransition<vec2>(
         ),
       );
     return current;
-  },
-);
+  })(() => vec2.clone(target()));
 
-export const createVec4Transition = createTransition<vec4>(
-  ({ time, current, target }) => {
+export const createVec4Transition = (target: () => vec4) =>
+  createTransition<vec4>(({ time, current, target }) => {
     if (vec4.distance(current, target) < epsilon) vec4.copy(current, target);
     else
       current = vec4.add(
@@ -76,11 +75,10 @@ export const createVec4Transition = createTransition<vec4>(
       );
 
     return current;
-  },
-);
+  })(() => vec4.clone(target()));
 
-export const createPositionTransition = createTransition<vec3>(
-  ({ time, current, target }) => {
+export const createPositionTransition = (target: () => vec3) =>
+  createTransition<vec3>(({ time, current, target }) => {
     const distance = vec3.distance(mercator(current), mercator(target));
     if (distance * circumference < epsilon || distance > 100000 / circumference)
       vec3.copy(current, target);
@@ -97,8 +95,7 @@ export const createPositionTransition = createTransition<vec3>(
         ),
       );
     return current;
-  },
-);
+  })(() => vec3.clone(target()));
 
 export const createPositionVelocityTransition = (target: () => vec3) => {
   let velocity: vec3 = [0, 0, 0];
@@ -171,11 +168,11 @@ export const createPositionVelocityTransition = (target: () => vec3) => {
     return current;
   });
 
-  return transition(target);
+  return transition(() => vec3.clone(target()));
 };
 
-export const createOrientationTransition = createTransition<vec3>(
-  ({ time, current, target }) => {
+export const createOrientationTransition = (target: () => vec3) =>
+  createTransition<vec3>(({ time, current, target }) => {
     current = toOrientation(
       quat.slerp(
         quat.create(),
@@ -187,5 +184,4 @@ export const createOrientationTransition = createTransition<vec3>(
     if (quat.getAngle(toQuaternion(current), toQuaternion(target)) < epsilon)
       target = current;
     return current;
-  },
-);
+  })(() => vec3.clone(target()));
