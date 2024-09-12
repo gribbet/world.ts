@@ -62,6 +62,10 @@ const uvw = range(0, n + 1).flatMap(y =>
   }),
 );
 
+export type TerrainLayer = Layer & {
+  elevation: (_: vec2) => number;
+};
+
 export const createTerrainLayer = (
   context: Context,
   properties: Properties<Partial<Terrain>> = {},
@@ -228,7 +232,8 @@ export const createTerrainLayer = (
     render,
     dispose,
     ...mouseEvents,
-  } satisfies Layer;
+    elevation: elevation.get,
+  } satisfies TerrainLayer;
 };
 
 const createPrograms = (

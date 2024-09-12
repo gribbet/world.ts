@@ -4,7 +4,7 @@ import { glMatrix } from "gl-matrix";
 import type { Context } from "./context";
 import { createDepthBuffer } from "./depth-buffer";
 import { createMouseEvents } from "./events";
-import type { Layer, Properties } from "./layers";
+import type { Layer, Properties, TerrainLayer } from "./layers";
 import { geodetic } from "./math";
 import type { Pick, View } from "./model";
 import { createViewport } from "./viewport";
@@ -15,12 +15,13 @@ export type World = {
   project: (_: vec3) => vec2;
   unproject: (_: vec2) => vec3;
   pick: ([x, y]: vec2, _?: { terrain?: boolean }) => Pick;
+  elevation: (_: vec2) => number;
   dispose: () => void;
 };
 
 export type WorldProperties = {
   view: Partial<View>;
-  layers: Layer[];
+  layers: readonly [TerrainLayer, ...Layer[]];
 };
 
 export const createWorld = (
@@ -126,6 +127,11 @@ export const createWorld = (
     pick,
   });
 
+  const elevation = (_: vec2) => {
+    const [terrainLayer] = layers();
+    return terrainLayer.elevation(_);
+  };
+
   const dispose = () => {
     running = false;
     mouseEvents.dispose();
@@ -137,9 +143,10 @@ export const createWorld = (
     project,
     unproject,
     pick,
+    elevation,
     dispose,
   } satisfies World;
 };
 
-const flattenLayers: (_: Layer[]) => Layer[] = layers =>
+const flattenLayers: (_: readonly Layer[]) => Layer[] = layers =>
   layers.flatMap<Layer>(_ => [...flattenLayers(_.children ?? []), _]);
