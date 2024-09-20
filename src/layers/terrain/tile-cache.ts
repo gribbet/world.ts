@@ -29,10 +29,7 @@ export const createTileCache = ({
     ttl: 200,
     dispose: (_, xyz) => {
       const cached = tiles.get(xyz);
-      if (cached && !cached.loaded) {
-        console.log("Cancel", xyz);
-        tiles.delete(xyz);
-      }
+      if (cached && !cached.loaded) tiles.delete(xyz);
     },
   });
 
