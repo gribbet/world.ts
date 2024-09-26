@@ -1,6 +1,13 @@
 import { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
-import { circumference, geodetic, mercator, quadratic, radians } from "./math";
+import {
+  circumference,
+  geodetic,
+  mercator,
+  quadratic,
+  radians,
+  toQuaternion,
+} from "./math";
 import { defaultView, type View } from "./model";
 
 export type Viewport = {
@@ -30,7 +37,6 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
   };
   const [width = 0, height = 0] = screen;
   const [ox = 0, oy = 0] = offset;
-  const [pitch = 0, roll = 0, yaw = 0] = orientation;
   const fieldScale =
     Math.tan(radians(45) / 2) / Math.tan(radians(fieldOfView) / 2);
   const z = distance / circumference;
@@ -48,11 +54,7 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
   mat4.scale(projection, projection, [1, -1, 1]);
 
   const modelView = mat4.create();
-  mat4.identity(modelView);
-  mat4.rotateX(modelView, modelView, pitch);
-  mat4.rotateY(modelView, modelView, roll);
-  mat4.rotateZ(modelView, modelView, yaw);
-
+  mat4.fromQuat(modelView, toQuaternion(orientation));
   const transform = mat4.multiply(mat4.create(), projection, modelView);
   const inverse = mat4.invert(mat4.create(), transform) as mat4 | null;
   if (!inverse) throw new Error("No inverse");
