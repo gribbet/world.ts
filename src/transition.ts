@@ -8,7 +8,7 @@ import {
   toQuaternion,
 } from "./math";
 
-const k = 10;
+const k = 8;
 const epsilon = 1e-3;
 
 export type Transition<T> = {
@@ -180,7 +180,12 @@ export const createQuaternionTransition = (target: () => quat) =>
   createTransition<quat>(({ time, current, target }) => {
     let angle = quat.getAngle(current, target);
     if (isNaN(angle)) angle = 0;
-    current = quat.slerp(quat.create(), current, target, k * angle * time);
+    current = quat.slerp(
+      quat.create(),
+      current,
+      target,
+      k * Math.max(0.5, angle) * time,
+    );
     if (angle < epsilon) current = target;
     return current;
   })(() => quat.clone(target()));

@@ -9,7 +9,7 @@ import {
   createVec2Transition,
 } from "./transition";
 
-const k = 10;
+const k = 8;
 
 export const createViewTransition = (view: () => View) => {
   const orientation = createOrientationTransition(() => view().orientation);
