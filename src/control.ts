@@ -95,7 +95,7 @@ export const createMouseControl = (
       canvas.height / devicePixelRatio,
     ];
 
-    const { orientation: [pitch = 0, roll = 0, yaw = 0] = [] } = view();
+    const [pitch = 0, roll = 0, yaw = 0] = view().orientation ?? [];
     const orientation = [
       Math.min(
         Math.PI / 2 - 0.1,
