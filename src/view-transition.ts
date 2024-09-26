@@ -17,9 +17,10 @@ export const createViewTransition = (view: () => View) => {
   const fieldOfView = createNumberTransition(() => view().fieldOfView);
 
   const transition = createTransition<View>(({ time, current, target }) => {
-    const flyDistance =
+    let flyDistance =
       vec3.distance(mercator(current.target), mercator(target.target)) *
       circumference;
+    if (flyDistance < 1000) flyDistance = 0;
 
     const targetDistance = Math.max(target.distance, flyDistance);
 
