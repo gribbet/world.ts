@@ -45,25 +45,28 @@ export const tileToMercator = (
   return vec3.set(out, x * k, y * k, 0);
 };
 
-export const toQuaternion = ([pitch = 0, roll = 0, yaw = 0]: vec3) => {
+export const toQuaternion = ([pitch = 0, roll = 0, yaw = 0]: vec3): quat => {
+  const cx = Math.cos(pitch * 0.5);
+  const sx = Math.sin(pitch * 0.5);
   const cy = Math.cos(roll * 0.5);
   const sy = Math.sin(roll * 0.5);
-  const cp = Math.cos(pitch * 0.5);
-  const sp = Math.sin(pitch * 0.5);
-  const cr = Math.cos(yaw * 0.5);
-  const sr = Math.sin(yaw * 0.5);
-
-  const w = cr * cp * cy + sr * sp * sy;
-  const x = sr * cp * cy - cr * sp * sy;
-  const y = cr * sp * cy + sr * cp * sy;
-  const z = cr * cp * sy - sr * sp * cy;
+  const cz = Math.cos(yaw * 0.5);
+  const sz = Math.sin(yaw * 0.5);
+  const w = cx * cy * cz - sx * sy * sz;
+  const x = sx * cy * cz + cx * sy * sz;
+  const y = cx * sy * cz - sx * cy * sz;
+  const z = cx * cy * sz + sx * sy * cz;
 
   return [x, y, z, w] satisfies quat;
 };
 
-export const toOrientation = ([x = 0, y = 0, z = 0, w = 0]: quat) => {
-  const yaw = Math.atan2(2 * (w * x + y * z), 1 - 2 * (x * x + y * y));
-  const pitch = Math.asin(Math.min(1, 2 * (w * y - z * x)));
-  const roll = Math.atan2(2 * (w * z + x * y), 1 - 2 * (y * y + z * z));
+export const toOrientation = ([x = 0, y = 0, z = 0, w = 0]: quat): vec3 => {
+  const clamp = (value: number, min: number, max: number) =>
+    Math.max(min, Math.min(value, max));
+
+  const pitch = Math.atan2(2 * (w * x - y * z), 1 - 2 * (x * x + y * y));
+  const roll = Math.asin(clamp(2 * (w * y + z * x), -1, 1));
+  const yaw = Math.atan2(2 * (w * z - x * y), 1 - 2 * (y * y + z * z));
+
   return [pitch, roll, yaw] satisfies vec3;
 };
