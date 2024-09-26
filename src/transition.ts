@@ -171,17 +171,16 @@ export const createPositionVelocityTransition = (target: () => vec3) => {
   return transition(() => vec3.clone(target()));
 };
 
-export const createOrientationTransition = (target: () => vec3) =>
-  createTransition<vec3>(({ time, current, target }) => {
-    current = toOrientation(
-      quat.slerp(
-        quat.create(),
-        toQuaternion(current),
-        toQuaternion(target),
-        2 * time,
-      ),
-    );
-    if (quat.getAngle(toQuaternion(current), toQuaternion(target)) < epsilon)
-      target = current;
+export const createOrientationTransition = (target: () => vec3) => {
+  const transition = createQuaternionTransition(() => toQuaternion(target()));
+  return () => toOrientation(transition());
+};
+
+export const createQuaternionTransition = (target: () => quat) =>
+  createTransition<quat>(({ time, current, target }) => {
+    let angle = quat.getAngle(current, target);
+    if (isNaN(angle)) angle = 0;
+    current = quat.slerp(quat.create(), current, target, k * angle * time);
+    if (angle < epsilon) current = target;
     return current;
-  })(() => vec3.clone(target()));
+  })(() => quat.clone(target()));
