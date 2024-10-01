@@ -1,4 +1,4 @@
-import type { vec2, vec3, vec4 } from "gl-matrix";
+import type { quat, vec2, vec3, vec4 } from "gl-matrix";
 import { mat4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
@@ -51,6 +51,9 @@ export const createObjectLayer = (
 
     if (configure(gl, depth, properties)) return;
 
+    const fixOrientation = ([x = 0, y = 0, z = 0, w = 0]: quat) =>
+      [-x, y, z, w] satisfies quat;
+
     const program = depth ? depthProgram : renderProgram;
     program.execute({
       projection,
@@ -59,7 +62,7 @@ export const createObjectLayer = (
       screen,
       count,
       position: to(mercator(position)),
-      orientation: mat4.fromQuat(mat4.create(), orientation),
+      orientation: mat4.fromQuat(mat4.create(), fixOrientation(orientation)),
       color,
       diffuse,
       size,
