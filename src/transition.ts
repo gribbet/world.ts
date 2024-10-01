@@ -184,7 +184,7 @@ export const createQuaternionTransition = (target: () => quat) =>
       quat.create(),
       current,
       target,
-      k * Math.max(0.5, angle) * time,
+      k * 0.5 * Math.max(0.5, angle) * time,
     );
     if (angle < epsilon) current = target;
     return current;
