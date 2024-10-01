@@ -18,6 +18,7 @@ export type LayerEvents = {
   onDrag?: (_: Pick) => void;
   onDragFlat?: (_: Pick) => void;
   onDragEnd?: (_: Pick) => void;
+  onMouseMove?: (_: Pick) => void;
 };
 
 export type LayerOptions = {
@@ -142,6 +143,7 @@ export const createMouseEvents = (
     onDragFlat,
     onDragStart,
     onDragEnd,
+    onMouseMove,
   } = properties;
   return {
     onClick,
@@ -151,5 +153,6 @@ export const createMouseEvents = (
     onDragFlat,
     onDragStart,
     onDragEnd,
+    onMouseMove,
   };
 };

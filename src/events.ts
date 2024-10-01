@@ -50,7 +50,11 @@ export const createMouseEvents = (
         dragging.onDragStart?.({ point, position, layer });
         [, , targetZ] = position;
       }
+      return;
     }
+
+    const { point, position, layer } = pick([x, y]);
+    layer?.onMouseMove?.({ point, position, layer });
   };
 
   const onMouseUp = (_: MouseEvent) => {
