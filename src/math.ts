@@ -52,11 +52,10 @@ export const toQuaternion = ([pitch = 0, roll = 0, yaw = 0]: vec3): quat => {
   const sy = Math.sin(roll * 0.5);
   const cz = Math.cos(yaw * 0.5);
   const sz = Math.sin(yaw * 0.5);
-  const w = cx * cy * cz - sx * sy * sz;
   const x = sx * cy * cz + cx * sy * sz;
   const y = cx * sy * cz - sx * cy * sz;
   const z = cx * cy * sz + sx * sy * cz;
-
+  const w = cx * cy * cz - sx * sy * sz;
   return [x, y, z, w] satisfies quat;
 };
 
