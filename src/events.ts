@@ -94,5 +94,10 @@ export const createMouseEvents = (
     window.removeEventListener("mouseup", onMouseUp);
   };
 
-  return { dispose };
+  return {
+    get dragging() {
+      return !!dragging;
+    },
+    dispose,
+  };
 };

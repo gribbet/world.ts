@@ -60,7 +60,7 @@ export const createMouseControl = (
   };
 
   const onDrag = (x: number, y: number) => {
-    if (!draggable()) return;
+    if (!draggable() || world.dragging) return;
 
     if (!recentered) {
       recenter([x, y]);

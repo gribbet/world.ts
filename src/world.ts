@@ -16,6 +16,7 @@ export type World = {
   unproject: (_: vec2) => vec3;
   pick: ([x, y]: vec2, _?: { terrain?: boolean }) => Pick;
   elevation: (_: vec2) => number;
+  dragging: boolean;
   dispose: () => void;
 };
 
@@ -144,6 +145,9 @@ export const createWorld = (
     unproject,
     pick,
     elevation,
+    get dragging() {
+      return mouseEvents.dragging;
+    },
     dispose,
   } satisfies World;
 };
