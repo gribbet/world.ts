@@ -145,20 +145,21 @@ export const createTerrainLayer = (
   const vec2s = q.map(vec2.create);
 
   const calculateVisibleTiles = (viewport: Viewport) => {
-    const { camera, worldToLocal, localToClip, clipToScreen } = viewport;
+    const { worldToLocal, localToClip, clipToScreen } = viewport;
+
+    const tileSize = 512 * Math.pow(2, properties.downsample?.() ?? 0);
 
     const divide: (xyz: vec3) => vec3[] = xyz => {
       const [x = 0, y = 0, z = 0] = xyz;
       const shape = tileShapes.get(xyz);
-      let split = insideTileShape(camera, shape);
-      if (!split) {
-        const clip = shape
-          .map((_, i) => worldToLocal(_, vec3s[i]))
-          .map((_, i) => localToClip(_, vec4s[i]));
-        if (clipped(clip)) return [];
-        const size = screenSize(clip.map((_, i) => clipToScreen(_, vec2s[i])));
-        split = size > 512 / devicePixelRatio;
-      }
+      const clip = shape
+        .map((_, i) => worldToLocal(_, vec3s[i]))
+        .map((_, i) => localToClip(_, vec4s[i]));
+      if (clipped(clip)) return [];
+      const size = screenSize(
+        fixOutsideFarNearPlanes(clip).map((_, i) => clipToScreen(_, vec2s[i])),
+      );
+      const split = size > tileSize;
       if (split && z < maxZ) {
         const divided: vec3[] = [
           [2 * x, 2 * y, z + 1],
@@ -316,30 +317,13 @@ const createPrograms = (
   return { renderProgram, depthProgram };
 };
 
-const insideTileShape = (position: vec3, shape: vec3[]) => {
-  const [minX, maxX, minY, maxY] = shape.reduce(
-    ([minX, maxX, minY, maxY], [x = 0, y = 0]) => [
-      Math.min(x, minX),
-      Math.max(x, maxX),
-      Math.min(y, minY),
-      Math.max(y, maxY),
-    ],
-    [1, 0, 1, 0],
-  );
-  const [x = 0, y = 0, z = 0] = position;
-  return (
-    x > minX && x < maxX && y > minY && y < maxY && z > 0 && z < maxX - minX
-  );
-};
-
 const clipped = (clip: vec4[]) =>
   clip.every(([x = 0, , , w = 0]) => x > w) ||
   clip.every(([x = 0, , , w = 0]) => x < -w) ||
   clip.every(([, y = 0, , w = 0]) => y > w) ||
   clip.every(([, y = 0, , w = 0]) => y < -w) ||
   clip.every(([, , z = 0, w = 0]) => z > w) ||
-  clip.every(([, , z = 0, w = 0]) => z < -w) ||
-  clip.every(([, , , w = 0]) => w < 0);
+  clip.every(([, , z = 0]) => z < 0);
 
 const screenSize = (screen: vec2[]) =>
   Math.sqrt(
@@ -352,3 +336,47 @@ const screenSize = (screen: vec2[]) =>
       )
       .reduce((a, b) => a + b, 0) / screen.length,
   );
+
+const sutherlandHodgman = (vertices: vec4[], plane: vec4) => {
+  const [a = 0, b = 0, c = 0, d = 0] = plane;
+
+  const isInside = ([x = 0, y = 0, z = 0, w = 0]: vec4) =>
+    a * x + b * y + c * z + d * w >= 0;
+
+  const intersection = (
+    [x1 = 0, y1 = 0, z1 = 0, w1 = 0]: vec4,
+    [x2 = 0, y2 = 0, z2 = 0, w2 = 0]: vec4,
+  ) => {
+    const d1 = a * x1 + b * y1 + c * z1 + d * w1;
+    const d2 = a * x2 + b * y2 + c * z2 + d * w2;
+
+    const t = d1 / (d1 - d2);
+
+    const x = x1 + t * (x2 - x1);
+    const y = y1 + t * (y2 - y1);
+    const z = z1 + t * (z2 - z1);
+    const w = w1 + t * (w2 - w1);
+
+    return [x, y, z, w] satisfies vec4;
+  };
+
+  const clipped: vec4[] = [];
+  let previous = vertices[vertices.length - 1] ?? [0, 0, 0, 0];
+
+  for (const vertex of vertices) {
+    if (isInside(vertex))
+      if (isInside(previous)) clipped.push(vertex);
+      else {
+        clipped.push(intersection(previous, vertex));
+        clipped.push(vertex);
+      }
+    else if (isInside(previous)) clipped.push(intersection(previous, vertex));
+
+    previous = vertex;
+  }
+
+  return clipped;
+};
+
+const fixOutsideFarNearPlanes = (clip: vec4[]) =>
+  sutherlandHodgman(sutherlandHodgman(clip, [0, 0, 1, 0]), [0, 0, -1, 1]);

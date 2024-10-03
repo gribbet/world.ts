@@ -37,6 +37,7 @@ export type Terrain = {
   readonly terrainUrl: string;
   imageryUrl: string;
   color: vec4;
+  downsample?: number;
 } & LayerOptions;
 
 export type Line = {
