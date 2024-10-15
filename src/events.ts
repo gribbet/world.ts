@@ -44,7 +44,7 @@ export const createMouseEvents = (
 
     if (
       clicked &&
-      !event.buttons &&
+      event.buttons === 1 &&
       (Math.abs(movementX) > 1 || Math.abs(movementY) > 1)
     ) {
       clicked = false;
