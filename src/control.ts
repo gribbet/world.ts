@@ -57,15 +57,14 @@ export const createMouseControl = (
       target,
       distance,
     });
+
+    recentered = true;
   };
 
   const onDrag = (x: number, y: number) => {
     if (!draggable() || world.dragging) return;
 
-    if (!recentered) {
-      recenter([x, y]);
-      recentered = true;
-    }
+    if (!recentered) recenter([x, y]);
 
     const [width, height] = [
       canvas.width / devicePixelRatio,
@@ -85,10 +84,7 @@ export const createMouseControl = (
   ) => {
     if (!rotatable()) return;
 
-    if (draggable() && !recentered) {
-      recenter([x, y]);
-      recentered = true;
-    }
+    if (draggable() && !recentered) recenter([x, y]);
 
     const [width, height] = [
       canvas.width / devicePixelRatio,
@@ -110,13 +106,20 @@ export const createMouseControl = (
     });
   };
 
+  let mouseDown = false;
+
   const onMouseDown = (event: Event) => {
     event.preventDefault();
     recentered = false;
+    mouseDown = true;
+  };
+
+  const onMouseUp = () => {
+    mouseDown = false;
   };
 
   const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
-    if (!enabled() || !buttons) return;
+    if (!enabled() || !mouseDown) return;
     if (buttons === 1 && draggable()) onDrag(x, y);
     else if (buttons === 2 && rotatable()) onRotate(x, y, movementX, movementY);
   };
@@ -160,6 +163,7 @@ export const createMouseControl = (
   canvas.addEventListener("gesturestart", onGestureStart);
   canvas.addEventListener("wheel", onWheel, { passive: true });
   canvas.addEventListener("contextmenu", onContextMenu);
+  window.addEventListener("mouseup", onMouseUp);
 
   const dispose = () => {
     canvas.removeEventListener("mousedown", onMouseDown);
@@ -169,6 +173,7 @@ export const createMouseControl = (
     canvas.removeEventListener("gesturestart", onGestureStart);
     canvas.removeEventListener("wheel", onWheel);
     canvas.removeEventListener("contextmenu", onContextMenu);
+    window.removeEventListener("mouseup", onMouseUp);
   };
 
   return {
