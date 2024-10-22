@@ -42,19 +42,16 @@ export const createMouseEvents = (
       return;
     }
 
-    if (
-      clicked &&
-      event.buttons === 1 &&
-      (Math.abs(movementX) > 1 || Math.abs(movementY) > 1)
-    ) {
+    if (clicked && (Math.abs(movementX) > 1 || Math.abs(movementY) > 1)) {
       clicked = false;
-      const { point, position, layer } = pick([x, y]);
-      if (layer?.onDrag || layer?.onDragFlat) {
-        dragging = layer;
-        dragging.onDragStart?.({ point, position, layer });
-        [, , targetZ] = position;
+      if (event.buttons === 1) {
+        const { point, position, layer } = pick([x, y]);
+        if (layer?.onDrag || layer?.onDragFlat) {
+          dragging = layer;
+          dragging.onDragStart?.({ point, position, layer });
+          [, , targetZ] = position;
+        }
       }
-      return;
     }
 
     const { point, position, layer } = pick([x, y]);
@@ -73,6 +70,7 @@ export const createMouseEvents = (
   };
 
   const onClick = (event: MouseEvent) => {
+    console.log(dragging);
     const { x, y, button } = event;
     const { point, position, layer } = pick([x, y]);
     (button === 2 ? layer?.onRightClick : layer?.onClick)?.(
