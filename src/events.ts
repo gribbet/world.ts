@@ -70,7 +70,6 @@ export const createMouseEvents = (
   };
 
   const onClick = (event: MouseEvent) => {
-    console.log(dragging);
     const { x, y, button } = event;
     const { point, position, layer } = pick([x, y]);
     (button === 2 ? layer?.onRightClick : layer?.onClick)?.(
