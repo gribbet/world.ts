@@ -39,12 +39,12 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
   const [ox = 0, oy = 0] = offset;
   const fieldScale =
     Math.tan(radians(45) / 2) / Math.tan(radians(fieldOfView) / 2);
-  const z = distance / circumference;
+  const z = (distance / circumference) * fieldScale;
   const minZ = Math.max(1000 / circumference, z);
   const farScale = 1e3;
   const nearScale = 1e-3;
-  const far = minZ * farScale * fieldScale;
-  const near = minZ * nearScale * fieldScale;
+  const far = minZ * farScale;
+  const near = minZ * nearScale;
 
   const vector = vec4.create();
 
@@ -94,7 +94,7 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
   const [t1 = 0] = quadratic(
     (bx - ax) ** 2 + (by - ay) ** 2 + (bz - az) ** 2,
     2 * (ax * (bx - ax) + ay * (by - ay) + az * (bz - az)),
-    ax ** 2 + ay ** 2 + az ** 2 - (z * fieldScale) ** 2,
+    ax ** 2 + ay ** 2 + az ** 2 - z ** 2,
   );
 
   if (isNaN(t1)) throw new Error("Unexpected");
