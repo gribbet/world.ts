@@ -25,18 +25,17 @@ export const createTileShapes = (elevation: Elevation) => {
     if (cached) return cached;
 
     const [x = 0, y = 0, z = 0] = xyz;
-    const result = corners
-      .map<vec3>(([u = 0, v = 0]) => [x + u, y + v, z])
-      .map(_ => tileToMercator(_, _))
-      .map(_ => geodetic(_, _))
-      .map(_ => {
-        const [lng = 0, lat = 0] = _;
-        const elevationZ = Math.max(z - 5, 0);
-        return mercator(
-          vec3.set(_, lng, lat, elevation.get([lng, lat], elevationZ)),
-          _,
-        );
-      });
+    const elevationZ = Math.max(z - 5, 0);
+    const result = new Array<vec3>(4);
+    const t = vec3.create();
+    for (let i = 0; i < corners.length; i++) {
+      const [u = 0, v = 0] = corners[i] ?? [];
+      const [lng = 0, lat = 0] = geodetic(
+        tileToMercator([x + u, y + v, z], t),
+        t,
+      );
+      result[i] = mercator([lng, lat, elevation.get([lng, lat], elevationZ)]);
+    }
     cache.set(xyz, result);
     return result;
   };

@@ -145,33 +145,36 @@ export const createTerrainLayer = (
   const vec2s = q.map(vec2.create);
 
   const calculateVisibleTiles = (viewport: Viewport) => {
+    const stack = new Array<vec3>([0, 0, 0]);
+    const tiles = new Array<vec3>();
     const { worldToLocal, localToClip, clipToScreen } = viewport;
 
     const tileSize = 512 * Math.pow(2, properties.downsample?.() ?? 0);
 
-    const divide: (xyz: vec3) => vec3[] = xyz => {
+    while (1) {
+      const xyz = stack.pop();
+      if (!xyz) break;
       const [x = 0, y = 0, z = 0] = xyz;
       const shape = tileShapes.get(xyz);
       const clip = shape
         .map((_, i) => worldToLocal(_, vec3s[i]))
         .map((_, i) => localToClip(_, vec4s[i]));
-      if (clipped(clip)) return [];
+      if (clipped(clip)) continue;
       const size = screenSize(
         fixOutsideFarNearPlanes(clip).map((_, i) => clipToScreen(_, vec2s[i])),
       );
       const split = size > tileSize;
       if (split && z < maxZ) {
-        const divided: vec3[] = [
+        stack.push(
           [2 * x, 2 * y, z + 1],
           [2 * x + 1, 2 * y, z + 1],
           [2 * x, 2 * y + 1, z + 1],
           [2 * x + 1, 2 * y + 1, z + 1],
-        ];
-        return divided.flatMap(_ => divide(_));
-      } else return [xyz];
-    };
+        );
+      } else tiles.push(xyz);
+    }
 
-    return divide([0, 0, 0]);
+    return tiles;
   };
 
   const render = ({
