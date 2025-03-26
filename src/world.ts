@@ -112,12 +112,18 @@ export const createWorld = (
     ]);
 
     const [x = 0, y = 0] = screenToClip(point);
-    const position = geodetic(localToWorld(clipToLocal([x, y, z, 1])));
+    let position = geodetic(localToWorld(clipToLocal([x, y, z, 1])));
 
     const layer =
       index === 0
         ? undefined
-        : terrainLayer ?? flattenLayers(layers())[index - 1];
+        : (terrainLayer ?? flattenLayers(layers())[index - 1]);
+
+    if (terrain) {
+      const [lng = 0, lat = 0] = position;
+      const alt = terrainLayer?.elevation([lng, lat]) ?? 0;
+      position = [lng, lat, alt];
+    }
 
     return { point, position, layer };
   };
