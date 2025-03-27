@@ -12,6 +12,7 @@ import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
+import earcut, { flatten } from "earcut";
 
 export const createPolygonLayer = (
   context: Context,
@@ -59,10 +60,9 @@ export const createPolygonLayer = (
   const updatePoints = cache(
     () => properties.points?.() ?? [],
     _ => {
-      const { vertices, indices } =
-        _.length > 0
-          ? earclip(_.map(_ => _.map(_ => [...to(mercator(_))])))
-          : { vertices: [], indices: [] };
+      const { vertices, indices } = triangulate(
+        _.map(_ => _.map(_ => _.map(_ => to(mercator(_))))),
+      );
       positionBuffer.set(vertices);
       indexBuffer.set(indices);
       count = indices.length;
@@ -152,4 +152,21 @@ const createPrograms = (
   const depthProgram = createRenderProgram(true);
 
   return { renderProgram, depthProgram };
+};
+
+const triangulate = (coordinates: vec3[][][]) => {
+  const [vertices, indices] = coordinates.reduce<[number[], number[], number]>(
+    ([vertices, indices, offset], polygon) => {
+      const a = flatten(polygon);
+      vertices.push(...a.vertices);
+      indices.push(
+        ...earcut(a.vertices, a.holes, a.dimensions).map(_ => _ + offset),
+      );
+      offset += a.vertices.length / a.dimensions;
+      return [vertices, indices, offset];
+    },
+    [[], [], 0],
+  );
+
+  return { vertices, indices };
 };

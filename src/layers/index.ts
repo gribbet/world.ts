@@ -53,7 +53,7 @@ export type Line = {
 } & LayerOptions;
 
 export type Polygon = {
-  points: vec3[][];
+  points: vec3[][][];
   color: vec4;
 } & LayerOptions;
 
