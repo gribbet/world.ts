@@ -1,4 +1,4 @@
-import { earclip } from "earclip";
+import earcut, { flatten } from "earcut";
 import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
@@ -12,7 +12,6 @@ import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
-import earcut, { flatten } from "earcut";
 
 export const createPolygonLayer = (
   context: Context,
@@ -61,7 +60,9 @@ export const createPolygonLayer = (
     () => properties.points?.() ?? [],
     _ => {
       const { vertices, indices } = triangulate(
-        _.map(_ => _.map(_ => _.map(_ => to(mercator(_))))),
+        _.map(_ =>
+          _.map(_ => _.map(_ => to(mercator(_)))).filter(_ => _.length > 0),
+        ).filter(_ => _.length > 0),
       );
       positionBuffer.set(vertices);
       indexBuffer.set(indices);
