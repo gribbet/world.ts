@@ -42,7 +42,7 @@ export const createMouseEvents = (
       return;
     }
 
-    if (clicked && (Math.abs(movementX) > 0 || Math.abs(movementY) > 0)) {
+    if (clicked && Math.hypot(movementX, movementY) > 2) {
       clicked = false;
       if (event.buttons === 1) {
         const { point, position, layer } = pick([x, y]);
