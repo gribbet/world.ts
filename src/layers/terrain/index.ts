@@ -149,7 +149,7 @@ export const createTerrainLayer = (
     const tiles = new Array<vec3>();
     const { worldToLocal, localToClip, clipToScreen } = viewport;
 
-    const tileSize = 512 * Math.pow(2, properties.downsample?.() ?? 0);
+    const tileSize = 384 * Math.pow(2, properties.downsample?.() ?? 0);
 
     while (1) {
       const xyz = stack.pop();
@@ -164,14 +164,14 @@ export const createTerrainLayer = (
         fixOutsideFarNearPlanes(clip).map((_, i) => clipToScreen(_, vec2s[i])),
       );
       const split = size > tileSize;
-      if (split && z < maxZ) {
+      if (split && z < maxZ)
         stack.push(
           [2 * x, 2 * y, z + 1],
           [2 * x + 1, 2 * y, z + 1],
           [2 * x, 2 * y + 1, z + 1],
           [2 * x + 1, 2 * y + 1, z + 1],
         );
-      } else tiles.push(xyz);
+      else tiles.push(xyz);
     }
 
     return tiles;
