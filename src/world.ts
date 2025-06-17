@@ -117,7 +117,7 @@ export const createWorld = (
     const layer =
       index === 0
         ? undefined
-        : (terrainLayer ?? flattenLayers(layers())[index - 1]);
+        : terrainLayer ?? flattenLayers(layers())[index - 1];
 
     if (terrain) {
       const [lng = 0, lat = 0] = position;
@@ -158,5 +158,12 @@ export const createWorld = (
   } satisfies World;
 };
 
-const flattenLayers: (_: readonly Layer[]) => Layer[] = layers =>
-  layers.flatMap<Layer>(_ => [...flattenLayers(_.children ?? []), _]);
+const flattenLayers: (_: readonly Layer[], results?: Layer[]) => Layer[] = (
+  layers,
+  results = [],
+) =>
+  layers.reduce((results, _) => {
+    flattenLayers(_.children ?? [], results);
+    results.push(_);
+    return results;
+  }, results);
