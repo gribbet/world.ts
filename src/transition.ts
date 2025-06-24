@@ -98,77 +98,68 @@ export const createPositionTransition = (target: () => vec3) =>
   })(() => vec3.clone(target()));
 
 export const createPositionVelocityTransition = (target: () => vec3) => {
-  let velocity: vec3 = [0, 0, 0];
-  let targetVelocity: vec3 = [0, 0, 0];
-  let last: vec3 | undefined;
-  let lastTime: number | undefined;
+  const tau = 0.5;
 
-  const transition = createTransition<vec3>(({ time, current, target }) => {
+  let initialized = false;
+  let lastTarget = vec3.create();
+  const position = vec3.create();
+  const velocity = vec3.create();
+  const targetPosition = vec3.create();
+  const targetVelocity = vec3.create();
+  const error = vec3.create();
+  const estimate = vec3.create();
+  let lastTime = 0;
+  let targetTime = 0;
+
+  return () => {
+    const now = performance.now() / 1000;
+    if (now === lastTime) return geodetic(position);
+    const next = target();
+
     if (
-      target === current ||
-      time > 1 ||
-      vec3.distance(mercator(target), mercator(current)) > 1000 / circumference
+      !initialized ||
+      now - lastTime > 1 ||
+      vec3.distance(mercator(position), mercator(targetPosition)) >
+        1000 / circumference
     ) {
-      last = undefined;
-      velocity = [0, 0, 0];
-      targetVelocity = [0, 0, 0];
-      return target;
-    }
-
-    const now = performance.now();
-    if (!last) {
-      last = target;
-      lastTime = time;
-    } else if (
-      target !== last &&
-      lastTime !== undefined &&
-      now - lastTime > 1
-    ) {
-      targetVelocity = vec3.scale(
-        vec3.create(),
-        vec3.sub(vec3.create(), mercator(target), mercator(last)),
-        1000 / (now - lastTime),
-      );
-      last = target;
+      initialized = true;
+      lastTarget = next;
       lastTime = now;
+      targetTime = now;
+      vec3.copy(position, mercator(lastTarget));
+      vec3.set(velocity, 0, 0, 0);
+      vec3.copy(targetPosition, position);
+      vec3.set(targetVelocity, 0, 0, 0);
+      return geodetic(position);
     }
 
-    const nextVelocity = vec3.add(
-      vec3.create(),
-      velocity,
+    if (lastTarget !== next) {
+      lastTarget = next;
+      const target = mercator(next);
       vec3.scale(
-        vec3.create(),
-        vec3.sub(vec3.create(), targetVelocity, velocity),
-        2 * time,
-      ),
-    );
+        targetVelocity,
+        vec3.subtract(targetVelocity, target, targetPosition),
+        1 / (now - targetTime),
+      );
+      vec3.copy(targetPosition, target);
+      targetTime = now;
+    }
 
-    current = geodetic(
-      vec3.add(
-        vec3.create(),
-        mercator(current),
-        vec3.add(
-          vec3.create(),
-          vec3.scale(
-            vec3.create(),
-            vec3.add(vec3.create(), velocity, nextVelocity),
-            0.5 * time,
-          ),
-          vec3.scale(
-            vec3.create(),
-            vec3.sub(vec3.create(), mercator(target), mercator(current)),
-            time,
-          ),
-        ),
-      ),
-    );
+    const dt = now - lastTime;
 
-    velocity = nextVelocity;
+    const alpha = 1 - Math.exp(-dt / tau);
+    const beta = (alpha * (2 - alpha)) / 1000;
 
-    return current;
-  });
+    vec3.scaleAndAdd(position, position, velocity, dt);
+    vec3.scaleAndAdd(estimate, targetPosition, targetVelocity, dt);
+    vec3.subtract(error, estimate, position);
+    vec3.scaleAndAdd(position, position, error, alpha);
+    vec3.scaleAndAdd(velocity, velocity, error, beta / dt);
 
-  return transition(() => vec3.clone(target()));
+    lastTime = now;
+
+    return geodetic(position);
+  };
 };
 
 export const createOrientationTransition = (target: () => vec3) => {
@@ -184,7 +175,7 @@ export const createQuaternionTransition = (target: () => quat) =>
       quat.create(),
       current,
       target,
-      k * 0.5 * Math.max(0.5, angle) * time,
+      k * Math.max(0.5, angle) * time,
     );
     if (angle < epsilon) current = target;
     return current;
