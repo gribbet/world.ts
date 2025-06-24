@@ -110,7 +110,13 @@ export const cacheAll = <T extends readonly unknown[], R>(
     const value = _value.map(_ => _()) as unknown as T;
     if (last) {
       const [lastValue, lastResult] = last;
-      if (lastValue.every((_, i) => _ === value[i])) return lastResult;
+      let match = true;
+      for (let i = 0; i < value.length; i++)
+        if (lastValue[i] !== value[i]) {
+          match = false;
+          break;
+        }
+      if (match) return lastResult;
     }
     const result = f(value);
     last = [value, result];
