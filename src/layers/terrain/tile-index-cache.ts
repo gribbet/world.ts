@@ -1,27 +1,25 @@
 import type { vec3 } from "gl-matrix";
-import { LRUCache } from "lru-cache";
+import QuickLRU from "quick-lru";
 
 export type TileIndexCache<T> = {
   get: (xyz: vec3) => T | undefined;
   set: (xyz: vec3, value: T) => void;
   delete: (xyz: vec3) => void;
   clear: () => void;
-  purgeStale: () => void;
 };
 
 export type CreateTileIndexCacheOptions<T> = {
-  max: number;
-  ttl?: number;
-  dispose?: (value: T, key: vec3) => void;
+  maxSize: number;
+  maxAge?: number;
+  onEviction?: (key: vec3, value: T) => void;
 };
 
 export const createTileIndexCache = <T extends NonNullable<unknown>>(
   options: CreateTileIndexCacheOptions<T>,
 ) => {
-  const cache = new LRUCache<number, T>({
+  const cache = new QuickLRU<number, T>({
     ...options,
-    ttlResolution: 0,
-    dispose: (value, key) => options.dispose?.(value, fromKey(key)),
+    onEviction: (key, value) => options.onEviction?.(fromKey(key), value),
   });
 
   const toKey = ([x = 0, y = 0, z = 0]: vec3) =>
@@ -39,6 +37,5 @@ export const createTileIndexCache = <T extends NonNullable<unknown>>(
     set: (xyz, value) => cache.set(toKey(xyz), value as unknown as T),
     delete: xyz => cache.delete(toKey(xyz)),
     clear: () => cache.clear(),
-    purgeStale: () => cache.purgeStale(),
   } satisfies TileIndexCache<T>;
 };

@@ -10,8 +10,8 @@ export type TileShapes = {
 
 export const createTileShapes = (elevation: Elevation) => {
   const cache = createTileIndexCache<vec3[]>({
-    max: 10000,
-    ttl: 1000,
+    maxSize: 10000,
+    maxAge: 1000,
   });
 
   const corners = [

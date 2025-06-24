@@ -21,7 +21,7 @@ export const createElevation = ({
   terrainCache: TileCache;
 }) => {
   const tileCache = createTileIndexCache<Uint8Array>({
-    max: 1000,
+    maxSize: 1000,
   });
 
   const downsampler = createTileDownsampler(terrainCache);

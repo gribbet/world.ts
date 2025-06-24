@@ -21,13 +21,13 @@ export const createTileCache = ({
   onLoad?: () => void;
 }) => {
   const tiles = createTileIndexCache<ImageTexture>({
-    max: 2000,
-    dispose: tile => tile.dispose(),
+    maxSize: 2000,
+    onEviction: (_, tile) => tile.dispose(),
   });
   const loading = createTileIndexCache<true>({
-    max: 10000,
-    ttl: 200,
-    dispose: (_, xyz) => {
+    maxSize: 10000,
+    maxAge: 200,
+    onEviction: xyz => {
       const cached = tiles.get(xyz);
       if (cached && !cached.loaded) tiles.delete(xyz);
     },
@@ -77,12 +77,7 @@ export const createTileCache = ({
     }
   };
 
-  const interval = setInterval(() => loading.purgeStale(), 200);
-
-  const dispose = () => {
-    clearInterval(interval);
-    tiles.clear();
-  };
+  const dispose = () => tiles.clear();
 
   return { get, dispose } satisfies TileCache;
 };
