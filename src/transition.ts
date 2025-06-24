@@ -119,8 +119,7 @@ export const createPositionVelocityTransition = (target: () => vec3) => {
     if (
       !initialized ||
       now - lastTime > 1 ||
-      vec3.distance(mercator(position), mercator(targetPosition)) >
-        1000 / circumference
+      vec3.distance(position, targetPosition) > 1000 / circumference
     ) {
       initialized = true;
       lastTarget = next;
