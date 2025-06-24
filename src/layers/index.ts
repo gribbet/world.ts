@@ -101,10 +101,9 @@ export type Properties<T> = {
   [K in keyof T]: T[K] extends Function | undefined ? T[K] : () => T[K];
 };
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export const cacheAll = <T extends readonly any[], R>(
+export const cacheAll = <T extends readonly unknown[], R>(
   _value: { [K in keyof T]: () => T[K] },
-  f: (_: T) => R,
+  f: (args: T) => R,
 ) => {
   let last: [T, R] | undefined;
   return () => {
