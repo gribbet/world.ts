@@ -8,7 +8,7 @@ import { defaultView, type View } from "./model";
 import { createViewport } from "./viewport";
 import type { World } from "./world";
 
-const minimumDistance = 100;
+const minimumDistance = 10;
 
 export type MouseControl = {
   dispose: () => void;
