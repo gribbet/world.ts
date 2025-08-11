@@ -6,7 +6,6 @@ export * from "./container";
 export * from "./line";
 export * from "./object";
 export * from "./polygon";
-export * from "./radar";
 export * from "./terrain";
 import type { Pick } from "../model";
 
