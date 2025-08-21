@@ -100,25 +100,33 @@ export type Properties<T> = {
   [K in keyof T]: T[K] extends Function | undefined ? T[K] : () => T[K];
 };
 
-export const cacheAll = <T extends readonly unknown[], R>(
+export const cacheAll = <T extends unknown[], R>(
   _value: { [K in keyof T]: () => T[K] },
   f: (args: T) => R,
 ) => {
+  const n = _value.length;
   let last: [T, R] | undefined;
+  let value = new Array(n).fill(undefined) as unknown as T;
   return () => {
-    const value = _value.map(_ => _()) as unknown as T;
+    for (let i = 0; i < n; i++) value[i] = _value[i]?.();
     if (last) {
-      const [lastValue, lastResult] = last;
       let match = true;
-      for (let i = 0; i < value.length; i++)
-        if (lastValue[i] !== value[i]) {
+      for (let i = 0; i < n; i++) {
+        if (last[0][i] !== value[i]) {
           match = false;
           break;
         }
-      if (match) return lastResult;
+      }
+      if (match) return last[1];
     }
     const result = f(value);
-    last = [value, result];
+    if (!last) last = [value.slice() as unknown as T, result];
+    else {
+      const temp = last[0];
+      last[0] = value;
+      last[1] = result;
+      value = temp;
+    }
     return result;
   };
 };
@@ -127,12 +135,13 @@ export const cache = <T, R>(_value: () => T, f: (_: T) => R) => {
   let last: [T, R] | undefined;
   return () => {
     const value = _value();
-    if (last) {
-      const [lastValue, lastResult] = last;
-      if (lastValue === value) return lastResult;
-    }
+    if (last && last[0] === value) return last[1];
     const result = f(value);
-    last = [value, result];
+    if (!last) last = [value, result];
+    else {
+      last[0] = value;
+      last[1] = result;
+    }
     return result;
   };
 };
