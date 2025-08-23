@@ -3,12 +3,21 @@
   "version": "0.6.7",
   "type": "module",
   "main": "dist/index.js",
+  "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
+    }
+  },
   "files": [
     "/dist"
   ],
   "scripts": {
     "build": "vite build",
+    "prepare": "vite build",
     "lint": "eslint --max-warnings 0 --cache --cache-strategy content src"
   },
   "devDependencies": {

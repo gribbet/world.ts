@@ -16,7 +16,9 @@ uniform float max_size_pixels;
 
 in vec3 vertex;
 in vec3 normal;
+in vec2 uv;
 out vec4 color_out;
+out vec2 uv_out;
 
 const int ONE = 1073741824; // 2^30
 const float INV_ONE = 1.f / float(ONE);
@@ -37,4 +39,5 @@ void main(void) {
     vec4 qn = orientation * vec4(normal, 1.f);
 
     color_out = color + diffuse * vec4(vec3(clamp(dot(qn.xyz / qn.w, vec3(0.f, 0.f, 1.f)), 0.f, 1.f)), 1.f);
+    uv_out = uv;
 }
