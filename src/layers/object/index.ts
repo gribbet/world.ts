@@ -9,6 +9,7 @@ import type { Viewport } from "../../viewport";
 import type { Layer, Object as Object_, Properties } from "..";
 import { cache, createMouseEvents } from "..";
 import { configure, to } from "../common";
+import { createImageTexture, type ImageTexture } from "../terrain/image-texture";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
@@ -21,13 +22,18 @@ export const createObjectLayer = (
   let count = 0;
 
   const vertexBuffer = createBuffer({ gl, type: "f32", target: "array" });
-  const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
+  let indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
   const normalBuffer = createBuffer({ gl, type: "f32", target: "array" });
+  const uvBuffer = createBuffer({ gl, type: "f32", target: "array" });
 
+  let albedo: ImageTexture | undefined;
+
+  const indexRef = { buf: indexBuffer };
   const { renderProgram, depthProgram } = createPrograms(context, {
     vertexBuffer,
-    indexBuffer,
+    indexRef,
     normalBuffer,
+    uvBuffer,
   });
 
   const render = ({
@@ -46,6 +52,20 @@ export const createObjectLayer = (
     const size = properties.size?.() ?? 1;
     const minSizePixels = properties.minSizePixels?.() ?? 0;
     const maxSizePixels = properties.maxSizePixels?.() ?? Number.MAX_VALUE;
+    const textureUrl = properties.textureUrl?.();
+    if (!depth && textureUrl) {
+      // lazy-load albedo texture
+      if (!albedo || (albedo && (albedo as any).url !== textureUrl)) {
+        const newTex = createImageTexture({
+          gl,
+          url: textureUrl,
+        });
+        // attach metadata for cache key
+        (newTex as any).url = textureUrl;
+        albedo?.dispose();
+        albedo = newTex;
+      }
+    }
 
     updateMesh();
 
@@ -69,20 +89,39 @@ export const createObjectLayer = (
       minSizePixels,
       maxSizePixels,
       index,
+      albedo,
+      indexType,
     });
   };
+
+  let indexType: number = gl.UNSIGNED_SHORT;
 
   const updateMesh = cache(
     () => properties.mesh?.(),
     mesh => {
-      const { vertices = [], indices = [], normals = [] } = mesh ?? {};
+      const { vertices = [], indices = [], normals = [], uvs = [] } = mesh ?? {};
       vertexBuffer.set(vertices.flatMap(_ => [..._]));
-      indexBuffer.set(indices.flatMap(_ => [..._]));
+      const flatIndices = indices.flatMap(_ => [..._]);
+      const maxIndex = flatIndices.reduce((a, b) => Math.max(a, b), 0);
+      // Recreate index buffer if we need 32-bit
+      if (maxIndex > 65535) {
+        indexBuffer.dispose();
+        indexBuffer = createBuffer({ gl, type: "u32", target: "element" });
+        indexType = gl.UNSIGNED_INT;
+      } else if ((indexBuffer as any).type !== "u16") {
+        indexBuffer.dispose();
+        indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
+        indexType = gl.UNSIGNED_SHORT;
+      }
+      indexBuffer.set(flatIndices);
+      indexRef.buf = indexBuffer;
       normalBuffer.set(
         normals.length === 0
           ? vertices.flatMap(() => [0, 0, 0])
           : normals.flatMap(_ => [..._]),
       );
+      if (uvs.length > 0) uvBuffer.set(uvs.flatMap(_ => [..._]));
+      else uvBuffer.set(vertices.flatMap(() => [0, 0]));
       count = indices.length * 3;
     },
   );
@@ -91,6 +130,8 @@ export const createObjectLayer = (
     vertexBuffer.dispose();
     indexBuffer.dispose();
     normalBuffer.dispose();
+    uvBuffer.dispose();
+    albedo?.dispose();
   };
 
   const mouseEvents = createMouseEvents(properties);
@@ -106,12 +147,14 @@ const createPrograms = (
   { gl, programs }: Context,
   {
     vertexBuffer,
-    indexBuffer,
+    indexRef,
     normalBuffer,
+    uvBuffer,
   }: {
     vertexBuffer: Buffer;
-    indexBuffer: Buffer;
+    indexRef: { buf: Buffer };
     normalBuffer: Buffer;
+    uvBuffer: Buffer;
   },
 ) => {
   const createRenderProgram = (depth = false) => {
@@ -122,6 +165,9 @@ const createPrograms = (
 
     const vertexAttribute = program.attribute3f("vertex", vertexBuffer);
     const normalAttribute = program.attribute3f("normal", normalBuffer);
+    const uvAttribute = program.attribute2f("uv", uvBuffer, {
+      stride: 2 * Float32Array.BYTES_PER_ELEMENT,
+    });
 
     const projectionUniform = program.uniformMatrix4f("projection");
     const modelViewUniform = program.uniformMatrix4f("model_view");
@@ -135,6 +181,7 @@ const createPrograms = (
     const minSizePixelsUniform = program.uniform1f("min_size_pixels");
     const maxSizePixelsUniform = program.uniform1f("max_size_pixels");
     const indexUniform = program.uniform1i("index");
+    const albedoUniform = program.uniform1i("albedo");
 
     const execute = ({
       projection,
@@ -150,6 +197,8 @@ const createPrograms = (
       minSizePixels,
       maxSizePixels,
       index,
+      albedo,
+      indexType,
     }: {
       projection: mat4;
       modelView: mat4;
@@ -164,11 +213,14 @@ const createPrograms = (
       minSizePixels: number;
       maxSizePixels: number;
       index: number;
+      albedo?: ImageTexture;
+      indexType: number;
     }) => {
       program.use();
 
       vertexAttribute.use();
       normalAttribute.use();
+      uvAttribute.use();
 
       projectionUniform.set(projection);
       modelViewUniform.set(modelView);
@@ -183,9 +235,15 @@ const createPrograms = (
       maxSizePixelsUniform.set(maxSizePixels);
       indexUniform.set(index);
 
-      indexBuffer.use();
+      if (!depth && albedo) {
+        gl.activeTexture(gl.TEXTURE0);
+        albedoUniform.set(0);
+        albedo.use();
+      }
 
-      gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
+      indexRef.buf.use();
+
+      gl.drawElements(gl.TRIANGLES, count, indexType, 0);
     };
 
     return { execute };

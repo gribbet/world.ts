@@ -32,6 +32,7 @@ export const createImageTexture = ({
         gl.UNSIGNED_BYTE,
         image,
       );
+      gl.generateMipmap(gl.TEXTURE_2D);
       onLoad?.(image);
     },
   });

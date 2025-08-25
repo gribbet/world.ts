@@ -3,7 +3,7 @@ export const debounce = <F extends (...args: any[]) => void>(
   f: F,
   delay: number,
 ) => {
-  let timeout: number;
+  let timeout: ReturnType<typeof setTimeout>;
   return (...args: Parameters<F>) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => f(...args), delay);
