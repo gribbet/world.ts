@@ -160,9 +160,13 @@ export const createProgram = ({
         gl.vertexAttribIPointer(
           location,
           size,
-          type === "u16" ? gl.UNSIGNED_SHORT : type === "u32" ? gl.UNSIGNED_INT : gl.INT,
-          stride || 0,
-          offset || 0,
+          type === "u16"
+            ? gl.UNSIGNED_SHORT
+            : type === "u32"
+              ? gl.UNSIGNED_INT
+              : gl.INT,
+          stride ?? 0,
+          offset ?? 0,
         );
       else
         gl.vertexAttribPointer(
@@ -170,8 +174,8 @@ export const createProgram = ({
           size,
           gl.FLOAT,
           false,
-          stride || 0,
-          offset || 0,
+          stride ?? 0,
+          offset ?? 0,
         );
     };
 

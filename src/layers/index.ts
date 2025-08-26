@@ -98,7 +98,7 @@ export type Layer = {
 } & LayerEvents;
 
 export type Properties<T> = {
-  // eslint-disable-next-line @typescript-eslint/ban-types
+  // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
   [K in keyof T]: T[K] extends Function | undefined ? T[K] : () => T[K];
 };
 
@@ -113,18 +113,18 @@ export const cacheAll = <T extends unknown[], R>(
     for (let i = 0; i < n; i++) value[i] = _value[i]?.();
     if (last) {
       let match = true;
-      for (let i = 0; i < n; i++) {
+      for (let i = 0; i < n; i++)
         if (last[0][i] !== value[i]) {
           match = false;
           break;
         }
-      }
+
       if (match) return last[1];
     }
     const result = f(value);
     if (!last) last = [value.slice() as unknown as T, result];
     else {
-      const temp = last[0];
+      const [temp] = last;
       last[0] = value;
       last[1] = result;
       value = temp;

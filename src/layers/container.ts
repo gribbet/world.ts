@@ -1,5 +1,4 @@
-import type { Properties } from ".";
-import { type Layer } from ".";
+import type { Layer, Properties } from ".";
 
 export const createContainer = (children: Layer[]) => {
   const dispose = () => children.forEach(_ => _.dispose());
@@ -21,7 +20,7 @@ export const createDynamicContainer = <K>(
 
   const layers = new Map<K, Layer>();
 
-  const dispose = () => Object.values(layers).forEach(_ => _.dispose());
+  const dispose = () => [...layers.values()].forEach(_ => _.dispose());
 
   const render = () => {
     [...layers.keys()]

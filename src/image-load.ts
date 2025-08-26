@@ -16,7 +16,8 @@ export const createImageLoad = ({
 }) => {
   let loaded = false;
 
-  const handler = ({ data }: MessageEvent) => {
+  const handler = (event: MessageEvent) => {
+    const data = event.data as { url: string; image?: ImageBitmap };
     if (canceled || url !== data.url) return;
     worker.removeEventListener("message", handler);
     if (!data.image) return;

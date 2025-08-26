@@ -7,8 +7,8 @@ import { range } from "../../common";
 import type { Context } from "../../context";
 import { circumference, mercator } from "../../math";
 import type { Viewport } from "../../viewport";
-import type { Layer, Properties } from "../";
-import { cache, createMouseEvents, type Line } from "../";
+import type { Layer, Line, Properties } from "../";
+import { cache, createMouseEvents } from "../";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import { createTexture, type Texture } from "../terrain/texture";
@@ -98,7 +98,7 @@ export const createLineLayer = (
         if (!first || !last) return [];
 
         const repeat = (_: vec3[]) => {
-          const result = new Array(_.length * 3 * 4);
+          const result = new Array<number>(_.length * 3 * 4);
           for (let i = 0; i < _.length; i++) {
             const [x = 0, y = 0, z = 0] = _[i] ?? [];
             for (let j = 0; j < 4; j++) {
@@ -169,12 +169,13 @@ export const createLineLayer = (
         if (first === undefined || last === undefined) return [];
 
         const repeat = (_: number[]) => {
-          const result = new Array(_.length * 4);
+          const result = new Array<number>(_.length * 4);
           for (let i = 0; i < _.length; i++) {
-            result[i * 4 + 0] = _[i];
-            result[i * 4 + 1] = _[i];
-            result[i * 4 + 2] = _[i];
-            result[i * 4 + 3] = _[i];
+            const x = _[i] ?? 0;
+            result[i * 4 + 0] = x;
+            result[i * 4 + 1] = x;
+            result[i * 4 + 2] = x;
+            result[i * 4 + 3] = x;
           }
           return result;
         };
@@ -245,26 +246,26 @@ const createPrograms = (
       fragmentSource: depth ? depthSource : fragmentSource,
     });
 
-    const FLOAT_BYTES = Float32Array.BYTES_PER_ELEMENT;
-    const INT_BYTES = Int32Array.BYTES_PER_ELEMENT;
+    const floatBytes = Float32Array.BYTES_PER_ELEMENT;
+    const intBytes = Int32Array.BYTES_PER_ELEMENT;
 
     const previousAttribute = program.attribute3i("previous", positionBuffer, {
-      stride: INT_BYTES * 3,
+      stride: intBytes * 3,
     });
     const currentAttribute = program.attribute3i("current", positionBuffer, {
-      stride: INT_BYTES * 3,
-      offset: INT_BYTES * 3 * 4,
+      stride: intBytes * 3,
+      offset: intBytes * 3 * 4,
     });
     const nextAttribute = program.attribute3i("next", positionBuffer, {
-      stride: INT_BYTES * 3,
-      offset: INT_BYTES * 3 * 4 * 2,
+      stride: intBytes * 3,
+      offset: intBytes * 3 * 4 * 2,
     });
     const cornerAttribute = program.attribute2f("corner", cornerBuffer, {
-      stride: FLOAT_BYTES * 2,
+      stride: floatBytes * 2,
     });
     const distanceAttribute = program.attribute1f("distance", distanceBuffer, {
-      stride: FLOAT_BYTES,
-      offset: FLOAT_BYTES * 1 * 4,
+      stride: floatBytes,
+      offset: floatBytes * 1 * 4,
     });
 
     const projectionUniform = program.uniformMatrix4f("projection");
