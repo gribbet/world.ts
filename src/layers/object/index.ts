@@ -1,19 +1,19 @@
 import type { quat, vec2, vec3, vec4 } from "gl-matrix";
 import { mat4 } from "gl-matrix";
 
+import type { Layer, Object as Object_, Properties } from "..";
+import { cache, createMouseEvents } from "..";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import type { Context } from "../../context";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
-import type { Layer, Object as Object_, Properties } from "..";
-import { cache, createMouseEvents } from "..";
 import { configure, to } from "../common";
-import { createImageTexture } from "../terrain/image-texture";
 import depthSource from "../depth.glsl";
+import { createImageTexture } from "../terrain/image-texture";
+import { Texture } from "../terrain/texture";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
-import { Texture } from "../terrain/texture";
 
 export const createObjectLayer = (
   context: Context,
@@ -105,14 +105,11 @@ export const createObjectLayer = (
     },
   );
 
+  const defaultTextureUrl =
+    "data:image/gif;base64,R0lGODlhAQABAPAAAP///wAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw=="; // 1x1 white
   const updateTextureUrl = cache(
     () => properties.textureUrl?.(),
-    url => {
-      if (!url) {
-        texture?.dispose();
-        texture = undefined;
-        return;
-      }
+    (url = defaultTextureUrl) => {
       const newTexture = createImageTexture({
         gl,
         url,
@@ -186,7 +183,7 @@ const createPrograms = (
     const minSizePixelsUniform = program.uniform1f("min_size_pixels");
     const maxSizePixelsUniform = program.uniform1f("max_size_pixels");
     const indexUniform = program.uniform1i("index");
-    const textureUniform = program.uniform1i("texture");
+    const imageUniform = program.uniform1i("image");
 
     const execute = ({
       projection,
@@ -240,7 +237,7 @@ const createPrograms = (
 
       if (!depth && texture) {
         gl.activeTexture(gl.TEXTURE0);
-        textureUniform.set(0);
+        imageUniform.set(0);
         texture.use();
       }
 
