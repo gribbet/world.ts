@@ -1,17 +1,17 @@
 import type { quat, vec2, vec3, vec4 } from "gl-matrix";
 import { mat4 } from "gl-matrix";
 
-import type { Layer, Object as Object_, Properties } from "..";
-import { cache, createMouseEvents } from "..";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import type { Context } from "../../context";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
+import type { Layer, Object as Object_, Properties } from "..";
+import { cache, createMouseEvents } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import { createImageTexture } from "../terrain/image-texture";
-import { Texture } from "../terrain/texture";
+import type { Texture } from "../terrain/texture";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 

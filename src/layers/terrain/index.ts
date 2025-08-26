@@ -7,8 +7,8 @@ import { range } from "../../common";
 import type { Context } from "../../context";
 import { createElevation } from "../../elevation";
 import type { Viewport } from "../../viewport";
-import type { Layer, Properties } from "..";
-import { cache, createMouseEvents, type Terrain } from "..";
+import type { Layer, Properties, Terrain } from "..";
+import { cache, createMouseEvents } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -79,7 +79,9 @@ export const createTerrainLayer = (
     "EXT_texture_filter_anisotropic",
   );
   const maxAnisotropy = textureFilterAnisotropic
-    ? gl.getParameter(textureFilterAnisotropic.MAX_TEXTURE_MAX_ANISOTROPY_EXT)
+    ? (gl.getParameter(
+        textureFilterAnisotropic.MAX_TEXTURE_MAX_ANISOTROPY_EXT,
+      ) as number | undefined)
     : undefined;
 
   const updateImageryUrl = cache(
@@ -151,7 +153,7 @@ export const createTerrainLayer = (
 
     const tileSize = 384 * Math.pow(2, properties.downsample?.() ?? 0);
 
-    while (1) {
+    for (;;) {
       const xyz = stack.pop();
       if (!xyz) break;
       const [x = 0, y = 0, z = 0] = xyz;
