@@ -146,7 +146,7 @@ export const createProgram = ({
     name: string;
     buffer: Buffer;
     size: number;
-    type: "f32" | "i32" | "u16";
+    type: "f32" | "i32" | "u16" | "u32";
     stride?: number;
     offset?: number;
   }) => {
@@ -156,11 +156,11 @@ export const createProgram = ({
     const use = () => {
       buffer.use();
       gl.enableVertexAttribArray(location);
-      if (["u16", "i32"].includes(type))
+      if (["u16", "u32", "i32"].includes(type))
         gl.vertexAttribIPointer(
           location,
           size,
-          type === "u16" ? gl.UNSIGNED_SHORT : gl.INT,
+          type === "u16" ? gl.UNSIGNED_SHORT : type === "u32" ? gl.UNSIGNED_INT : gl.INT,
           stride || 0,
           offset || 0,
         );

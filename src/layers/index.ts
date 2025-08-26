@@ -1,4 +1,4 @@
-import type { quat, vec3, vec4 } from "gl-matrix";
+import type { quat, vec2, vec3, vec4 } from "gl-matrix";
 
 import type { Viewport } from "../viewport";
 export * from "./billboard";
@@ -60,6 +60,7 @@ export type Mesh = {
   vertices: vec3[];
   indices: vec3[];
   normals: vec3[];
+  uvs: vec2[];
 };
 
 export type Object = {
@@ -71,6 +72,7 @@ export type Object = {
   size: number;
   minSizePixels?: number;
   maxSizePixels?: number;
+  textureUrl?: string;
 } & LayerOptions;
 
 export type Billboard = {

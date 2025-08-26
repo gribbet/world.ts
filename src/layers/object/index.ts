@@ -9,25 +9,31 @@ import type { Viewport } from "../../viewport";
 import type { Layer, Object as Object_, Properties } from "..";
 import { cache, createMouseEvents } from "..";
 import { configure, to } from "../common";
+import { createImageTexture } from "../terrain/image-texture";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
+import { Texture } from "../terrain/texture";
 
 export const createObjectLayer = (
   context: Context,
   properties: Properties<Partial<Object_>> = {},
 ) => {
   const { gl } = context;
+
   let count = 0;
+  let texture: Texture | undefined;
 
   const vertexBuffer = createBuffer({ gl, type: "f32", target: "array" });
-  const indexBuffer = createBuffer({ gl, type: "u16", target: "element" });
+  const indexBuffer = createBuffer({ gl, type: "u32", target: "element" });
   const normalBuffer = createBuffer({ gl, type: "f32", target: "array" });
+  const uvBuffer = createBuffer({ gl, type: "f32", target: "array" });
 
   const { renderProgram, depthProgram } = createPrograms(context, {
     vertexBuffer,
     indexBuffer,
     normalBuffer,
+    uvBuffer,
   });
 
   const render = ({
@@ -48,6 +54,7 @@ export const createObjectLayer = (
     const maxSizePixels = properties.maxSizePixels?.() ?? Number.MAX_VALUE;
 
     updateMesh();
+    updateTextureUrl();
 
     if (configure(gl, depth, properties)) return;
 
@@ -69,13 +76,19 @@ export const createObjectLayer = (
       minSizePixels,
       maxSizePixels,
       index,
+      texture,
     });
   };
 
   const updateMesh = cache(
     () => properties.mesh?.(),
     mesh => {
-      const { vertices = [], indices = [], normals = [] } = mesh ?? {};
+      const {
+        vertices = [],
+        indices = [],
+        normals = [],
+        uvs = [],
+      } = mesh ?? {};
       vertexBuffer.set(vertices.flatMap(_ => [..._]));
       indexBuffer.set(indices.flatMap(_ => [..._]));
       normalBuffer.set(
@@ -83,7 +96,40 @@ export const createObjectLayer = (
           ? vertices.flatMap(() => [0, 0, 0])
           : normals.flatMap(_ => [..._]),
       );
+      uvBuffer.set(
+        uvs.length === 0
+          ? vertices.flatMap(() => [0, 0])
+          : uvs.flatMap(_ => [..._]),
+      );
       count = indices.length * 3;
+    },
+  );
+
+  const updateTextureUrl = cache(
+    () => properties.textureUrl?.(),
+    url => {
+      if (!url) {
+        texture?.dispose();
+        texture = undefined;
+        return;
+      }
+      const newTexture = createImageTexture({
+        gl,
+        url,
+        onLoad: () => {
+          gl.texParameteri(
+            gl.TEXTURE_2D,
+            gl.TEXTURE_MIN_FILTER,
+            gl.LINEAR_MIPMAP_LINEAR,
+          );
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.generateMipmap(gl.TEXTURE_2D);
+          texture?.dispose();
+          texture = newTexture;
+        },
+      });
     },
   );
 
@@ -91,6 +137,8 @@ export const createObjectLayer = (
     vertexBuffer.dispose();
     indexBuffer.dispose();
     normalBuffer.dispose();
+    uvBuffer.dispose();
+    texture?.dispose();
   };
 
   const mouseEvents = createMouseEvents(properties);
@@ -108,10 +156,12 @@ const createPrograms = (
     vertexBuffer,
     indexBuffer,
     normalBuffer,
+    uvBuffer,
   }: {
     vertexBuffer: Buffer;
     indexBuffer: Buffer;
     normalBuffer: Buffer;
+    uvBuffer: Buffer;
   },
 ) => {
   const createRenderProgram = (depth = false) => {
@@ -122,6 +172,7 @@ const createPrograms = (
 
     const vertexAttribute = program.attribute3f("vertex", vertexBuffer);
     const normalAttribute = program.attribute3f("normal", normalBuffer);
+    const uvAttribute = program.attribute2f("uv", uvBuffer);
 
     const projectionUniform = program.uniformMatrix4f("projection");
     const modelViewUniform = program.uniformMatrix4f("model_view");
@@ -135,6 +186,7 @@ const createPrograms = (
     const minSizePixelsUniform = program.uniform1f("min_size_pixels");
     const maxSizePixelsUniform = program.uniform1f("max_size_pixels");
     const indexUniform = program.uniform1i("index");
+    const textureUniform = program.uniform1i("texture");
 
     const execute = ({
       projection,
@@ -150,6 +202,7 @@ const createPrograms = (
       minSizePixels,
       maxSizePixels,
       index,
+      texture,
     }: {
       projection: mat4;
       modelView: mat4;
@@ -164,11 +217,13 @@ const createPrograms = (
       minSizePixels: number;
       maxSizePixels: number;
       index: number;
+      texture?: Texture;
     }) => {
       program.use();
 
       vertexAttribute.use();
       normalAttribute.use();
+      uvAttribute.use();
 
       projectionUniform.set(projection);
       modelViewUniform.set(modelView);
@@ -183,9 +238,15 @@ const createPrograms = (
       maxSizePixelsUniform.set(maxSizePixels);
       indexUniform.set(index);
 
+      if (!depth && texture) {
+        gl.activeTexture(gl.TEXTURE0);
+        textureUniform.set(0);
+        texture.use();
+      }
+
       indexBuffer.use();
 
-      gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_SHORT, 0);
+      gl.drawElements(gl.TRIANGLES, count, gl.UNSIGNED_INT, 0);
     };
 
     return { execute };
