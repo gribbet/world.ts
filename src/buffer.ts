@@ -10,7 +10,7 @@ export const createBuffer = ({
   target,
 }: {
   gl: WebGL2RenderingContext;
-  type: "f32" | "u16" | "i32";
+  type: "f32" | "u16" | "u32" | "i32";
   target: "array" | "element";
 }) => {
   const buffer = gl.createBuffer();
@@ -24,15 +24,15 @@ export const createBuffer = ({
   return {
     set: value => {
       use();
-      gl.bufferData(
-        glTarget,
+      const data =
         type === "u16"
           ? new Uint16Array(value)
-          : type === "i32"
-            ? new Int32Array(value)
-            : new Float32Array(value),
-        gl.DYNAMIC_DRAW,
-      );
+          : type === "u32"
+            ? new Uint32Array(value)
+            : type === "i32"
+              ? new Int32Array(value)
+              : new Float32Array(value);
+      gl.bufferData(glTarget, data, gl.DYNAMIC_DRAW);
     },
     use,
     dispose: () => gl.deleteBuffer(buffer),

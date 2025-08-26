@@ -148,12 +148,8 @@ const createPrograms = (
       fragmentSource: depth ? depthSource : fragmentSource,
     });
 
-    const cornerAttribute = program.attribute2f("corner", cornerBuffer, {
-      stride: 2 * Float32Array.BYTES_PER_ELEMENT,
-    });
-    const uvAttribute = program.attribute2f("uv", uvBuffer, {
-      stride: 2 * Float32Array.BYTES_PER_ELEMENT,
-    });
+    const cornerAttribute = program.attribute2f("corner", cornerBuffer);
+    const uvAttribute = program.attribute2f("uv", uvBuffer);
 
     const projectionUniform = program.uniformMatrix4f("projection");
     const modelViewUniform = program.uniformMatrix4f("model_view");
