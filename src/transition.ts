@@ -16,6 +16,13 @@ export type Transition<T> = {
   dispose: () => void;
 };
 
+let now = performance.now();
+const tick = () => {
+  requestAnimationFrame(tick);
+  now = performance.now();
+};
+tick();
+
 export const createTransition =
   <T>(step: (_: { time: number; current: T; target: T }) => T) =>
   (_target: () => T) => {
@@ -23,7 +30,6 @@ export const createTransition =
     let last: number | undefined;
 
     return () => {
-      const now = performance.now();
       const time = (now - (last ?? now)) / 1000;
       last = now;
 
@@ -112,13 +118,12 @@ export const createPositionVelocityTransition = (target: () => vec3) => {
   let targetTime = 0;
 
   return () => {
-    const now = performance.now() / 1000;
     if (now === lastTime) return geodetic(position);
     const next = target();
 
     if (
       !initialized ||
-      now - lastTime > 1 ||
+      now - lastTime > 1000 ||
       vec3.distance(position, targetPosition) > 1000 / circumference
     ) {
       initialized = true;
@@ -138,13 +143,13 @@ export const createPositionVelocityTransition = (target: () => vec3) => {
       vec3.scale(
         targetVelocity,
         vec3.subtract(targetVelocity, target, targetPosition),
-        1 / (now - targetTime),
+        1000 / (now - targetTime),
       );
       vec3.copy(targetPosition, target);
       targetTime = now;
     }
 
-    const dt = now - lastTime;
+    const dt = (now - lastTime) / 1000;
 
     const alpha = 1 - Math.exp(-dt / tau);
     const beta = (alpha * (2 - alpha)) / 1000;
