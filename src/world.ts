@@ -32,6 +32,7 @@ export const createWorld = (
   const { view, layers } = properties;
 
   let running = true;
+  let visible = false;
   let screen: vec2 = [0, 0];
 
   gl.enable(gl.CULL_FACE);
@@ -59,7 +60,15 @@ export const createWorld = (
     const { width, height } = contentRect;
     resize([width, height]);
   });
-  if (canvas instanceof HTMLCanvasElement) resizer.observe(canvas);
+  const intersector = new IntersectionObserver(_ => {
+    _.forEach(_ => {
+      visible = _.isIntersecting;
+    });
+  });
+  if (canvas instanceof HTMLCanvasElement) {
+    resizer.observe(canvas);
+    intersector.observe(canvas);
+  }
 
   const clear = ([width = 0, height = 0]: vec2) => {
     gl.viewport(0, 0, width * devicePixelRatio, height * devicePixelRatio);
@@ -83,7 +92,7 @@ export const createWorld = (
 
   const frame = () => {
     if (!running) return;
-    render();
+    if (visible) render();
     requestAnimationFrame(frame);
   };
 
@@ -143,7 +152,10 @@ export const createWorld = (
     running = false;
     mouseEvents.dispose();
     depthBuffer.dispose();
-    if (canvas instanceof HTMLCanvasElement) resizer.unobserve(canvas);
+    if (canvas instanceof HTMLCanvasElement) {
+      resizer.unobserve(canvas);
+      intersector.unobserve(canvas);
+    }
   };
 
   return {
