@@ -9,7 +9,7 @@ import {
 } from "./math";
 
 const k = 8;
-const epsilon = 1e-3;
+const epsilon = 1e-1;
 
 export type Transition<T> = {
   value: T;
@@ -86,8 +86,8 @@ export const createVec4Transition = (target: () => vec4) =>
 export const createPositionTransition = (target: () => vec3) =>
   createTransition<vec3>(({ time, current, target }) => {
     const distance = vec3.distance(mercator(current), mercator(target));
-    if (distance * circumference < epsilon || distance > 100000 / circumference)
-      vec3.copy(current, target);
+    if (distance * circumference < epsilon) vec3.copy(current, target);
+    else if (distance > 100000 / circumference) current = vec3.clone(target);
     else
       current = geodetic(
         vec3.add(
