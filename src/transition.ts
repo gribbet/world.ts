@@ -9,7 +9,7 @@ import {
 } from "./math";
 
 const k = 8;
-const epsilon = 1e-1;
+const epsilon = 1e-3;
 
 export type Transition<T> = {
   value: T;
