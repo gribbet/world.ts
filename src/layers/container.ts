@@ -1,4 +1,4 @@
-import type { Layer, Properties } from ".";
+import { cache, type Layer, type Properties } from ".";
 
 export const createContainer = (children: Layer[]) => {
   const dispose = () => children.forEach(_ => _.dispose());
@@ -22,24 +22,24 @@ export const createDynamicContainer = <K>(
 
   const dispose = () => [...layers.values()].forEach(_ => _.dispose());
 
-  const render = () => {
+  const update = cache(keys, keys => {
     [...layers.keys()]
-      .filter(key => !keys().includes(key))
+      .filter(key => !keys.includes(key))
       .forEach(key => {
         layers.get(key)?.dispose();
         layers.delete(key);
       });
-    keys().forEach(key => {
+    keys.forEach(key => {
       const layer = layers.get(key) ?? create(key);
       layers.set(key, layer);
     });
-  };
+  });
 
   return {
     get children() {
+      update();
       return [...layers.values()];
     },
-    render,
     dispose,
   } satisfies Layer;
 };
