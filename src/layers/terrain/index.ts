@@ -189,6 +189,7 @@ export const createTerrainLayer = (
     index?: number;
   }) => {
     const color = properties.color?.() ?? [1, 1, 1, 1];
+    const saturation = properties.saturation?.() ?? 1;
 
     updateImageryUrl();
 
@@ -221,6 +222,7 @@ export const createTerrainLayer = (
         downsampleImagery,
         downsampleTerrain,
         color,
+        saturation,
         index,
       });
     }
@@ -261,6 +263,7 @@ const createPrograms = (
     const downsampleImageryUniform = program.uniform1i("downsample_imagery");
     const downsampleTerrainUniform = program.uniform1i("downsample_terrain");
     const colorUniform = program.uniform4f("color");
+    const saturationUniform = program.uniform1f("saturation");
     const xyzUniform = program.uniform3i("xyz");
     const cameraUniform = program.uniform3i("camera");
     const indexUniform = program.uniform1i("index");
@@ -275,6 +278,7 @@ const createPrograms = (
       downsampleImagery,
       downsampleTerrain,
       color,
+      saturation,
       index,
     }: {
       projection: mat4;
@@ -286,6 +290,7 @@ const createPrograms = (
       downsampleImagery: number;
       downsampleTerrain: number;
       color: vec4;
+      saturation: number;
       index: number;
     }) => {
       program.use();
@@ -299,6 +304,7 @@ const createPrograms = (
       downsampleImageryUniform.set(downsampleImagery);
       downsampleTerrainUniform.set(downsampleTerrain);
       colorUniform.set(color);
+      saturationUniform.set(saturation);
       indexUniform.set(index);
 
       gl.activeTexture(gl.TEXTURE0);
