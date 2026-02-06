@@ -87,6 +87,9 @@ export const createBillboardLayer = (
     const position = properties.position?.() ?? [0, 0, 0];
     const color = properties.color?.() ?? [1, 1, 1, 1];
     const size = properties.size?.() ?? 100;
+    const offset = properties.offset?.() ?? [0, 0];
+    const minScale = properties.minScale?.() ?? 0;
+    const maxScale = properties.maxScale?.() ?? Number.MAX_VALUE;
     const minSizePixels = properties.minSizePixels?.() ?? 0;
     const maxSizePixels = properties.maxSizePixels?.() ?? Number.MAX_VALUE;
 
@@ -108,6 +111,9 @@ export const createBillboardLayer = (
       position: to(mercator(position)),
       color,
       size,
+      offset,
+      minScale,
+      maxScale,
       minSizePixels,
       maxSizePixels,
       index,
@@ -161,6 +167,9 @@ const createPrograms = (
     const colorUniform = program.uniform4f("color");
     const indexUniform = program.uniform1i("index");
     const sizeUniform = program.uniform1f("size");
+    const offsetUniform = program.uniform2f("offset");
+    const minScaleUniform = program.uniform1f("min_scale");
+    const maxScaleUniform = program.uniform1f("max_scale");
     const minSizePixelsUniform = program.uniform1f("min_size_pixels");
     const maxSizePixelsUniform = program.uniform1f("max_size_pixels");
 
@@ -174,6 +183,9 @@ const createPrograms = (
       position,
       color,
       size,
+      offset,
+      minScale,
+      maxScale,
       minSizePixels,
       maxSizePixels,
       index,
@@ -187,6 +199,9 @@ const createPrograms = (
       position: vec3;
       color: vec4;
       size: number;
+      offset: vec2;
+      minScale: number;
+      maxScale: number;
       minSizePixels: number;
       maxSizePixels: number;
       index: number;
@@ -204,6 +219,9 @@ const createPrograms = (
       positionUniform.set(position);
       colorUniform.set(color);
       sizeUniform.set(size);
+      offsetUniform.set(offset);
+      minScaleUniform.set(minScale);
+      maxScaleUniform.set(maxScale);
       minSizePixelsUniform.set(minSizePixels);
       maxSizePixelsUniform.set(maxSizePixels);
       indexUniform.set(index);

@@ -7,6 +7,7 @@ export * from "./line";
 export * from "./object";
 export * from "./polygon";
 export * from "./terrain";
+export * from "./text";
 import type { Pick } from "../model";
 
 export type LayerEvents = {
@@ -81,6 +82,27 @@ export type Billboard = {
   position: vec3;
   color: vec4;
   size: number;
+  offset?: vec2;
+  minScale?: number;
+  maxScale?: number;
+  minSizePixels?: number;
+  maxSizePixels?: number;
+} & LayerOptions;
+
+export type Text = {
+  text: string;
+  position: vec3;
+  color: vec4;
+  size: number;
+  offset?: vec2;
+  fontFamily?: string;
+  fontWeight?: string;
+  fontSize?: number;
+  fillColor?: vec4;
+  outlineWidth?: number;
+  outlineColor?: vec4;
+  minScale?: number;
+  maxScale?: number;
   minSizePixels?: number;
   maxSizePixels?: number;
 } & LayerOptions;
@@ -104,7 +126,7 @@ export type Properties<T> = {
 };
 
 export const cacheAll = <T extends unknown[], R>(
-  _value: { [K in keyof T]: () => T[K] },
+  _value: { [K in keyof T]?: () => T[K] },
   f: (args: T) => R,
 ) => {
   const n = _value.length;

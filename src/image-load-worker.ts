@@ -17,7 +17,7 @@ addEventListener("message", async event => {
       return;
     }
     const blob = await response.blob();
-    const image = await createImageBitmap(blob);
+    const image = await createImageBitmap(blob, { premultiplyAlpha: "none" });
     postMessage({ url, image }, { transfer: [image] });
   } catch (error) {
     if (!(error instanceof Error)) throw error;
