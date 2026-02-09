@@ -1,4 +1,4 @@
-import { cache, type Layer, type Properties } from ".";
+import { cache, type Layer, type Properties, resolve } from ".";
 
 export const createContainer = (children: Layer[]) => {
   const dispose = () => children.forEach(_ => _.dispose());
@@ -37,7 +37,7 @@ export const createDynamicContainer = <K>(
 
   return {
     get children() {
-      update();
+      resolve(update);
       return [...layers.values()];
     },
     dispose,

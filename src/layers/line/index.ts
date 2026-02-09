@@ -8,7 +8,7 @@ import type { Context } from "../../context";
 import { circumference, mercator } from "../../math";
 import type { Viewport } from "../../viewport";
 import type { Layer, Line, Properties } from "../";
-import { cache, createMouseEvents } from "../";
+import { cache, createMouseEvents, resolve } from "../";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import { createTexture, type Texture } from "../terrain/texture";
@@ -50,16 +50,17 @@ export const createLineLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    updatePoints();
-    updateDashPattern();
+    resolve(updatePoints);
+    resolve(updateDashPattern);
 
-    const color = properties.color?.() ?? [1, 1, 1, 1];
-    const width = properties.width?.() ?? 1;
-    const minWidthPixels = properties.minWidthPixels?.() ?? 0;
-    const maxWidthPixels = properties.maxWidthPixels?.() ?? Number.MAX_VALUE;
-    const depthWidthPixels = properties.depthWidthPixels?.();
-    const dashSize = properties.dashSize?.() ?? 1000;
-    const dashOffset = properties.dashOffset?.() ?? 0;
+    const color = resolve(properties.color) ?? [1, 1, 1, 1];
+    const width = resolve(properties.width) ?? 1;
+    const minWidthPixels = resolve(properties.minWidthPixels) ?? 0;
+    const maxWidthPixels =
+      resolve(properties.maxWidthPixels) ?? Number.MAX_VALUE;
+    const depthWidthPixels = resolve(properties.depthWidthPixels);
+    const dashSize = resolve(properties.dashSize) ?? 1000;
+    const dashOffset = resolve(properties.dashOffset) ?? 0;
 
     if (configure(gl, depth, properties)) return;
 
@@ -88,126 +89,120 @@ export const createLineLayer = (
     });
   };
 
-  const updatePoints = cache(
-    () => properties.points?.() ?? [],
-    _ => {
-      const positionData = _.flatMap(_ => {
-        const [first] = _;
-        const [last] = _.slice(-1);
+  const updatePoints = cache(properties.points, (_ = []) => {
+    const positionData = _.flatMap(_ => {
+      const [first] = _;
+      const [last] = _.slice(-1);
 
-        if (!first || !last) return [];
+      if (!first || !last) return [];
 
-        const repeat = (_: vec3[]) => {
-          const result = new Array<number>(_.length * 3 * 4);
-          for (let i = 0; i < _.length; i++) {
-            const [x = 0, y = 0, z = 0] = _[i] ?? [];
-            for (let j = 0; j < 4; j++) {
-              const q = i * 3 * 4 + j * 3;
-              result[q + 0] = x;
-              result[q + 1] = y;
-              result[q + 2] = z;
-            }
+      const repeat = (_: vec3[]) => {
+        const result = new Array<number>(_.length * 3 * 4);
+        for (let i = 0; i < _.length; i++) {
+          const [x = 0, y = 0, z = 0] = _[i] ?? [];
+          for (let j = 0; j < 4; j++) {
+            const q = i * 3 * 4 + j * 3;
+            result[q + 0] = x;
+            result[q + 1] = y;
+            result[q + 2] = z;
           }
-          return result;
-        };
+        }
+        return result;
+      };
 
-        return repeat([first, ..._, last].map(_ => to(mercator(_))));
-      });
+      return repeat([first, ..._, last].map(_ => to(mercator(_))));
+    });
 
-      const { indexData } = _.reduce<{
-        indexData: number[];
-        count: number;
-      }>(
-        ({ indexData, count }, _) => {
-          if (_.length === 0) return { indexData, count };
-          const indices = range(0, (_.length - 1) * 2).flatMap(i => {
-            const [a = 0, b = 0, c = 0, d = 0] = [0, 1, 2, 3].map(
-              _ => _ + i * 2 + count,
-            );
-            return [a, b, d, /**/ a, d, c];
-          });
-          count += (_.length + 2) * 4;
-          indexData = indexData.concat(indices);
-          return { indexData, count };
+    const { indexData } = _.reduce<{
+      indexData: number[];
+      count: number;
+    }>(
+      ({ indexData, count }, _) => {
+        if (_.length === 0) return { indexData, count };
+        const indices = range(0, (_.length - 1) * 2).flatMap(i => {
+          const [a = 0, b = 0, c = 0, d = 0] = [0, 1, 2, 3].map(
+            _ => _ + i * 2 + count,
+          );
+          return [a, b, d, /**/ a, d, c];
+        });
+        count += (_.length + 2) * 4;
+        indexData = indexData.concat(indices);
+        return { indexData, count };
+      },
+      { indexData: [], count: 0 },
+    );
+    count = indexData.length;
+
+    const cornerData = _.flatMap(_ =>
+      _.length === 0
+        ? []
+        : range(0, (_.length + 1) * 2).flatMap(() => [
+            -1, -1,
+            //
+            -1, 1,
+            //
+            1, -1,
+            //
+            1, 1,
+          ]),
+    );
+
+    const distanceData = _.flatMap(points => {
+      const distances = points.map(
+        (_, i) =>
+          vec3.distance(mercator(_), mercator(points[i - 1] ?? _)) *
+          circumference,
+      );
+      const accumulated = distances.reduce(
+        ({ current, result }, distance) => {
+          current += distance;
+          result.push(current);
+          return { current, result };
         },
-        { indexData: [], count: 0 },
-      );
-      count = indexData.length;
+        { current: 0, result: [] as number[] },
+      ).result;
 
-      const cornerData = _.flatMap(_ =>
-        _.length === 0
-          ? []
-          : range(0, (_.length + 1) * 2).flatMap(() => [
-              -1, -1,
-              //
-              -1, 1,
-              //
-              1, -1,
-              //
-              1, 1,
-            ]),
-      );
+      const [first] = accumulated;
+      const [last] = accumulated.slice(-1);
 
-      const distanceData = _.flatMap(points => {
-        const distances = points.map(
-          (_, i) =>
-            vec3.distance(mercator(_), mercator(points[i - 1] ?? _)) *
-            circumference,
-        );
-        const accumulated = distances.reduce(
-          ({ current, result }, distance) => {
-            current += distance;
-            result.push(current);
-            return { current, result };
-          },
-          { current: 0, result: [] as number[] },
-        ).result;
+      if (first === undefined || last === undefined) return [];
 
-        const [first] = accumulated;
-        const [last] = accumulated.slice(-1);
+      const repeat = (_: number[]) => {
+        const result = new Array<number>(_.length * 4);
+        for (let i = 0; i < _.length; i++) {
+          const x = _[i] ?? 0;
+          result[i * 4 + 0] = x;
+          result[i * 4 + 1] = x;
+          result[i * 4 + 2] = x;
+          result[i * 4 + 3] = x;
+        }
+        return result;
+      };
 
-        if (first === undefined || last === undefined) return [];
+      return repeat([first, ...accumulated, last]);
+    });
 
-        const repeat = (_: number[]) => {
-          const result = new Array<number>(_.length * 4);
-          for (let i = 0; i < _.length; i++) {
-            const x = _[i] ?? 0;
-            result[i * 4 + 0] = x;
-            result[i * 4 + 1] = x;
-            result[i * 4 + 2] = x;
-            result[i * 4 + 3] = x;
-          }
-          return result;
-        };
+    positionBuffer.set(positionData);
+    indexBuffer.set(indexData);
+    cornerBuffer.set(cornerData);
+    distanceBuffer.set(distanceData);
+  });
 
-        return repeat([first, ...accumulated, last]);
-      });
-
-      positionBuffer.set(positionData);
-      indexBuffer.set(indexData);
-      cornerBuffer.set(cornerData);
-      distanceBuffer.set(distanceData);
-    },
-  );
-
-  const updateDashPattern = cache(
-    () => properties.dashPattern?.(),
-    dashPattern => {
-      dashPattern = dashPattern ?? [[1, 1, 1, 1]];
-      dash.use();
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        dashPattern.length,
-        1,
-        0,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        new Uint8Array(dashPattern.flatMap(_ => [..._.map(_ => _ * 255)])),
-      );
-    },
-  );
+  const updateDashPattern = cache(properties.dashPattern, dashPattern => {
+    dashPattern = dashPattern ?? [[1, 1, 1, 1]];
+    dash.use();
+    gl.texImage2D(
+      gl.TEXTURE_2D,
+      0,
+      gl.RGBA,
+      dashPattern.length,
+      1,
+      0,
+      gl.RGBA,
+      gl.UNSIGNED_BYTE,
+      new Uint8Array(dashPattern.flatMap(_ => [..._.map(_ => _ * 255)])),
+    );
+  });
 
   const dispose = () => {
     dash.dispose();

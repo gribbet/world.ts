@@ -2,7 +2,7 @@ import type { vec2 } from "gl-matrix";
 import { vec3 } from "gl-matrix";
 
 import { debounce } from "./common";
-import { type Properties } from "./layers";
+import { type Properties, resolve } from "./layers";
 import { circumference, mercator } from "./math";
 import { defaultView, type View } from "./model";
 import { createViewport } from "./viewport";
@@ -45,7 +45,10 @@ export const createMouseControl = (
       canvas.height / devicePixelRatio,
     ];
 
-    const { camera, fieldScale } = createViewport(view(), [width, height]);
+    const { camera, fieldScale } = createViewport(resolve(view), [
+      width,
+      height,
+    ]);
     const { position: target, layer } = world.pick([cx, cy]);
     if (!layer) return;
     const distance =
@@ -62,7 +65,7 @@ export const createMouseControl = (
   };
 
   const onDrag = (x: number, y: number) => {
-    if (!draggable() || world.dragging) return;
+    if (!resolve(draggable) || world.dragging) return;
 
     if (!recentered) recenter([x, y]);
 
@@ -82,16 +85,16 @@ export const createMouseControl = (
     movementX: number,
     movementY: number,
   ) => {
-    if (!rotatable()) return;
+    if (!resolve(rotatable)) return;
 
-    if (draggable() && !recentered) recenter([x, y]);
+    if (resolve(draggable) && !recentered) recenter([x, y]);
 
     const [width, height] = [
       canvas.width / devicePixelRatio,
       canvas.height / devicePixelRatio,
     ];
 
-    const [pitch = 0, roll = 0, yaw = 0] = view().orientation ?? [];
+    const [pitch = 0, roll = 0, yaw = 0] = resolve(view).orientation ?? [];
     const orientation = [
       Math.min(
         Math.PI / 2 - 0.1,
@@ -119,9 +122,10 @@ export const createMouseControl = (
   };
 
   const onMouseMove = ({ buttons, movementX, movementY, x, y }: MouseEvent) => {
-    if (!enabled() || !mouseDown) return;
-    if (buttons === 1 && draggable()) onDrag(x, y);
-    else if (buttons === 2 && rotatable()) onRotate(x, y, movementX, movementY);
+    if (!resolve(enabled) || !mouseDown) return;
+    if (buttons === 1 && resolve(draggable)) onDrag(x, y);
+    else if (buttons === 2 && resolve(rotatable))
+      onRotate(x, y, movementX, movementY);
   };
 
   const onTouchMove = (event: TouchEvent) => {
@@ -135,14 +139,14 @@ export const createMouseControl = (
   const clearZooming = debounce(() => (zooming = false), 100);
 
   const onWheel = ({ x, y, deltaY }: WheelEvent) => {
-    if (!enabled()) return;
+    if (!resolve(enabled)) return;
 
     if (!zooming) {
-      if (draggable()) recenter([x, y]);
+      if (resolve(draggable)) recenter([x, y]);
       zooming = true;
     }
 
-    let { distance } = { ...defaultView, ...view() };
+    let { distance } = { ...defaultView, ...resolve(view) };
 
     distance = Math.min(
       Math.max(distance * Math.exp(deltaY * 0.001), minimumDistance),

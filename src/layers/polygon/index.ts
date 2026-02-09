@@ -7,7 +7,7 @@ import type { Context } from "../../context";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
 import type { Layer, Polygon, Properties } from "..";
-import { cache, createMouseEvents } from "..";
+import { cache, createMouseEvents, resolve } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -37,9 +37,9 @@ export const createPolygonLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    const color = properties.color?.() ?? [1, 1, 1, 1];
+    const color = resolve(properties.color) ?? [1, 1, 1, 1];
 
-    updatePoints();
+    resolve(updatePoints);
 
     if (configure(gl, depth, properties)) return;
 
@@ -56,19 +56,16 @@ export const createPolygonLayer = (
     });
   };
 
-  const updatePoints = cache(
-    () => properties.points?.() ?? [],
-    _ => {
-      const { vertices, indices } = triangulate(
-        _.map(_ =>
-          _.map(_ => _.map(_ => to(mercator(_)))).filter(_ => _.length > 0),
-        ).filter(_ => _.length > 0),
-      );
-      positionBuffer.set(vertices);
-      indexBuffer.set(indices);
-      count = indices.length;
-    },
-  );
+  const updatePoints = cache(properties.points, (_ = []) => {
+    const { vertices, indices } = triangulate(
+      _.map(_ =>
+        _.map(_ => _.map(_ => to(mercator(_)))).filter(_ => _.length > 0),
+      ).filter(_ => _.length > 0),
+    );
+    positionBuffer.set(vertices);
+    indexBuffer.set(indices);
+    count = indices.length;
+  });
 
   const dispose = () => {
     positionBuffer.dispose();

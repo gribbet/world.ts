@@ -120,20 +120,28 @@ export type Layer = {
   dispose: () => void;
 } & LayerEvents;
 
+// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+export type Accessor<T> = T | (() => T);
+
+export const resolve = <T>(_: Accessor<T>) =>
+  typeof _ === "function" ? (_ as () => T)() : _;
+
 export type Properties<T> = {
   // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
-  [K in keyof T]: T[K] extends Function | undefined ? T[K] : () => T[K];
+  [K in keyof T]: [T[K]] extends [Function | undefined] ? T[K] : Accessor<T[K]>;
 };
 
 export const cacheAll = <T extends unknown[], R>(
-  _value: { [K in keyof T]?: () => T[K] },
+  _value: {
+    [K in keyof T]: Accessor<T[K]>;
+  },
   f: (args: T) => R,
-) => {
+): Accessor<R> => {
   const n = _value.length;
   let last: [T, R] | undefined;
   let value = new Array(n).fill(undefined) as unknown as T;
   return () => {
-    for (let i = 0; i < n; i++) value[i] = _value[i]?.();
+    for (let i = 0; i < n; i++) value[i] = resolve(_value[i]);
     if (last) {
       let match = true;
       for (let i = 0; i < n; i++)
@@ -156,10 +164,10 @@ export const cacheAll = <T extends unknown[], R>(
   };
 };
 
-export const cache = <T, R>(_value: () => T, f: (_: T) => R) => {
+export const cache = <T, R>(_: Accessor<T>, f: (_: T) => R): Accessor<R> => {
   let last: [T, R] | undefined;
   return () => {
-    const value = _value();
+    const value = resolve(_);
     if (last && last[0] === value) return last[1];
     const result = f(value);
     if (!last) last = [value, result];
