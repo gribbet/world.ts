@@ -1,6 +1,6 @@
 import type { vec3 } from "gl-matrix";
 
-import type { LayerOptions, Properties } from ".";
+import { type LayerOptions, type Properties, resolve } from ".";
 
 export const one = 2 ** 30;
 export const to = ([x = 0, y = 0, z = 0]: vec3) =>
@@ -17,17 +17,17 @@ export const configure = (
     polygonOffset: () => 0,
     ...options,
   };
-  if (depth()) gl.enable(gl.DEPTH_TEST);
+  if (resolve(depth)) gl.enable(gl.DEPTH_TEST);
   else gl.disable(gl.DEPTH_TEST);
 
   if (_depth) {
     gl.disable(gl.POLYGON_OFFSET_FILL);
     gl.disable(gl.BLEND);
-    if (!pickable()) return true;
+    if (!resolve(pickable)) return true;
   } else {
-    if (polygonOffset()) {
+    if (resolve(polygonOffset)) {
       gl.enable(gl.POLYGON_OFFSET_FILL);
-      gl.polygonOffset(0, polygonOffset() ?? 0);
+      gl.polygonOffset(0, resolve(polygonOffset) ?? 0);
     } else gl.disable(gl.POLYGON_OFFSET_FILL);
 
     gl.enable(gl.BLEND);

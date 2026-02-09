@@ -7,7 +7,7 @@ import type { Context } from "../../context";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
 import type { Layer, Object as Object_, Properties } from "..";
-import { cache, createMouseEvents } from "..";
+import { cache, createMouseEvents, resolve } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import { createImageTexture } from "../terrain/image-texture";
@@ -45,16 +45,16 @@ export const createObjectLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    const position = properties.position?.() ?? [0, 0, 0];
-    const orientation = properties.orientation?.() ?? [0, 0, 0, 1];
-    const color = properties.color?.() ?? [1, 1, 1, 1];
-    const diffuse = properties.diffuse?.() ?? [0, 0, 0, 0];
-    const size = properties.size?.() ?? 1;
-    const minSizePixels = properties.minSizePixels?.() ?? 0;
-    const maxSizePixels = properties.maxSizePixels?.() ?? Number.MAX_VALUE;
+    const position = resolve(properties.position) ?? [0, 0, 0];
+    const orientation = resolve(properties.orientation) ?? [0, 0, 0, 1];
+    const color = resolve(properties.color) ?? [1, 1, 1, 1];
+    const diffuse = resolve(properties.diffuse) ?? [0, 0, 0, 0];
+    const size = resolve(properties.size) ?? 1;
+    const minSizePixels = resolve(properties.minSizePixels) ?? 0;
+    const maxSizePixels = resolve(properties.maxSizePixels) ?? Number.MAX_VALUE;
 
-    updateMesh();
-    updateTextureUrl();
+    resolve(updateMesh);
+    resolve(updateTextureUrl);
 
     if (configure(gl, depth, properties)) return;
 
@@ -80,35 +80,27 @@ export const createObjectLayer = (
     });
   };
 
-  const updateMesh = cache(
-    () => properties.mesh?.(),
-    mesh => {
-      const {
-        vertices = [],
-        indices = [],
-        normals = [],
-        uvs = [],
-      } = mesh ?? {};
-      vertexBuffer.set(vertices.flatMap(_ => [..._]));
-      indexBuffer.set(indices.flatMap(_ => [..._]));
-      normalBuffer.set(
-        normals.length === 0
-          ? vertices.flatMap(() => [0, 0, 0])
-          : normals.flatMap(_ => [..._]),
-      );
-      uvBuffer.set(
-        uvs.length === 0
-          ? vertices.flatMap(() => [0, 0])
-          : uvs.flatMap(_ => [..._]),
-      );
-      count = indices.length * 3;
-    },
-  );
+  const updateMesh = cache(properties.mesh, mesh => {
+    const { vertices = [], indices = [], normals = [], uvs = [] } = mesh ?? {};
+    vertexBuffer.set(vertices.flatMap(_ => [..._]));
+    indexBuffer.set(indices.flatMap(_ => [..._]));
+    normalBuffer.set(
+      normals.length === 0
+        ? vertices.flatMap(() => [0, 0, 0])
+        : normals.flatMap(_ => [..._]),
+    );
+    uvBuffer.set(
+      uvs.length === 0
+        ? vertices.flatMap(() => [0, 0])
+        : uvs.flatMap(_ => [..._]),
+    );
+    count = indices.length * 3;
+  });
 
   const defaultTextureUrl =
     "data:image/gif;base64,R0lGODlhAQABAPAAAP///wAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw=="; // 1x1 white
   const updateTextureUrl = cache(
-    () => properties.textureUrl?.(),
+    properties.textureUrl,
     (url = defaultTextureUrl) => {
       const newTexture = createImageTexture({
         gl,

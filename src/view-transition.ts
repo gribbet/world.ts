@@ -1,5 +1,6 @@
 import { vec3 } from "gl-matrix";
 
+import { resolve } from "./layers";
 import { circumference, geodetic, mercator } from "./math";
 import type { View } from "./model";
 import {
@@ -55,8 +56,8 @@ export const createViewTransition = (view: () => View) => {
       target: position,
       distance,
       orientation: orientation(),
-      offset: offset(),
-      fieldOfView: fieldOfView(),
+      offset: resolve(offset),
+      fieldOfView: resolve(fieldOfView),
     };
   });
 

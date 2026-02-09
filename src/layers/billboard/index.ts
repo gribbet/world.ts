@@ -6,7 +6,7 @@ import type { Context } from "../../context";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
 import type { Billboard, Layer, Properties } from "..";
-import { cache, createMouseEvents } from "..";
+import { cache, createMouseEvents, resolve } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import { createImageTexture } from "../terrain/image-texture";
@@ -50,24 +50,21 @@ export const createBillboardLayer = (
     ].flat(),
   );
 
-  const updateUrl = cache(
-    () => properties.url?.() ?? "",
-    url => {
-      const newImage = createImageTexture({
-        gl,
-        url,
-        onLoad: ({ width, height }) => {
-          imageSize = [width, height];
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-          image?.dispose();
-          image = newImage;
-        },
-      });
-    },
-  );
+  const updateUrl = cache(properties.url, (url = "") => {
+    const newImage = createImageTexture({
+      gl,
+      url,
+      onLoad: ({ width, height }) => {
+        imageSize = [width, height];
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        image?.dispose();
+        image = newImage;
+      },
+    });
+  });
 
   const { renderProgram, depthProgram } = createPrograms(context, {
     cornerBuffer,
@@ -84,16 +81,16 @@ export const createBillboardLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    const position = properties.position?.() ?? [0, 0, 0];
-    const color = properties.color?.() ?? [1, 1, 1, 1];
-    const size = properties.size?.() ?? 100;
-    const offset = properties.offset?.() ?? [0, 0];
-    const minScale = properties.minScale?.() ?? 0;
-    const maxScale = properties.maxScale?.() ?? Number.MAX_VALUE;
-    const minSizePixels = properties.minSizePixels?.() ?? 0;
-    const maxSizePixels = properties.maxSizePixels?.() ?? Number.MAX_VALUE;
+    const position = resolve(properties.position) ?? [0, 0, 0];
+    const color = resolve(properties.color) ?? [1, 1, 1, 1];
+    const size = resolve(properties.size) ?? 100;
+    const offset = resolve(properties.offset) ?? [0, 0];
+    const minScale = resolve(properties.minScale) ?? 0;
+    const maxScale = resolve(properties.maxScale) ?? Number.MAX_VALUE;
+    const minSizePixels = resolve(properties.minSizePixels) ?? 0;
+    const maxSizePixels = resolve(properties.maxSizePixels) ?? Number.MAX_VALUE;
 
-    updateUrl();
+    resolve(updateUrl);
 
     if (!image) return;
 

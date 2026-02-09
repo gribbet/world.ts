@@ -8,7 +8,7 @@ import type { Context } from "../../context";
 import { createElevation } from "../../elevation";
 import type { Viewport } from "../../viewport";
 import type { Layer, Properties, Terrain } from "..";
-import { cache, createMouseEvents } from "..";
+import { cache, createMouseEvents, resolve } from "..";
 import { configure, to } from "../common";
 import depthSource from "../depth.glsl";
 import fragmentSource from "./fragment.glsl";
@@ -84,36 +84,33 @@ export const createTerrainLayer = (
       ) as number | undefined)
     : undefined;
 
-  const updateImageryUrl = cache(
-    () => properties.imageryUrl?.() ?? "",
-    imageryUrl => {
-      imageryCache?.dispose();
-      imageryCache = createTileCache({
-        gl,
-        urlPattern: imageryUrl,
-        onLoad: () => {
-          if (textureFilterAnisotropic && maxAnisotropy)
-            gl.texParameterf(
-              gl.TEXTURE_2D,
-              textureFilterAnisotropic.TEXTURE_MAX_ANISOTROPY_EXT,
-              maxAnisotropy,
-            );
-          gl.texParameteri(
+  const updateImageryUrl = cache(properties.imageryUrl, (imageryUrl = "") => {
+    imageryCache?.dispose();
+    imageryCache = createTileCache({
+      gl,
+      urlPattern: imageryUrl,
+      onLoad: () => {
+        if (textureFilterAnisotropic && maxAnisotropy)
+          gl.texParameterf(
             gl.TEXTURE_2D,
-            gl.TEXTURE_MIN_FILTER,
-            gl.LINEAR_MIPMAP_LINEAR,
+            textureFilterAnisotropic.TEXTURE_MAX_ANISOTROPY_EXT,
+            maxAnisotropy,
           );
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-          gl.generateMipmap(gl.TEXTURE_2D);
-        },
-      });
-      imageryDownsampler = createTileDownsampler(imageryCache);
-    },
-  );
+        gl.texParameteri(
+          gl.TEXTURE_2D,
+          gl.TEXTURE_MIN_FILTER,
+          gl.LINEAR_MIPMAP_LINEAR,
+        );
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.generateMipmap(gl.TEXTURE_2D);
+      },
+    });
+    imageryDownsampler = createTileDownsampler(imageryCache);
+  });
 
-  const terrainUrl = properties.terrainUrl?.() ?? "";
+  const terrainUrl = resolve(properties.terrainUrl) ?? "";
 
   const terrainCache = createTileCache({
     gl,
@@ -151,7 +148,7 @@ export const createTerrainLayer = (
     const tiles = new Array<vec3>();
     const { worldToLocal, localToClip, clipToScreen } = viewport;
 
-    const tileSize = 384 * Math.pow(2, properties.downsample?.() ?? 0);
+    const tileSize = 384 * Math.pow(2, resolve(properties.downsample) ?? 0);
 
     for (;;) {
       const xyz = stack.pop();
@@ -188,10 +185,10 @@ export const createTerrainLayer = (
     depth?: boolean;
     index?: number;
   }) => {
-    const color = properties.color?.() ?? [1, 1, 1, 1];
-    const saturation = properties.saturation?.() ?? 1;
+    const color = resolve(properties.color) ?? [1, 1, 1, 1];
+    const saturation = resolve(properties.saturation) ?? 1;
 
-    updateImageryUrl();
+    resolve(updateImageryUrl);
 
     if (configure(gl, depth, properties)) return;
 

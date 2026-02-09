@@ -5,6 +5,7 @@ import type { Context } from "./context";
 import { createDepthBuffer } from "./depth-buffer";
 import { createMouseEvents } from "./events";
 import type { Layer, Properties, TerrainLayer } from "./layers";
+import { resolve } from "./layers";
 import { geodetic } from "./math";
 import type { Pick, View } from "./model";
 import { createViewport } from "./viewport";
@@ -76,16 +77,16 @@ export const createWorld = (
   };
 
   const render = () => {
-    const viewport = createViewport(view(), screen);
+    const viewport = createViewport(resolve(view), screen);
     clear(screen);
 
-    flattenLayers(layers()).forEach(_ => _.render?.({ viewport }));
+    flattenLayers(resolve(layers)).forEach(_ => _.render?.({ viewport }));
   };
 
   const depth = (layer?: Layer) => {
-    const viewport = createViewport(view(), screen);
+    const viewport = createViewport(resolve(view), screen);
     clear(screen);
-    (layer ? [layer] : flattenLayers(layers())).forEach((_, i) =>
+    (layer ? [layer] : flattenLayers(resolve(layers))).forEach((_, i) =>
       _.render?.({ viewport, depth: true, index: i + 1 }),
     );
   };
@@ -98,19 +99,21 @@ export const createWorld = (
 
   requestAnimationFrame(frame);
 
-  const project = (_: vec3) => createViewport(view(), screen).project(_);
+  const project = (_: vec3) => createViewport(resolve(view), screen).project(_);
 
-  const unproject = (_: vec2) => createViewport(view(), screen).unproject(_);
+  const unproject = (_: vec2) =>
+    createViewport(resolve(view), screen).unproject(_);
 
   const pick = (point: vec2, { terrain }: { terrain?: boolean } = {}) => {
     const { screenToClip, clipToLocal, localToWorld } = createViewport(
-      view(),
+      resolve(view),
       screen,
     );
 
     depthBuffer.use();
 
-    const [terrainLayer] = terrain ? layers() : [];
+    const [terrainLayer] = terrain ? resolve(layers) : [];
+
     depth(terrainLayer);
 
     const [px = 0, py = 0] = point;
@@ -126,7 +129,7 @@ export const createWorld = (
     const layer =
       index === 0
         ? undefined
-        : (terrainLayer ?? flattenLayers(layers())[index - 1]);
+        : (terrainLayer ?? flattenLayers(resolve(layers))[index - 1]);
 
     if (terrain) {
       const [lng = 0, lat = 0] = position;
@@ -144,7 +147,7 @@ export const createWorld = (
   });
 
   const elevation = (_: vec2) => {
-    const [terrainLayer] = layers();
+    const [terrainLayer] = resolve(layers);
     return terrainLayer.elevation(_);
   };
 

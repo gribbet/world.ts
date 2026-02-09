@@ -1,6 +1,6 @@
 import type { vec2 } from "gl-matrix";
 
-import type { Layer } from "./layers";
+import { type Accessor, type Layer, resolve } from "./layers";
 import type { Pick, View } from "./model";
 import { createViewport } from "./viewport";
 
@@ -11,8 +11,8 @@ export const createMouseEvents = (
     screen,
     pick,
   }: {
-    view: () => Partial<View>;
-    screen: () => vec2;
+    view: Accessor<Partial<View>>;
+    screen: Accessor<vec2>;
     pick: ([x, y]: vec2, _?: { terrain?: boolean }) => Pick;
   },
 ) => {
@@ -34,7 +34,7 @@ export const createMouseEvents = (
         dragging.onDrag({ point, position, layer });
       }
       if (dragging.onDragFlat) {
-        const viewport = createViewport(view(), screen());
+        const viewport = createViewport(resolve(view), resolve(screen));
         const position = viewport.unproject([x, y], { targetZ });
         dragging.onDragFlat({ point: [x, y], position, layer: undefined });
       }

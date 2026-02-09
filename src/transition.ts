@@ -1,5 +1,6 @@
 import { quat, vec2, vec3, vec4 } from "gl-matrix";
 
+import { type Accessor, resolve } from "./layers";
 import {
   circumference,
   geodetic,
@@ -25,7 +26,7 @@ tick();
 
 export const createTransition =
   <T>(step: (_: { time: number; current: T; target: T }) => T) =>
-  (_target: () => T) => {
+  (_target: Accessor<T>): Accessor<T> => {
     let current: T | undefined;
     let last: number | undefined;
 
@@ -35,7 +36,7 @@ export const createTransition =
 
       if (time > 1) current = undefined;
 
-      const target = _target();
+      const target = resolve(_target);
       current = current ?? target;
       current = step({ time, current, target });
       return current;
@@ -50,7 +51,7 @@ export const createNumberTransition = createTransition<number>(
   },
 );
 
-export const createVec2Transition = (target: () => vec2) =>
+export const createVec2Transition = (target: Accessor<vec2>) =>
   createTransition<vec2>(({ time, current, target }) => {
     if (vec2.distance(current, target) < epsilon) vec2.copy(current, target);
     else
@@ -64,9 +65,9 @@ export const createVec2Transition = (target: () => vec2) =>
         ),
       );
     return current;
-  })(() => vec2.clone(target()));
+  })(() => vec2.clone(resolve(target)));
 
-export const createVec4Transition = (target: () => vec4) =>
+export const createVec4Transition = (target: Accessor<vec4>) =>
   createTransition<vec4>(({ time, current, target }) => {
     if (vec4.distance(current, target) < epsilon) vec4.copy(current, target);
     else
@@ -81,9 +82,9 @@ export const createVec4Transition = (target: () => vec4) =>
       );
 
     return current;
-  })(() => vec4.clone(target()));
+  })(() => vec4.clone(resolve(target)));
 
-export const createPositionTransition = (target: () => vec3) =>
+export const createPositionTransition = (target: Accessor<vec3>) =>
   createTransition<vec3>(({ time, current, target }) => {
     const distance = vec3.distance(mercator(current), mercator(target));
     if (distance * circumference < epsilon) vec3.copy(current, target);
@@ -101,9 +102,9 @@ export const createPositionTransition = (target: () => vec3) =>
         ),
       );
     return current;
-  })(() => vec3.clone(target()));
+  })(() => vec3.clone(resolve(target)));
 
-export const createPositionVelocityTransition = (target: () => vec3) => {
+export const createPositionVelocityTransition = (target: Accessor<vec3>) => {
   const tau = 0.5;
 
   let initialized = false;
@@ -119,7 +120,7 @@ export const createPositionVelocityTransition = (target: () => vec3) => {
 
   return () => {
     if (now === lastTime) return geodetic(position);
-    const next = target();
+    const next = resolve(target);
 
     if (
       !initialized ||
@@ -166,12 +167,14 @@ export const createPositionVelocityTransition = (target: () => vec3) => {
   };
 };
 
-export const createOrientationTransition = (target: () => vec3) => {
-  const transition = createQuaternionTransition(() => toQuaternion(target()));
-  return () => toOrientation(transition());
+export const createOrientationTransition = (target: Accessor<vec3>) => {
+  const transition = createQuaternionTransition(() =>
+    toQuaternion(resolve(target)),
+  );
+  return () => toOrientation(resolve(transition));
 };
 
-export const createQuaternionTransition = (target: () => quat) =>
+export const createQuaternionTransition = (target: Accessor<quat>) =>
   createTransition<quat>(({ time, current, target }) => {
     let angle = quat.getAngle(current, target);
     if (isNaN(angle)) angle = 0;
@@ -183,4 +186,4 @@ export const createQuaternionTransition = (target: () => quat) =>
     );
     if (angle < epsilon) current = target;
     return current;
-  })(() => quat.clone(target()));
+  })(() => quat.clone(resolve(target)));
