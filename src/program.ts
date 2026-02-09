@@ -150,10 +150,13 @@ export const createProgram = ({
     stride?: number;
     offset?: number;
   }) => {
-    const location = gl.getAttribLocation(program, name);
-    if (location === -1) throw new Error(`Missing attribute: ${name}`);
+    let location: number | undefined;
 
     const use = () => {
+      if (location === undefined) {
+        location = gl.getAttribLocation(program, name);
+        if (location === -1) throw new Error(`Missing attribute: ${name}`);
+      }
       buffer.use();
       gl.enableVertexAttribArray(location);
       if (["u16", "u32", "i32"].includes(type))
