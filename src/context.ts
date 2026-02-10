@@ -12,16 +12,6 @@ export const createContext = (canvas: HTMLCanvasElement) => {
 
   if (gl.isContextLost()) throw new Error("Context lost");
 
-  const loseContextExtension = gl.getExtension("WEBGL_lose_context");
-
-  window.addEventListener("keydown", async event => {
-    if (event.key === "l") {
-      loseContextExtension?.loseContext();
-      await new Promise(resolve => setTimeout(resolve, 1000));
-      loseContextExtension?.restoreContext();
-    }
-  });
-
   const programs = createPrograms(gl);
 
   const { dispose } = programs;
