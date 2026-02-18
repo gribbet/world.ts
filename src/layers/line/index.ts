@@ -200,7 +200,7 @@ export const createLineLayer = (
       0,
       gl.RGBA,
       gl.UNSIGNED_BYTE,
-      new Uint8Array(dashPattern.flatMap(_ => [..._.map(_ => _ * 255)])),
+      new Uint8Array(dashPattern.flatMap(_ => [..._].map(_ => _ * 255))),
     );
   });
 
