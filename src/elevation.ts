@@ -27,7 +27,6 @@ export const createElevation = ({
   const downsampler = createTileDownsampler(terrainCache);
 
   const framebuffer = gl.createFramebuffer();
-  if (!framebuffer) throw new Error("Framebuffer creation failed");
 
   const downsampleBuffer = ([x = 0, y = 0, z = 0]: vec3) => {
     const tile = downsampler.get([x, y, z]);
@@ -50,7 +49,7 @@ export const createElevation = ({
 
   const get = ([lng = 0, lat = 0]: vec2, z = defaultZ) => {
     const k = 2 ** z;
-    const p = mercator([lng, lat, 0]).map(_ => _ * k);
+    const p = [...mercator([lng, lat, 0])].map(_ => _ * k);
     const [x = 0, y = 0] = p.map(_ => Math.floor(_ % k));
     let [px = 0, py = 0] = p.map(_ => _ % 1);
     const downsampled = downsampleBuffer([x, y, z]);

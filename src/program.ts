@@ -54,7 +54,6 @@ export const createProgram = ({
   fragmentSource: string;
 }) => {
   const program = gl.createProgram();
-  if (!program) throw new Error("Program creation failed");
 
   const vertexShader = compileShader(
     gl,
@@ -132,7 +131,7 @@ export const createProgram = ({
     );
   const uniformMatrix4f = (name: string) =>
     uniform<mat4>(name, (location, value) =>
-      gl.uniformMatrix4fv(location, false, value),
+      gl.uniformMatrix4fv(location, false, [...value]),
     );
 
   const attribute = ({
@@ -159,7 +158,7 @@ export const createProgram = ({
       }
       buffer.use();
       gl.enableVertexAttribArray(location);
-      if (["u16", "u32", "i32"].includes(type))
+      if (type === "u16" || type === "u32" || type === "i32")
         gl.vertexAttribIPointer(
           location,
           size,
