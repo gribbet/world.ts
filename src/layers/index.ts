@@ -142,7 +142,7 @@ export const cacheAll = <T extends unknown[], R>(
   let value = new Array(n).fill(undefined) as unknown as T;
   return () => {
     for (let i = 0; i < n; i++) value[i] = resolve(_value[i]);
-    if (last) {
+    if (last !== undefined) {
       let match = true;
       for (let i = 0; i < n; i++)
         if (last[0][i] !== value[i]) {
@@ -153,7 +153,7 @@ export const cacheAll = <T extends unknown[], R>(
       if (match) return last[1];
     }
     const result = f(value);
-    if (!last) last = [value.slice() as unknown as T, result];
+    if (last === undefined) last = [value.slice() as unknown as T, result];
     else {
       const [temp] = last;
       last[0] = value;
@@ -165,16 +165,17 @@ export const cacheAll = <T extends unknown[], R>(
 };
 
 export const cache = <T, R>(_: Accessor<T>, f: (_: T) => R): Accessor<R> => {
-  let last: [T, R] | undefined;
+  let lastValue: T;
+  let lastResult: R;
+  let initialized = false;
+
   return () => {
     const value = resolve(_);
-    if (last && last[0] === value) return last[1];
+    if (initialized && lastValue === value) return lastResult;
     const result = f(value);
-    if (!last) last = [value, result];
-    else {
-      last[0] = value;
-      last[1] = result;
-    }
+    lastValue = value;
+    lastResult = result;
+    initialized = true;
     return result;
   };
 };
