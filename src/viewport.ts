@@ -56,7 +56,7 @@ export const createViewport: (view: Partial<View>, screen: vec2) => Viewport = (
   const modelView = mat4.create();
   mat4.fromQuat(modelView, toQuaternion(orientation));
   const transform = mat4.multiply(mat4.create(), projection, modelView);
-  const inverse = mat4.invert(mat4.create(), transform) as mat4 | null;
+  const inverse = mat4.invert(mat4.create(), transform);
   if (!inverse) throw new Error("No inverse");
 
   const scale = (scale: number) => {

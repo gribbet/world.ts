@@ -120,7 +120,6 @@ export type Layer = {
   dispose: () => void;
 } & LayerEvents;
 
-// eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
 export type Accessor<T> = T | (() => T);
 
 export const resolve = <T>(_: Accessor<T>) =>

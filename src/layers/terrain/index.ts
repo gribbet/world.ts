@@ -243,7 +243,10 @@ export const createTerrainLayer = (
 
 const createPrograms = (
   { gl, programs }: Context,
-  { uvwBuffer, indexBuffer }: { uvwBuffer: Buffer; indexBuffer: Buffer },
+  {
+    uvwBuffer,
+    indexBuffer,
+  }: { uvwBuffer: Buffer<"f32">; indexBuffer: Buffer<"u16"> },
 ) => {
   const createRenderProgram = (depth = false) => {
     const program = programs.get({

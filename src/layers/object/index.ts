@@ -147,10 +147,10 @@ const createPrograms = (
     normalBuffer,
     uvBuffer,
   }: {
-    vertexBuffer: Buffer;
-    indexBuffer: Buffer;
-    normalBuffer: Buffer;
-    uvBuffer: Buffer;
+    vertexBuffer: Buffer<"f32">;
+    indexBuffer: Buffer<"u32">;
+    normalBuffer: Buffer<"f32">;
+    uvBuffer: Buffer<"f32">;
   },
 ) => {
   const createRenderProgram = (depth = false) => {

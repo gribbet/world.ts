@@ -140,9 +140,9 @@ const createPrograms = (
     uvBuffer,
     indexBuffer,
   }: {
-    cornerBuffer: Buffer;
-    uvBuffer: Buffer;
-    indexBuffer: Buffer;
+    cornerBuffer: Buffer<"f32">;
+    uvBuffer: Buffer<"f32">;
+    indexBuffer: Buffer<"u16">;
   },
 ) => {
   const createRenderProgram = (depth = false) => {

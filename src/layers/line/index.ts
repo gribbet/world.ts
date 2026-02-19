@@ -3,13 +3,12 @@ import { vec3 } from "gl-matrix";
 
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
-import { range } from "../../common";
 import type { Context } from "../../context";
 import { circumference, mercator } from "../../math";
 import type { Viewport } from "../../viewport";
 import type { Layer, Line, Properties } from "../";
 import { cache, createMouseEvents, resolve } from "../";
-import { configure, to } from "../common";
+import { configure, one, to } from "../common";
 import depthSource from "../depth.glsl";
 import { createTexture, type Texture } from "../terrain/texture";
 import fragmentSource from "./fragment.glsl";
@@ -89,103 +88,98 @@ export const createLineLayer = (
     });
   };
 
-  const updatePoints = cache(properties.points, (_ = []) => {
-    const positionData = _.flatMap(_ => {
-      const [first] = _;
-      const [last] = _.slice(-1);
+  const v = vec3.create();
+  const updatePoints = cache(properties.points, (lines = []) => {
+    let positionLength = 0;
+    let indexLength = 0;
+    let cornerLength = 0;
+    let distanceLength = 0;
 
-      if (!first || !last) return [];
+    for (const line of lines) {
+      const l = line.length;
+      if (l < 2) continue;
+      const vertices = (l + 2) * 4;
+      positionLength += vertices * 3;
+      indexLength += (2 * l - 1) * 6;
+      cornerLength += vertices * 2;
+      distanceLength += vertices * 1;
+    }
 
-      const repeat = (_: vec3[]) => {
-        const result = new Array<number>(_.length * 3 * 4);
-        for (let i = 0; i < _.length; i++) {
-          const [x = 0, y = 0, z = 0] = _[i] ?? [];
-          for (let j = 0; j < 4; j++) {
-            const q = i * 3 * 4 + j * 3;
-            result[q + 0] = x;
-            result[q + 1] = y;
-            result[q + 2] = z;
-          }
+    const positionData = new Int32Array(positionLength);
+    const indexData = new Uint16Array(indexLength);
+    const cornerData = new Float32Array(cornerLength);
+    const distanceData = new Float32Array(distanceLength);
+
+    let positionOffset = 0;
+    let indexOffset = 0;
+    let cornerOffset = 0;
+    let distanceOffset = 0;
+    let vertexCount = 0;
+
+    const corners = [-1, -1, -1, 1, 1, -1, 1, 1];
+
+    for (const line of lines) {
+      const l = line.length;
+      if (l < 2) continue;
+
+      let totalDistance = 0;
+      let prevX = 0;
+      let prevY = 0;
+      let prevZ = 0;
+
+      for (let i = -1; i <= l; i++) {
+        const point = line[Math.max(0, Math.min(l - 1, i))] ?? [0, 0, 0];
+        const [px = 0, py = 0, pz = 0] = mercator(point, v);
+
+        if (i > 0 && i < l) {
+          const dx = px - prevX;
+          const dy = py - prevY;
+          const dz = pz - prevZ;
+          totalDistance +=
+            Math.sqrt(dx * dx + dy * dy + dz * dz) * circumference;
         }
-        return result;
-      };
 
-      return repeat([first, ..._, last].map(_ => to(mercator(_))));
-    });
+        prevX = px;
+        prevY = py;
+        prevZ = pz;
 
-    const { indexData } = _.reduce<{
-      indexData: number[];
-      count: number;
-    }>(
-      ({ indexData, count }, _) => {
-        if (_.length === 0) return { indexData, count };
-        const indices = range(0, (_.length - 1) * 2).flatMap(i => {
-          const [a = 0, b = 0, c = 0, d = 0] = [0, 1, 2, 3].map(
-            _ => _ + i * 2 + count,
-          );
-          return [a, b, d, /**/ a, d, c];
-        });
-        count += (_.length + 2) * 4;
-        indexData = indexData.concat(indices);
-        return { indexData, count };
-      },
-      { indexData: [], count: 0 },
-    );
-    count = indexData.length;
+        const x = Math.floor(px * one);
+        const y = Math.floor(py * one);
+        const z = Math.floor(pz * one);
 
-    const cornerData = _.flatMap(_ =>
-      _.length === 0
-        ? []
-        : range(0, (_.length + 1) * 2).flatMap(() => [
-            -1, -1,
-            //
-            -1, 1,
-            //
-            1, -1,
-            //
-            1, 1,
-          ]),
-    );
-
-    const distanceData = _.flatMap(points => {
-      const distances = points.map(
-        (_, i) =>
-          vec3.distance(mercator(_), mercator(points[i - 1] ?? _)) *
-          circumference,
-      );
-      const accumulated = distances.reduce(
-        ({ current, result }, distance) => {
-          current += distance;
-          result.push(current);
-          return { current, result };
-        },
-        { current: 0, result: [] as number[] },
-      ).result;
-
-      const [first] = accumulated;
-      const [last] = accumulated.slice(-1);
-
-      if (first === undefined || last === undefined) return [];
-
-      const repeat = (_: number[]) => {
-        const result = new Array<number>(_.length * 4);
-        for (let i = 0; i < _.length; i++) {
-          const x = _[i] ?? 0;
-          result[i * 4 + 0] = x;
-          result[i * 4 + 1] = x;
-          result[i * 4 + 2] = x;
-          result[i * 4 + 3] = x;
+        for (let j = 0; j < 4; j++) {
+          positionData[positionOffset++] = x;
+          positionData[positionOffset++] = y;
+          positionData[positionOffset++] = z;
+          distanceData[distanceOffset++] = totalDistance;
         }
-        return result;
-      };
 
-      return repeat([first, ...accumulated, last]);
-    });
+        cornerData.set(corners, cornerOffset);
+        cornerOffset += 8;
+      }
+
+      const quadCount = 2 * l - 1;
+      for (let i = 0; i < quadCount; i++) {
+        const a = i * 2 + vertexCount;
+        const b = a + 1;
+        const c = a + 2;
+        const d = a + 3;
+        indexData[indexOffset++] = a;
+        indexData[indexOffset++] = b;
+        indexData[indexOffset++] = d;
+        indexData[indexOffset++] = a;
+        indexData[indexOffset++] = d;
+        indexData[indexOffset++] = c;
+      }
+
+      vertexCount += (l + 2) * 4;
+    }
 
     positionBuffer.set(positionData);
     indexBuffer.set(indexData);
     cornerBuffer.set(cornerData);
     distanceBuffer.set(distanceData);
+    count = indexData.length;
   });
 
   const updateDashPattern = cache(properties.dashPattern, dashPattern => {
@@ -229,10 +223,10 @@ const createPrograms = (
     cornerBuffer,
     distanceBuffer,
   }: {
-    positionBuffer: Buffer;
-    indexBuffer: Buffer;
-    cornerBuffer: Buffer;
-    distanceBuffer: Buffer;
+    positionBuffer: Buffer<"i32">;
+    indexBuffer: Buffer<"u16">;
+    cornerBuffer: Buffer<"f32">;
+    distanceBuffer: Buffer<"f32">;
   },
 ) => {
   const createRenderProgram = (depth = false) => {
