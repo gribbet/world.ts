@@ -1,6 +1,6 @@
 import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
 
-import type { Buffer } from "./buffer";
+import type { Buffer, BufferType } from "./buffer";
 
 export type Program = {
   use: () => void;
@@ -15,22 +15,22 @@ export type Program = {
   uniformMatrix4f: (name: string) => Uniform<mat4>;
   attribute1f: (
     name: string,
-    buffer: Buffer,
+    buffer: Buffer<"f32">,
     _?: { stride?: number; offset?: number },
   ) => Attribute;
   attribute2f: (
     name: string,
-    buffer: Buffer,
+    buffer: Buffer<"f32">,
     _?: { stride?: number; offset?: number },
   ) => Attribute;
   attribute3f: (
     name: string,
-    buffer: Buffer,
+    buffer: Buffer<"f32">,
     _?: { stride?: number; offset?: number },
   ) => Attribute;
   attribute3i: (
     name: string,
-    buffer: Buffer,
+    buffer: Buffer<"i32">,
     _?: { stride?: number; offset?: number },
   ) => Attribute;
   dispose: () => void;
@@ -131,10 +131,10 @@ export const createProgram = ({
     );
   const uniformMatrix4f = (name: string) =>
     uniform<mat4>(name, (location, value) =>
-      gl.uniformMatrix4fv(location, false, [...value]),
+      gl.uniformMatrix4fv(location, false, value as Float32List),
     );
 
-  const attribute = ({
+  const attribute = <T extends BufferType>({
     name,
     buffer,
     size,
@@ -143,9 +143,9 @@ export const createProgram = ({
     offset,
   }: {
     name: string;
-    buffer: Buffer;
+    buffer: Buffer<T>;
     size: number;
-    type: "f32" | "i32" | "u16" | "u32";
+    type: T;
     stride?: number;
     offset?: number;
   }) => {
@@ -186,25 +186,25 @@ export const createProgram = ({
 
   const attribute1f = (
     name: string,
-    buffer: Buffer,
+    buffer: Buffer<"f32">,
     options: { stride?: number; offset?: number } = {},
   ) => attribute({ name, buffer, size: 1, type: "f32", ...options });
 
   const attribute2f = (
     name: string,
-    buffer: Buffer,
+    buffer: Buffer<"f32">,
     options: { stride?: number; offset?: number } = {},
   ) => attribute({ name, buffer, size: 2, type: "f32", ...options });
 
   const attribute3f = (
     name: string,
-    buffer: Buffer,
+    buffer: Buffer<"f32">,
     options: { stride?: number; offset?: number } = {},
   ) => attribute({ name, buffer, size: 3, type: "f32", ...options });
 
   const attribute3i = (
     name: string,
-    buffer: Buffer,
+    buffer: Buffer<"i32">,
     options: { stride?: number; offset?: number } = {},
   ) => attribute({ name, buffer, size: 3, type: "i32", ...options });
 

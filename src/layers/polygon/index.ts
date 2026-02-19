@@ -87,8 +87,8 @@ const createPrograms = (
     positionBuffer,
     indexBuffer,
   }: {
-    positionBuffer: Buffer;
-    indexBuffer: Buffer;
+    positionBuffer: Buffer<"i32">;
+    indexBuffer: Buffer<"u16">;
   },
 ) => {
   const createRenderProgram = (depth = false) => {

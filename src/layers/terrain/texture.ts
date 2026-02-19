@@ -6,7 +6,6 @@ export type Texture = {
 
 export const createTexture = (gl: WebGL2RenderingContext) => {
   const texture = gl.createTexture();
-  if (!texture) throw new Error("Texture creation failed");
 
   const use = () => gl.bindTexture(gl.TEXTURE_2D, texture);
 
