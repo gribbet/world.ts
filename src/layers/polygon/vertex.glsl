@@ -9,7 +9,9 @@ uniform vec2 screen;
 uniform vec4 color;
 
 in ivec3 position;
+in vec2 uv;
 out vec4 color_out;
+out vec2 uv_out;
 
 const int ONE = 1073741824; // 2^30
 const float INV_ONE = 1.f / float(ONE);
@@ -21,4 +23,5 @@ vec4 transform(ivec3 v) {
 void main(void) {
     gl_Position = transform(position);
     color_out = color;
+    uv_out = uv;
 }

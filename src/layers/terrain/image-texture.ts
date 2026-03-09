@@ -21,18 +21,11 @@ export const createImageTexture = ({
 
   const imageLoad = createImageLoad({
     url,
-    onLoad: image => {
-      if (!image) return;
+    onLoad: _ => {
+      if (!_) return;
       texture.use();
-      gl.texImage2D(
-        gl.TEXTURE_2D,
-        0,
-        gl.RGBA,
-        gl.RGBA,
-        gl.UNSIGNED_BYTE,
-        image,
-      );
-      onLoad?.(image);
+      gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _);
+      onLoad?.(_);
     },
   });
 
