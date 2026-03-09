@@ -55,6 +55,7 @@ export type Line = {
 
 export type Polygon = {
   points: vec3[][][];
+  imageUrl?: string;
   color: vec4;
 } & LayerOptions;
 

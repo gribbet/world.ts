@@ -6,6 +6,9 @@ export const one = 2 ** 30;
 export const to = ([x = 0, y = 0, z = 0]: vec3) =>
   [Math.floor(x * one), Math.floor(y * one), Math.floor(z * one)] as vec3;
 
+export const white =
+  "data:image/gif;base64,R0lGODlhAQABAPAAAP///wAAACH5BAAAAAAALAAAAAABAAEAAAICRAEAOw==";
+
 export const configure = (
   gl: WebGL2RenderingContext,
   _depth: boolean,
