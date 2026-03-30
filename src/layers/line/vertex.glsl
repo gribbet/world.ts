@@ -22,10 +22,15 @@ out float distance_out;
 
 const int ONE = 1073741824; // 2^30
 const float INV_ONE = 1.f / float(ONE);
-const float CIRCUMFERENCE = 40075017.;
+const float CIRCUMFERENCE = 40075017.f;
 
 vec4 transform(ivec3 v) {
     return projection * model_view * vec4(vec3(v - camera) * INV_ONE, 1.f);
+}
+
+vec2 safe_normalize(vec2 v) {
+    float l = length(v);
+    return l > 0.0f ? v / l : vec2(0.0f);
 }
 
 void main(void) {
@@ -33,18 +38,20 @@ void main(void) {
     vec4 projected_current = transform(current);
     vec4 projected_next = transform(next);
 
-    vec2 screen_previous = projected_previous.xy / abs(projected_previous.w) * screen;
-    vec2 screen_current = projected_current.xy / abs(projected_current.w) * screen;
-    vec2 screen_next = projected_next.xy / abs(projected_next.w) * screen;
+    vec2 screen_previous = projected_previous.xy / abs(projected_previous.w);
+    vec2 screen_current = projected_current.xy / abs(projected_current.w);
+    vec2 screen_next = projected_next.xy / abs(projected_next.w);
 
-    vec2 a = normalize(screen_current - screen_previous);
-    vec2 b = normalize(screen_next - screen_current);
-    if(screen_current == screen_previous)
+    vec2 a = safe_normalize((screen_current - screen_previous) * screen);
+    vec2 b = safe_normalize((screen_next - screen_current) * screen);
+
+    if(a == vec2(0.0f))
         a = b;
-    if(screen_next == screen_current)
+    if(b == vec2(0.0f))
         b = a;
-    vec2 direction = normalize(a + b);
-    vec2 point = normalize(a - b);
+
+    vec2 direction = (a + b) != vec2(0.0f) ? safe_normalize(a + b) : a;
+    vec2 point = safe_normalize(a - b);
     vec2 normal = vec2(-direction.y, direction.x);
     vec2 offset;
 
@@ -53,14 +60,14 @@ void main(void) {
         vec2 bp = vec2(-b.y, b.x);
         offset = 0.5f * corner.y * (corner.x * (bp - ap) + ap + bp);
     } else {
-        float distance = clamp(1.f / cos(acos(clamp(dot(a, b), -1.f, 1.f))/ 2.f), 0.f, 1.f);
+        float distance = clamp(1.f / cos(acos(clamp(dot(a, b), -1.f, 1.f)) / 2.f), 0.f, 1.f);
         offset = normal * distance * corner.y;
     }
 
     float pixel_size = abs(projected_current.w) / screen.y;
-    float scale = clamp(width / CIRCUMFERENCE * -projection[1][1], min_width_pixels * pixel_size, max_width_pixels * pixel_size) ;
+    float scale = clamp(width / CIRCUMFERENCE * -projection[1][1], min_width_pixels * pixel_size, max_width_pixels * pixel_size);
 
-    gl_Position = projected_current + 0.5 * vec4(scale * offset / screen * screen.y, 0.f, 0.f);
+    gl_Position = projected_current + 0.5f * vec4(scale * offset / screen * screen.y, 0.f, 0.f);
 
     color_out = color;
     distance_out = distance;
