@@ -105,7 +105,7 @@ export const createPositionTransition = (target: Accessor<vec3>) =>
   })(() => vec3.clone(resolve(target)));
 
 export const createPositionVelocityTransition = (target: Accessor<vec3>) => {
-  const tau = 0.5;
+  const tau = 0.25;
 
   let initialized = false;
   let lastTarget = vec3.create();
