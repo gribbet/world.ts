@@ -38,19 +38,19 @@ void main(void) {
     vec4 projected_current = transform(current);
     vec4 projected_next = transform(next);
 
-    vec2 screen_previous = projected_previous.xy / abs(projected_previous.w);
-    vec2 screen_current = projected_current.xy / abs(projected_current.w);
-    vec2 screen_next = projected_next.xy / abs(projected_next.w);
+    vec2 screen_previous = projected_previous.xy / abs(projected_previous.w) * screen;
+    vec2 screen_current = projected_current.xy / abs(projected_current.w) * screen;
+    vec2 screen_next = projected_next.xy / abs(projected_next.w) * screen;
 
-    vec2 a = safe_normalize((screen_current - screen_previous) * screen);
-    vec2 b = safe_normalize((screen_next - screen_current) * screen);
-
-    if(a == vec2(0.0f))
+    vec2 a = normalize(screen_current - screen_previous);
+    vec2 b = normalize(screen_next - screen_current);
+    if(screen_current == screen_previous)
         a = b;
-    if(b == vec2(0.0f))
+    if(screen_next == screen_current)
         b = a;
-
-    vec2 direction = (a + b) != vec2(0.0f) ? safe_normalize(a + b) : a;
+    vec2 direction = safe_normalize(a + b);
+    if(direction == vec2(0.0f))
+        direction = a;
     vec2 point = safe_normalize(a - b);
     vec2 normal = vec2(-direction.y, direction.x);
     vec2 offset;
