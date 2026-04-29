@@ -34,7 +34,7 @@ export const createTileIndexCache = <T extends NonNullable<unknown>>(
 
   return {
     get: xyz => cache.get(toKey(xyz)),
-    set: (xyz, value) => cache.set(toKey(xyz), value as unknown as T),
+    set: (xyz, value) => cache.set(toKey(xyz), value),
     delete: xyz => cache.delete(toKey(xyz)),
     clear: () => cache.clear(),
   } satisfies TileIndexCache<T>;
