@@ -36,6 +36,7 @@ export const defaultLayerOptions: LayerOptions = {
 export type Terrain = {
   readonly terrainUrl: string;
   imageryUrl: string;
+  overlayUrl?: string;
   color: vec4;
   saturation: number;
   downsample?: number;
