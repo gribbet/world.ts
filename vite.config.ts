@@ -4,7 +4,7 @@ import dts from "vite-plugin-dts";
 
 export default defineConfig({
   root: "src",
-  plugins: [glsl(), dts()],
+  plugins: [glsl(), dts({ entryRoot: "src" })],
   build: {
     outDir: "../dist",
     sourcemap: true,
