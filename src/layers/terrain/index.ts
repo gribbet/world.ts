@@ -74,6 +74,8 @@ export const createTerrainLayer = (
 
   let imageryCache: TileCache | undefined;
   let imageryDownsampler: TileDownsampler | undefined;
+  let overlayCache: TileCache | undefined;
+  let overlayDownsampler: TileDownsampler | undefined;
 
   const textureFilterAnisotropic = gl.getExtension(
     "EXT_texture_filter_anisotropic",
@@ -84,11 +86,10 @@ export const createTerrainLayer = (
       ) as number | undefined)
     : undefined;
 
-  const updateImageryUrl = cache(properties.imageryUrl, (imageryUrl = "") => {
-    imageryCache?.dispose();
-    imageryCache = createTileCache({
+  const createImageryResources = (urlPattern: string) => {
+    const cache = createTileCache({
       gl,
-      urlPattern: imageryUrl,
+      urlPattern,
       onLoad: () => {
         if (textureFilterAnisotropic && maxAnisotropy)
           gl.texParameterf(
@@ -107,7 +108,28 @@ export const createTerrainLayer = (
         gl.generateMipmap(gl.TEXTURE_2D);
       },
     });
-    imageryDownsampler = createTileDownsampler(imageryCache);
+
+    const downsampler = createTileDownsampler(cache);
+
+    return { cache, downsampler };
+  };
+
+  const updateImageryUrl = cache(properties.imageryUrl, (imageryUrl = "") => {
+    imageryCache?.dispose();
+    ({ cache: imageryCache, downsampler: imageryDownsampler } =
+      createImageryResources(imageryUrl));
+  });
+
+  const updateOverlayUrl = cache(properties.overlayUrl, (overlayUrl = "") => {
+    overlayCache?.dispose();
+    if (!overlayUrl) {
+      overlayCache = undefined;
+      overlayDownsampler = undefined;
+      return;
+    }
+
+    ({ cache: overlayCache, downsampler: overlayDownsampler } =
+      createImageryResources(overlayUrl));
   });
 
   const terrainUrl = resolve(properties.terrainUrl) ?? "";
@@ -189,6 +211,7 @@ export const createTerrainLayer = (
     const saturation = resolve(properties.saturation) ?? 1;
 
     resolve(updateImageryUrl);
+    resolve(updateOverlayUrl);
 
     if (configure(gl, depth, properties)) return;
 
@@ -202,12 +225,17 @@ export const createTerrainLayer = (
       const downsampledImagery = depth
         ? undefined
         : imageryDownsampler?.get(xyz);
+      const downsampledOverlay = depth
+        ? undefined
+        : overlayDownsampler?.get(xyz);
       const downsampledTerrain = terrainDownsampler.get(xyz);
       if ((!depth && !downsampledImagery) || !downsampledTerrain) continue;
       const { texture: terrain, downsample: downsampleTerrain } =
         downsampledTerrain;
       const { texture: imagery = terrain, downsample: downsampleImagery = 0 } =
         downsampledImagery ?? {};
+      const { texture: overlay, downsample: downsampleOverlay = 0 } =
+        downsampledOverlay ?? {};
 
       program.execute({
         projection,
@@ -215,11 +243,14 @@ export const createTerrainLayer = (
         camera: to(camera),
         xyz,
         imagery,
+        overlay,
         terrain,
         downsampleImagery,
+        downsampleOverlay,
         downsampleTerrain,
         color,
         saturation,
+        hasOverlay: overlay ? 1 : 0,
         index,
       });
     }
@@ -227,6 +258,7 @@ export const createTerrainLayer = (
 
   const dispose = () => {
     imageryCache?.dispose();
+    overlayCache?.dispose();
     terrainCache.dispose();
     elevation.dispose();
   };
@@ -259,9 +291,12 @@ const createPrograms = (
     const projectionUniform = program.uniformMatrix4f("projection");
     const modelViewUniform = program.uniformMatrix4f("model_view");
     const imageryUniform = program.uniform1i("imagery");
+    const overlayUniform = program.uniform1i("overlay");
     const terrainUniform = program.uniform1i("terrain");
     const downsampleImageryUniform = program.uniform1i("downsample_imagery");
+    const downsampleOverlayUniform = program.uniform1i("downsample_overlay");
     const downsampleTerrainUniform = program.uniform1i("downsample_terrain");
+    const hasOverlayUniform = program.uniform1i("has_overlay");
     const colorUniform = program.uniform4f("color");
     const saturationUniform = program.uniform1f("saturation");
     const xyzUniform = program.uniform3i("xyz");
@@ -274,11 +309,14 @@ const createPrograms = (
       camera,
       xyz,
       imagery,
+      overlay,
       terrain,
       downsampleImagery,
+      downsampleOverlay,
       downsampleTerrain,
       color,
       saturation,
+      hasOverlay,
       index,
     }: {
       projection: mat4;
@@ -286,11 +324,14 @@ const createPrograms = (
       camera: vec3;
       xyz: vec3;
       imagery: Texture;
+      overlay?: Texture;
       terrain: Texture;
       downsampleImagery: number;
+      downsampleOverlay: number;
       downsampleTerrain: number;
       color: vec4;
       saturation: number;
+      hasOverlay: number;
       index: number;
     }) => {
       program.use();
@@ -302,7 +343,9 @@ const createPrograms = (
       xyzUniform.set(xyz);
       cameraUniform.set(camera);
       downsampleImageryUniform.set(downsampleImagery);
+      downsampleOverlayUniform.set(downsampleOverlay);
       downsampleTerrainUniform.set(downsampleTerrain);
+      hasOverlayUniform.set(hasOverlay);
       colorUniform.set(color);
       saturationUniform.set(saturation);
       indexUniform.set(index);
@@ -311,8 +354,14 @@ const createPrograms = (
       imageryUniform.set(0);
       imagery.use();
 
-      gl.activeTexture(gl.TEXTURE1);
-      terrainUniform.set(1);
+      if (overlay) {
+        gl.activeTexture(gl.TEXTURE1);
+        overlayUniform.set(1);
+        overlay.use();
+      }
+
+      gl.activeTexture(gl.TEXTURE2);
+      terrainUniform.set(2);
       terrain.use();
 
       indexBuffer.use();
