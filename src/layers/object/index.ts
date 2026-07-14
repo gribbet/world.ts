@@ -11,7 +11,7 @@ import { cache, createMouseEvents, resolve } from "..";
 import { createImageTextureCache } from "../billboard/image-texture-cache";
 import { configure, to, white } from "../common";
 import depthSource from "../depth.glsl";
-import type { Texture } from "../terrain/texture";
+import type { ImageTexture } from "../terrain/image-texture";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
@@ -24,7 +24,7 @@ export const createObjectLayer = (
   const { gl } = context;
 
   let count = 0;
-  let texture: Texture | undefined;
+  let texture: ImageTexture | undefined;
 
   const vertexBuffer = createBuffer({ gl, type: "f32", target: "array" });
   const indexBuffer = createBuffer({ gl, type: "u32", target: "element" });
@@ -190,7 +190,7 @@ const createPrograms = (
       minSizePixels: number;
       maxSizePixels: number;
       index: number;
-      texture?: Texture;
+      texture?: ImageTexture;
     }) => {
       program.use();
 
@@ -211,7 +211,7 @@ const createPrograms = (
       maxSizePixelsUniform.set(maxSizePixels);
       indexUniform.set(index);
 
-      if (!depth && texture) {
+      if (!depth && texture && texture.loaded) {
         gl.activeTexture(gl.TEXTURE0);
         imageUniform.set(0);
         texture.use();

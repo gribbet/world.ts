@@ -11,7 +11,7 @@ import { cache, createMouseEvents, resolve } from "..";
 import { createImageTextureCache } from "../billboard/image-texture-cache";
 import { configure, to, white } from "../common";
 import depthSource from "../depth.glsl";
-import type { Texture } from "../terrain/texture";
+import type { ImageTexture } from "../terrain/image-texture";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
 
@@ -34,7 +34,7 @@ export const createPolygonLayer = (
     indexBuffer,
   });
 
-  let image: Texture | undefined;
+  let image: ImageTexture | undefined;
 
   const render = ({
     viewport: { projection, modelView, camera, screen },
@@ -149,7 +149,7 @@ const createPrograms = (
       screen: vec2;
       count: number;
       color: vec4;
-      image?: Texture;
+      image?: ImageTexture;
       index: number;
     }) => {
       if (count === 0) return;
@@ -166,7 +166,7 @@ const createPrograms = (
       colorUniform.set(color);
       indexUniform.set(index);
 
-      if (image) {
+      if (image && image.loaded) {
         image.use();
         imageUniform.set(0);
       }

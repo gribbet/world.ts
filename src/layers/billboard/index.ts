@@ -87,7 +87,7 @@ export const createBillboardLayer = (
 
     resolve(updateUrl);
 
-    if (!image) return;
+    if (!image || !image.loaded) return;
 
     if (configure(gl, depth, properties)) return;
 
