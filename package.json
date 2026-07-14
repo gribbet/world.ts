@@ -9,7 +9,8 @@
   ],
   "scripts": {
     "build": "vite build",
-    "lint": "eslint --max-warnings 0 --cache --cache-strategy content src"
+    "lint": "eslint --max-warnings 0 --cache --cache-strategy content src",
+    "prepublishOnly": "npm run build"
   },
   "devDependencies": {
     "@gribbet/eslint-config": "github:gribbet/eslint-config",
