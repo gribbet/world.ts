@@ -7,12 +7,14 @@ import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
 import type { Billboard, Layer, Properties } from "..";
 import { cache, createMouseEvents, resolve } from "..";
-import { configure, to } from "../common";
+import { configure, to, white } from "../common";
 import depthSource from "../depth.glsl";
-import { createImageTexture } from "../terrain/image-texture";
-import type { Texture } from "../terrain/texture";
+import type { ImageTexture } from "../terrain/image-texture";
 import fragmentSource from "./fragment.glsl";
+import { createImageTextureCache } from "./image-texture-cache";
 import vertexSource from "./vertex.glsl";
+
+const imageTextureCache = createImageTextureCache();
 
 export const createBillboardLayer = (
   context: Context,
@@ -20,8 +22,7 @@ export const createBillboardLayer = (
 ) => {
   const { gl } = context;
 
-  let image: Texture | undefined;
-  let imageSize: vec2 = [0, 0];
+  let image: ImageTexture | undefined;
 
   const cornerBuffer = createBuffer({ gl, type: "f32", target: "array" });
   const uvBuffer = createBuffer({ gl, type: "f32", target: "array" });
@@ -50,21 +51,14 @@ export const createBillboardLayer = (
     ].flat(),
   );
 
-  const updateUrl = cache(properties.url, (url = "") => {
-    const newImage = createImageTexture({
-      gl,
-      url,
-      onLoad: ({ width, height }) => {
-        imageSize = [width, height];
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.generateMipmap(gl.TEXTURE_2D);
-        image?.dispose();
-        image = newImage;
-      },
-    });
+  const updateUrl = cache(properties.url, (url = white) => {
+    image?.dispose();
+    if (!url) {
+      image = undefined;
+      return;
+    }
+
+    image = imageTextureCache.get({ gl, url });
   });
 
   const { renderProgram, depthProgram } = createPrograms(context, {
@@ -93,7 +87,7 @@ export const createBillboardLayer = (
 
     resolve(updateUrl);
 
-    if (!image) return;
+    if (!image || !image.loaded) return;
 
     if (configure(gl, depth, properties)) return;
 
@@ -105,7 +99,6 @@ export const createBillboardLayer = (
       camera: to(camera),
       screen,
       image,
-      imageSize,
       position: to(mercator(position)),
       color,
       size,
@@ -177,7 +170,6 @@ const createPrograms = (
       camera,
       screen,
       image,
-      imageSize,
       position,
       color,
       size,
@@ -192,8 +184,7 @@ const createPrograms = (
       modelView: mat4;
       camera: vec3;
       screen: vec2;
-      image: Texture;
-      imageSize: vec2;
+      image: ImageTexture;
       position: vec3;
       color: vec4;
       size: number;
@@ -213,7 +204,7 @@ const createPrograms = (
       modelViewUniform.set(modelView);
       cameraUniform.set(camera);
       screenUniform.set(screen);
-      imageSizeUniform.set(imageSize);
+      imageSizeUniform.set(image.size);
       positionUniform.set(position);
       colorUniform.set(color);
       sizeUniform.set(size);

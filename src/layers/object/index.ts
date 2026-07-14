@@ -8,12 +8,14 @@ import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
 import type { Layer, Object as Object_, Properties } from "..";
 import { cache, createMouseEvents, resolve } from "..";
+import { createImageTextureCache } from "../billboard/image-texture-cache";
 import { configure, to, white } from "../common";
 import depthSource from "../depth.glsl";
-import { createImageTexture } from "../terrain/image-texture";
-import type { Texture } from "../terrain/texture";
+import type { ImageTexture } from "../terrain/image-texture";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
+
+const imageTextureCache = createImageTextureCache();
 
 export const createObjectLayer = (
   context: Context,
@@ -22,7 +24,7 @@ export const createObjectLayer = (
   const { gl } = context;
 
   let count = 0;
-  let texture: Texture | undefined;
+  let texture: ImageTexture | undefined;
 
   const vertexBuffer = createBuffer({ gl, type: "f32", target: "array" });
   const indexBuffer = createBuffer({ gl, type: "u32", target: "element" });
@@ -98,22 +100,9 @@ export const createObjectLayer = (
   });
 
   const updateTextureUrl = cache(properties.textureUrl, (url = white) => {
-    const newTexture = createImageTexture({
+    texture = imageTextureCache.get({
       gl,
       url,
-      onLoad: () => {
-        gl.texParameteri(
-          gl.TEXTURE_2D,
-          gl.TEXTURE_MIN_FILTER,
-          gl.LINEAR_MIPMAP_LINEAR,
-        );
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.generateMipmap(gl.TEXTURE_2D);
-        texture?.dispose();
-        texture = newTexture;
-      },
     });
   });
 
@@ -201,7 +190,7 @@ const createPrograms = (
       minSizePixels: number;
       maxSizePixels: number;
       index: number;
-      texture?: Texture;
+      texture?: ImageTexture;
     }) => {
       program.use();
 
@@ -222,7 +211,7 @@ const createPrograms = (
       maxSizePixelsUniform.set(maxSizePixels);
       indexUniform.set(index);
 
-      if (!depth && texture) {
+      if (!depth && texture && texture.loaded) {
         gl.activeTexture(gl.TEXTURE0);
         imageUniform.set(0);
         texture.use();

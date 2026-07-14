@@ -4,16 +4,18 @@ import type { mat4, vec2, vec3, vec4 } from "gl-matrix";
 import type { Buffer } from "../../buffer";
 import { createBuffer } from "../../buffer";
 import type { Context } from "../../context";
-import { createImageLoad } from "../../image-load";
 import { mercator } from "../../math";
 import type { Viewport } from "../../viewport";
 import type { Layer, Polygon, Properties } from "..";
 import { cache, createMouseEvents, resolve } from "..";
+import { createImageTextureCache } from "../billboard/image-texture-cache";
 import { configure, to, white } from "../common";
 import depthSource from "../depth.glsl";
-import { createTexture, type Texture } from "../terrain/texture";
+import type { ImageTexture } from "../terrain/image-texture";
 import fragmentSource from "./fragment.glsl";
 import vertexSource from "./vertex.glsl";
+
+const imageTextureCache = createImageTextureCache();
 
 export const createPolygonLayer = (
   context: Context,
@@ -32,16 +34,7 @@ export const createPolygonLayer = (
     indexBuffer,
   });
 
-  const image = createTexture(gl);
-  image.use();
-  gl.texParameteri(
-    gl.TEXTURE_2D,
-    gl.TEXTURE_MIN_FILTER,
-    gl.LINEAR_MIPMAP_LINEAR,
-  );
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-  gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  let image: ImageTexture | undefined;
 
   const render = ({
     viewport: { projection, modelView, camera, screen },
@@ -85,14 +78,10 @@ export const createPolygonLayer = (
   });
 
   const updateImageUrl = cache(properties.imageUrl, (url = white) => {
-    createImageLoad({
+    image?.dispose();
+    image = imageTextureCache.get({
+      gl,
       url,
-      onLoad: _ => {
-        if (!_) return;
-        image.use();
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, _);
-        gl.generateMipmap(gl.TEXTURE_2D);
-      },
     });
   });
 
@@ -100,7 +89,7 @@ export const createPolygonLayer = (
     positionBuffer.dispose();
     uvBuffer.dispose();
     indexBuffer.dispose();
-    image.dispose();
+    image?.dispose();
   };
 
   const mouseEvents = createMouseEvents(properties);
@@ -160,7 +149,7 @@ const createPrograms = (
       screen: vec2;
       count: number;
       color: vec4;
-      image: Texture;
+      image?: ImageTexture;
       index: number;
     }) => {
       if (count === 0) return;
@@ -177,8 +166,10 @@ const createPrograms = (
       colorUniform.set(color);
       indexUniform.set(index);
 
-      image.use();
-      imageUniform.set(0);
+      if (image && image.loaded) {
+        image.use();
+        imageUniform.set(0);
+      }
 
       indexBuffer.use();
 
