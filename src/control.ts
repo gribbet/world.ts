@@ -138,8 +138,11 @@ export const createMouseControl = (
 
   const clearZooming = debounce(() => (zooming = false), 100);
 
-  const onWheel = ({ x, y, deltaY }: WheelEvent) => {
+  const onWheel = (event: WheelEvent) => {
     if (!resolve(enabled)) return;
+
+    event.preventDefault();
+    const { x, y, deltaY } = event;
 
     if (!zooming) {
       if (resolve(draggable)) recenter([x, y]);
@@ -165,7 +168,7 @@ export const createMouseControl = (
   canvas.addEventListener("touchstart", onMouseDown, { passive: false });
   canvas.addEventListener("touchmove", onTouchMove, { passive: false });
   canvas.addEventListener("gesturestart", onGestureStart);
-  canvas.addEventListener("wheel", onWheel, { passive: true });
+  canvas.addEventListener("wheel", onWheel, { passive: false });
   canvas.addEventListener("contextmenu", onContextMenu);
   window.addEventListener("mouseup", onMouseUp);
 
